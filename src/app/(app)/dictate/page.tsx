@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useDictation, type Word } from "@/lib/useDictation";
 
@@ -43,12 +42,9 @@ export default function DictatePage() {
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-10">
       <header className="flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold">Dictation test</h1>
-        <Link href="/tools" className="text-sm text-zinc-500 hover:underline">
-          Tools
-        </Link>
       </header>
 
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="text-sm text-ink-soft">
         Dictate positive findings and check how well the speech service hears
         radiology terms. Words it is unsure about are marked in amber.
       </p>
@@ -60,7 +56,7 @@ export default function DictatePage() {
             value={model}
             onChange={(event) => setModel(event.target.value)}
             disabled={recording}
-            className="rounded border border-zinc-300 bg-transparent px-2 py-1.5 dark:border-zinc-700"
+            className="rounded border border-ink/20 bg-transparent px-2 py-1.5"
           >
             {MODELS.map((name) => (
               <option key={name}>{name}</option>
@@ -73,7 +69,7 @@ export default function DictatePage() {
             value={language}
             onChange={(event) => setLanguage(event.target.value)}
             disabled={recording}
-            className="rounded border border-zinc-300 bg-transparent px-2 py-1.5 dark:border-zinc-700"
+            className="rounded border border-ink/20 bg-transparent px-2 py-1.5"
           >
             {LANGUAGES.map((code) => (
               <option key={code}>{code}</option>
@@ -87,7 +83,7 @@ export default function DictatePage() {
             onChange={(event) => setKeyterms(event.target.value)}
             disabled={recording}
             rows={4}
-            className="rounded border border-zinc-300 bg-transparent px-2 py-1.5 font-mono text-xs dark:border-zinc-700"
+            className="rounded border border-ink/20 bg-transparent px-2 py-1.5 font-mono text-xs"
           />
         </label>
       </section>
@@ -96,8 +92,8 @@ export default function DictatePage() {
         <button
           onClick={recording ? stop : start}
           disabled={starting}
-          className={`rounded-full px-5 py-2 text-sm font-medium text-white disabled:opacity-40 ${
-            recording ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"
+          className={`rounded-full px-5 py-2 text-sm font-medium text-btn-text disabled:opacity-40 ${
+            recording ? "bg-flag hover:bg-flag/90" : "bg-btn hover:bg-teal-deep"
           }`}
         >
           {recording ? "Stop" : starting ? "Starting…" : "Start dictation"}
@@ -105,31 +101,31 @@ export default function DictatePage() {
         <button
           onClick={() => setWords([])}
           disabled={recording || words.length === 0}
-          className="rounded-full border border-zinc-300 px-4 py-2 text-sm disabled:opacity-40 dark:border-zinc-700"
+          className="rounded-full border border-ink/20 px-4 py-2 text-sm disabled:opacity-40"
         >
           Clear
         </button>
         <button
           onClick={() => navigator.clipboard.writeText(transcript)}
           disabled={words.length === 0}
-          className="rounded-full border border-zinc-300 px-4 py-2 text-sm disabled:opacity-40 dark:border-zinc-700"
+          className="rounded-full border border-ink/20 px-4 py-2 text-sm disabled:opacity-40"
         >
           Copy text
         </button>
-        <span className="ml-auto text-xs text-zinc-500">
+        <span className="ml-auto text-xs text-ink-quiet">
           {words.length} words, {lowConfidenceCount} unsure
         </span>
       </div>
 
       {error && (
-        <p className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <p className="rounded border border-flag/40 bg-flag/10 px-3 py-2 text-sm text-flag">
           {error}
         </p>
       )}
 
-      <section className="min-h-48 rounded border border-zinc-300 p-4 leading-7 dark:border-zinc-700">
+      <section className="min-h-48 rounded border border-ink/20 p-4 leading-7">
         {words.length === 0 && !interim && (
-          <span className="text-zinc-400">Transcript appears here.</span>
+          <span className="text-ink-quiet">Transcript appears here.</span>
         )}
         {words.map((word, index) => (
           <span
@@ -137,14 +133,14 @@ export default function DictatePage() {
             title={`confidence ${word.confidence.toFixed(2)}`}
             className={
               word.confidence < LOW_CONFIDENCE
-                ? "rounded bg-amber-200 px-0.5 dark:bg-amber-800"
+                ? "rounded bg-amber/40 px-0.5"
                 : undefined
             }
           >
             {word.text}{" "}
           </span>
         ))}
-        <span className="text-zinc-400">{interim}</span>
+        <span className="text-ink-quiet">{interim}</span>
       </section>
     </main>
   );

@@ -31,7 +31,8 @@ npm run invite -- doctor@example.com                    # a solo radiologist
 npm run invite -- owner@centre.com --org "Centre name"  # a diagnostic centre
 ```
 
-Each account belongs to an organisation; a solo radiologist is an organisation
+Once someone is signed in, owners and admins invite further people from the
+Team screen. Each account belongs to an organisation; a solo radiologist is an organisation
 of one. Passwords are stored hashed (scrypt) and sessions last 30 days.
 
 Password-reset emails need `RESEND_API_KEY` and `EMAIL_FROM`. Without them the

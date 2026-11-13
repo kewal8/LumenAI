@@ -41,6 +41,12 @@ export async function endSession() {
   store.delete(SESSION_COOKIE);
 }
 
+/** Hash of this request's session token, to tell it apart from the user's other sessions. */
+export async function currentSessionHash() {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  return token ? hashToken(token) : null;
+}
+
 /** The signed-in user for this request, or null. Looked up once per request. */
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;

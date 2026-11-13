@@ -6,3 +6,13 @@ export const ORGANISATION_TYPES = [
   "Medical college",
   "Other",
 ] as const;
+
+export const DEMO_STATUSES = ["new", "contacted", "done", "spam"] as const;
+export type DemoStatus = (typeof DEMO_STATUSES)[number];
+
+export const DEMO_STATUS_LABELS: Record<DemoStatus, string> = {
+  new: "New",
+  contacted: "Contacted",
+  done: "Done",
+  spam: "Spam",
+};

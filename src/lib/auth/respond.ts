@@ -1,14 +1,17 @@
 import { DatabaseNotConfiguredError } from "@/lib/db";
+import { getCurrentUser, type CurrentUser } from "./session";
 
 export function fail(status: number, error: string) {
   return Response.json({ error }, { status });
 }
 
 /** Wraps an auth route so a missing database gives a clear message instead of a crash. */
-export function handle(run: (request: Request) => Promise<Response>) {
-  return async (request: Request) => {
+export function handle<Context = unknown>(
+  run: (request: Request, context: Context) => Promise<Response>,
+) {
+  return async (request: Request, context: Context) => {
     try {
-      return await run(request);
+      return await run(request, context);
     } catch (error) {
       if (error instanceof DatabaseNotConfiguredError) {
         return fail(503, "The database is not connected yet.");
@@ -21,4 +24,9 @@ export function handle(run: (request: Request) => Promise<Response>) {
 
 export function clientIp(request: Request) {
   return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+}
+
+/** The signed-in user, or the 401 response to send back. */
+export async function apiUser(): Promise<CurrentUser | Response> {
+  return (await getCurrentUser()) ?? fail(401, "Signed out. Sign in again.");
 }

@@ -27,10 +27,10 @@ export default function ToolsPage() {
           <li key={page.href}>
             <Link
               href={page.href}
-              className="block rounded border border-zinc-300 p-4 hover:border-blue-600 dark:border-zinc-700"
+              className="block rounded border border-ink/20 p-4 hover:border-teal"
             >
               <span className="font-medium">{page.title}</span>
-              <span className="block text-sm text-zinc-600 dark:text-zinc-400">
+              <span className="block text-sm text-ink-soft">
                 {page.description}
               </span>
             </Link>

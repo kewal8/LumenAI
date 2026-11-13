@@ -5,6 +5,11 @@ export type PasteProfile = {
   listStyle: "paragraphs" | "bullets";
 };
 
+export const PASTE_FONTS = ["Arial", "Calibri", "Times New Roman", "Verdana"];
+export const PASTE_SIZES = [10, 11, 12, 14];
+export const PASTE_HEADING_STYLES: PasteProfile["headingStyle"][] = ["bold", "bold + underline"];
+export const PASTE_LIST_STYLES: PasteProfile["listStyle"][] = ["paragraphs", "bullets"];
+
 // Confirmed to survive pasting into the Medsynapse report editor.
 export const DEFAULT_PROFILE: PasteProfile = {
   font: "Arial",
@@ -65,4 +70,15 @@ export function buildReportText(
     return `${heading}:\n${body.join("\n")}`;
   });
   return [report.title, ...sections].join("\n\n");
+}
+
+/** A stored or submitted paste profile, with anything unknown replaced by the default. */
+export function parsePasteProfile(value: unknown): PasteProfile {
+  const input = (value ?? {}) as Partial<PasteProfile>;
+  return {
+    font: PASTE_FONTS.includes(input.font ?? "") ? input.font! : DEFAULT_PROFILE.font,
+    size: PASTE_SIZES.includes(Number(input.size)) ? Number(input.size) : DEFAULT_PROFILE.size,
+    headingStyle: PASTE_HEADING_STYLES.find((style) => style === input.headingStyle) ?? DEFAULT_PROFILE.headingStyle,
+    listStyle: PASTE_LIST_STYLES.find((style) => style === input.listStyle) ?? DEFAULT_PROFILE.listStyle,
+  };
 }

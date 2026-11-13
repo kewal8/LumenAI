@@ -23,7 +23,7 @@ function subscribe(listener: () => void) {
 }
 
 /** Light is the default. Dark is opt-in and remembered on this device. */
-export function ThemeToggle() {
+export function useTheme() {
   const theme = useSyncExternalStore(subscribe, currentTheme, () => "light" as Theme);
 
   useEffect(() => {
@@ -43,6 +43,12 @@ export function ThemeToggle() {
       // Not remembered, but the switch still works for this visit.
     }
   }
+
+  return { theme, toggle };
+}
+
+export function ThemeToggle() {
+  const { theme, toggle } = useTheme();
 
   return (
     <button

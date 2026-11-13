@@ -147,3 +147,23 @@ export async function postAuth(path: string, body: Record<string, string>) {
     return "Could not reach the server. Check your connection and try again.";
   }
 }
+
+/** Sends JSON to an API route. `error` is "" on success. */
+export async function send<Data = unknown>(
+  method: "POST" | "PATCH" | "DELETE",
+  path: string,
+  body?: unknown,
+): Promise<{ error: string; data?: Data }> {
+  try {
+    const response = await fetch(path, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) return { error: "", data };
+    return { error: data.error ?? "Something went wrong. Try again." };
+  } catch {
+    return { error: "Could not reach the server. Check your connection and try again." };
+  }
+}

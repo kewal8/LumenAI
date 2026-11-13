@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { copyReport } from "@/lib/clipboard";
 import {
@@ -65,18 +64,15 @@ export default function PasteTestPage() {
   }
 
   const selectClass =
-    "rounded border border-zinc-300 bg-transparent px-2 py-1.5 dark:border-zinc-700";
+    "rounded border border-ink/20 bg-transparent px-2 py-1.5";
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-10">
       <header className="flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold">PACS paste test</h1>
-        <Link href="/tools" className="text-sm text-zinc-500 hover:underline">
-          Tools
-        </Link>
       </header>
 
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="text-sm text-ink-soft">
         Copy this sample report, press Ctrl+V in the PACS report editor, and
         note which settings keep the font, headings and spacing intact.
       </p>
@@ -139,17 +135,17 @@ export default function PasteTestPage() {
       <div className="flex items-center gap-3">
         <button
           onClick={copy}
-          className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="rounded-full bg-btn px-5 py-2 text-sm font-medium text-btn-text hover:bg-teal-deep"
         >
           Copy for PACS
         </button>
         {status === "copied" && (
-          <span className="rounded-full bg-green-100 px-3 py-1 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">
+          <span className="rounded-full bg-teal/[0.1] px-3 py-1 text-sm text-teal-deep">
             Copied. Press Ctrl+V in PACS.
           </span>
         )}
         {status === "failed" && (
-          <span className="rounded-full bg-red-100 px-3 py-1 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
+          <span className="rounded-full bg-flag/10 px-3 py-1 text-sm text-flag">
             Not copied. Click the page and try again.
           </span>
         )}
@@ -157,7 +153,7 @@ export default function PasteTestPage() {
 
       {/* White sheet in both themes: this previews what lands in the PACS editor. */}
       <section
-        className="rounded border border-zinc-300 bg-white p-8 dark:border-zinc-700"
+        className="rounded border border-ink/20 bg-[#fff] p-8"
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </main>
