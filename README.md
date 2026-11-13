@@ -19,4 +19,10 @@ npm run dev
 
 Keys needed: `DEEPGRAM_API_KEY` (role Member or higher) and `ANTHROPIC_API_KEY`.
 
-Do not use real patient data: the API routes have no login yet.
+## Deploy
+
+Set `APP_PASSWORD` along with the two keys. Without it a deployed app stays
+locked. Everyone you give the password to shares one login.
+
+Do not use real patient data: there are no per-user accounts or data
+agreements with the speech and AI providers yet.

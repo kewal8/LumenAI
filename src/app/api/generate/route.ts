@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import type { NextRequest } from "next/server";
 import { z } from "zod";
+import { SESSION_COOKIE, isAuthorised } from "@/lib/auth";
 import type { PatchOp, Report, Template } from "@/lib/report";
 import { validateLine } from "@/lib/validate";
 
@@ -49,7 +51,13 @@ type GenerateRequest = {
   dictation: string;
 };
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // The proxy already blocks signed-out requests; checked again here so the
+  // route stays protected if the proxy matcher ever changes.
+  if (!isAuthorised(request.cookies.get(SESSION_COOKIE)?.value)) {
+    return Response.json({ error: "Signed out." }, { status: 401 });
+  }
+
   const { template, report, dictation }: GenerateRequest = await request.json();
   if (!dictation?.trim()) {
     return Response.json({ error: "Nothing was dictated." }, { status: 400 });
