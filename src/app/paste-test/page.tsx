@@ -3,20 +3,25 @@
 import Link from "next/link";
 import { useState } from "react";
 import { copyReport } from "@/lib/clipboard";
-
-type Section = { heading: string; body: string[] };
+import {
+  DEFAULT_PROFILE,
+  buildReportHtml,
+  buildReportText,
+  type FormattedReport,
+  type PasteProfile,
+} from "@/lib/reportFormat";
 
 // Made-up sample, no patient data.
-const SAMPLE: { title: string; sections: Section[] } = {
+const SAMPLE: FormattedReport = {
   title: "CT BRAIN (PLAIN)",
   sections: [
     {
       heading: "TECHNIQUE",
-      body: ["Axial sections of the brain were obtained without contrast."],
+      lines: ["Axial sections of the brain were obtained without contrast."],
     },
     {
       heading: "FINDINGS",
-      body: [
+      lines: [
         "Undisplaced fracture of the squamous part of the right temporal bone extending to the external auditory canal.",
         "Soft tissue swelling in the right maxillary and premandibular regions.",
         "No intracranial haemorrhage. No midline shift. Ventricles are normal in size.",
@@ -24,7 +29,7 @@ const SAMPLE: { title: string; sections: Section[] } = {
     },
     {
       heading: "IMPRESSION",
-      body: [
+      lines: [
         "Undisplaced right temporal bone fracture.",
         "Right facial soft tissue swelling.",
       ],
@@ -34,59 +39,16 @@ const SAMPLE: { title: string; sections: Section[] } = {
 
 const FONTS = ["Calibri", "Arial", "Times New Roman", "Verdana"];
 const SIZES = [10, 11, 12, 14];
-const HEADING_STYLES = ["bold", "bold + underline"] as const;
-const LIST_STYLES = ["paragraphs", "bullets"] as const;
+const HEADING_STYLES: Options["headingStyle"][] = ["bold", "bold + underline"];
+const LIST_STYLES: Options["listStyle"][] = ["paragraphs", "bullets"];
 
-type Options = {
-  font: string;
-  size: number;
-  headingStyle: (typeof HEADING_STYLES)[number];
-  listStyle: (typeof LIST_STYLES)[number];
-};
-
-function buildHtml({ font, size, headingStyle, listStyle }: Options) {
-  // Inline styles only: PACS editors drop <style> blocks and class names on paste.
-  const base = `font-family:'${font}',sans-serif;font-size:${size}pt;color:#000;`;
-  const heading =
-    base +
-    "font-weight:bold;" +
-    (headingStyle === "bold + underline" ? "text-decoration:underline;" : "");
-
-  const sections = SAMPLE.sections
-    .map(({ heading: label, body }) => {
-      const lines =
-        listStyle === "bullets"
-          ? `<ul style="margin:0 0 8pt 0;">${body
-              .map((line) => `<li style="${base}">${line}</li>`)
-              .join("")}</ul>`
-          : body
-              .map((line) => `<p style="${base}margin:0 0 4pt 0;">${line}</p>`)
-              .join("");
-      return `<p style="${heading}margin:8pt 0 2pt 0;">${label}:</p>${lines}`;
-    })
-    .join("");
-
-  return `<p style="${heading}text-align:center;margin:0 0 8pt 0;">${SAMPLE.title}</p>${sections}`;
-}
-
-function buildText({ listStyle }: Options) {
-  const sections = SAMPLE.sections.map(({ heading, body }) => {
-    const lines = body.map((line) => (listStyle === "bullets" ? `- ${line}` : line));
-    return `${heading}:\n${lines.join("\n")}`;
-  });
-  return [SAMPLE.title, ...sections].join("\n\n");
-}
+type Options = PasteProfile;
 
 export default function PasteTestPage() {
-  const [options, setOptions] = useState<Options>({
-    font: FONTS[0],
-    size: 11,
-    headingStyle: HEADING_STYLES[0],
-    listStyle: LIST_STYLES[0],
-  });
+  const [options, setOptions] = useState<Options>(DEFAULT_PROFILE);
   const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
 
-  const html = buildHtml(options);
+  const html = buildReportHtml(SAMPLE, options);
 
   function update<K extends keyof Options>(key: K, value: Options[K]) {
     setOptions((previous) => ({ ...previous, [key]: value }));
@@ -95,7 +57,7 @@ export default function PasteTestPage() {
 
   async function copy() {
     try {
-      await copyReport(html, buildText(options));
+      await copyReport(html, buildReportText(SAMPLE, options));
       setStatus("copied");
     } catch {
       setStatus("failed");

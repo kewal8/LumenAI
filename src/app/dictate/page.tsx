@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
-
-type Word = { text: string; confidence: number };
+import { useState } from "react";
+import { useDictation, type Word } from "@/lib/useDictation";
 
 const MODELS = ["nova-3-medical", "nova-3"];
 const LANGUAGES = ["en-IN", "en", "en-US", "en-GB"];
@@ -23,106 +22,17 @@ export default function DictatePage() {
   const [model, setModel] = useState(MODELS[0]);
   const [language, setLanguage] = useState(LANGUAGES[0]);
   const [keyterms, setKeyterms] = useState(DEFAULT_KEYTERMS);
-  const [recording, setRecording] = useState(false);
   const [words, setWords] = useState<Word[]>([]);
-  const [interim, setInterim] = useState("");
-  const [error, setError] = useState("");
 
-  const socketRef = useRef<WebSocket | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-
-  function cleanup() {
-    recorderRef.current?.stop();
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    recorderRef.current = null;
-    streamRef.current = null;
-    socketRef.current = null;
-    setRecording(false);
-    setInterim("");
-  }
-
-  async function start() {
-    setError("");
-    try {
-      const tokenRes = await fetch("/api/stt-token", { method: "POST" });
-      const tokenBody = await tokenRes.json();
-      if (!tokenRes.ok) throw new Error(tokenBody.error);
-
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      const params = new URLSearchParams({
-        model,
-        language,
-        interim_results: "true",
-        smart_format: "true",
-      });
-      keyterms
-        .split(/[\n,]/)
-        .map((term) => term.trim())
-        .filter(Boolean)
-        .forEach((term) => params.append("keyterm", term));
-
-      const socket = new WebSocket(
-        `wss://api.deepgram.com/v1/listen?${params}`,
-        ["bearer", tokenBody.token],
-      );
-      socketRef.current = socket;
-
-      socket.onopen = () => {
-        const recorder = new MediaRecorder(stream);
-        recorderRef.current = recorder;
-        recorder.ondataavailable = (event) => {
-          if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
-            socket.send(event.data);
-          }
-        };
-        recorder.start(250);
-        setRecording(true);
-      };
-
-      socket.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        if (message.type !== "Results") return;
-        const alternative = message.channel?.alternatives?.[0];
-        if (!alternative) return;
-
-        if (message.is_final) {
-          const finalWords: Word[] = (alternative.words ?? []).map(
-            (word: { word: string; punctuated_word?: string; confidence: number }) => ({
-              text: word.punctuated_word ?? word.word,
-              confidence: word.confidence,
-            }),
-          );
-          setWords((previous) => [...previous, ...finalWords]);
-          setInterim("");
-        } else {
-          setInterim(alternative.transcript);
-        }
-      };
-
-      socket.onerror = () => {
-        setError("Speech connection failed. Check the model, language and API key.");
-      };
-      socket.onclose = cleanup;
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not start dictation.");
-      cleanup();
-    }
-  }
-
-  function stop() {
-    const socket = socketRef.current;
-    recorderRef.current?.stop();
-    recorderRef.current = null;
-    if (socket?.readyState === WebSocket.OPEN) {
-      // Ask Deepgram to flush the last words, then it closes the socket.
-      socket.send(JSON.stringify({ type: "CloseStream" }));
-    } else {
-      cleanup();
-    }
-  }
+  const { recording, interim, error, start, stop } = useDictation({
+    model,
+    language,
+    keyterms: keyterms
+      .split(/[\n,]/)
+      .map((term) => term.trim())
+      .filter(Boolean),
+    onWords: (finalWords) => setWords((previous) => [...previous, ...finalWords]),
+  });
 
   const transcript = words.map((word) => word.text).join(" ");
   const lowConfidenceCount = words.filter(

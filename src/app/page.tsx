@@ -2,6 +2,11 @@ import Link from "next/link";
 
 const PAGES = [
   {
+    href: "/report",
+    title: "Report",
+    description: "Dictate positive findings and get a PACS-ready report.",
+  },
+  {
     href: "/dictate",
     title: "Dictation test",
     description: "Check speech recognition accuracy on radiology dictation.",
