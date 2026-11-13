@@ -10,6 +10,31 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* LumenAI brand tokens. Teal leads; amber is the quiet second colour, used
+     only in small marks: icon badges, a few bars and highlights. Values live on .landing and swap
+     in dark mode. */
+  --font-brand: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-ink: var(--c-ink);
+  --color-ink-soft: var(--c-ink-soft);
+  --color-ink-quiet: var(--c-ink-quiet);
+  --color-line: var(--c-line);
+  --color-teal: var(--c-teal);
+  --color-teal-deep: var(--c-teal-deep);
+  --color-teal-tint: var(--c-teal-tint);
+  --color-amber: var(--c-amber);
+  --color-amber-deep: var(--c-amber-deep);
+  --color-amber-tint: var(--c-amber-tint);
+  --color-flag: var(--c-flag);
+  --color-btn: var(--c-btn);
+  --color-btn-text: var(--c-btn-text);
+  --color-night: var(--c-night);
+  --color-night-line: var(--c-night-line);
+  --color-on-night: #ecf6f4;
+  --color-on-night-soft: #b6dcd6;
+  --color-teal-glow: #6fd3c3;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,4 +48,186 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Landing page */
+.landing {
+  --c-canvas: #f5f5f5;
+  --c-surface: #fefefe;
+  --c-ink: #0f2624;
+  --c-ink-soft: #46595a;
+  --c-ink-quiet: #6f8280;
+  --c-line: #e0e5e4;
+  --c-teal: #0f766e;
+  --c-teal-deep: #0b5c56;
+  --c-teal-tint: #d8f2ee;
+  --c-amber: #e9a23b;
+  --c-amber-deep: #8a5a0c;
+  --c-amber-tint: #fbf1dd;
+  --c-flag: #b23a26;
+  --c-btn: #0f2624;
+  --c-btn-text: #fefefe;
+  --c-night: #07534e;
+  --c-night-line: #1f746d;
+  --c-grid: rgb(15 38 36 / 0.04);
+  --c-glow: 62 201 186;
+  --c-glow-strength: 1;
+
+  font-family: var(--font-brand);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  /* Use the --c-* values directly: the --color-* aliases resolve on :root,
+     where these are not defined. */
+  color: var(--c-ink);
+  background-color: var(--c-canvas);
+  /* Faint square grid across the canvas. */
+  background-image:
+    linear-gradient(to right, var(--c-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--c-grid) 1px, transparent 1px);
+  background-size: 96px 96px;
+  accent-color: var(--c-teal);
+  caret-color: var(--c-teal);
+}
+
+/* Dark is opt-in through the toggle in the navigation, never automatic. */
+html[data-landing-theme="dark"] .landing {
+  --c-canvas: #071a18;
+  --c-surface: #0d2623;
+  --c-ink: #e9f4f2;
+  --c-ink-soft: #abc7c2;
+  --c-ink-quiet: #84a19c;
+  --c-line: #1e3d39;
+  --c-teal: #5fd4c3;
+  --c-teal-deep: #9be5da;
+  --c-teal-tint: #12383a;
+  --c-amber: #f0b556;
+  --c-amber-deep: #f6cf8d;
+  --c-amber-tint: #33290f;
+  --c-flag: #f39a86;
+  --c-btn: #e9f4f2;
+  --c-btn-text: #071a18;
+  --c-night: #0e3a36;
+  --c-night-line: #2a5f5a;
+  --c-grid: rgb(233 244 242 / 0.035);
+  --c-glow-strength: 0.5;
+}
+
+.landing ::selection {
+  background: #f6c777;
+  color: #0f2624;
+}
+
+.landing :focus-visible {
+  outline: 2px solid var(--c-teal);
+  outline-offset: 3px;
+  border-radius: 999px;
+}
+
+.landing .on-night :focus-visible {
+  outline-color: #ecf6f4;
+}
+
+.landing a {
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+}
+
+/* Teal light rising from the bottom edge of a block. */
+.glow-up {
+  background-image: radial-gradient(
+    ellipse 80% 75% at 50% 100%,
+    rgb(var(--c-glow) / calc(0.9 * var(--c-glow-strength))) 0%,
+    rgb(var(--c-glow) / calc(0.4 * var(--c-glow-strength))) 42%,
+    transparent 74%
+  );
+}
+
+/* Hero version: the light sits behind the top of the screenshot. */
+.glow-hero {
+  background-image: radial-gradient(
+    ellipse 66% 50% at 50% 40%,
+    rgb(var(--c-glow) / calc(0.95 * var(--c-glow-strength))) 0%,
+    rgb(var(--c-glow) / calc(0.42 * var(--c-glow-strength))) 45%,
+    transparent 75%
+  );
+}
+
+/* Hero entrance: headline, text, buttons and screenshot arrive in order.
+   Done in CSS so it plays before any script has loaded. */
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+.hero-in {
+  animation: hero-in 800ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 90ms);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.landing) {
+    scroll-behavior: smooth;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-in {
+    animation: none;
+  }
+}
+
+/* Feature slider: the active bar fills, then the slider moves on. */
+@keyframes slide-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.slide-progress {
+  transform-origin: left;
+  animation: slide-progress 6s linear forwards;
+}
+
+.feature-slider:hover .slide-progress,
+.feature-slider:focus-within .slide-progress {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide-progress {
+    animation: none;
+  }
+}
+
+/* Focus spotlight: while someone is typing in a .focus-form, the field in use
+   stays at full strength and everything else on the page steps back a little.
+   The submit button is left alone so the next action is always clear. */
+.focus-field,
+.focus-dim,
+.landing nav[aria-label="Main"],
+.landing footer {
+  transition: opacity 350ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.focus-form:has(:is(input, select, textarea):focus) .focus-field:not(:focus-within) {
+  opacity: 0.6;
+}
+
+.landing:has(.focus-form :is(input, select, textarea):focus)
+  :is(.focus-dim, nav[aria-label="Main"], footer) {
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-field,
+  .focus-dim,
+  .landing nav[aria-label="Main"],
+  .landing footer {
+    transition: none;
+  }
 }

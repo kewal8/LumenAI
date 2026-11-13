@@ -1,0 +1,206 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { MIN_PASSWORD_LENGTH } from "@/lib/auth/rules";
+import { authLinkClass } from "./AuthShell";
+import { Field, FormError, SubmitButton, postAuth } from "./fields";
+
+function useSubmit(path: string, onDone: () => void) {
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event: React.FormEvent, body: Record<string, string>) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    const problem = await postAuth(path, body);
+    if (problem) {
+      setError(problem);
+      setBusy(false);
+      return;
+    }
+    onDone();
+  }
+
+  return { error, busy, submit, clearError: () => setError("") };
+}
+
+export function LoginForm({ next }: { next: string }) {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const { error, busy, submit, clearError } = useSubmit("/api/auth/login", () => {
+    router.replace(next);
+    router.refresh();
+  });
+
+  return (
+    <form
+      onSubmit={(event) => submit(event, { email, password })}
+      className="flex flex-col gap-5"
+      noValidate
+    >
+      <Field
+        id="email"
+        label="Email"
+        type="email"
+        value={email}
+        onChange={(value) => {
+          setEmail(value);
+          clearError();
+        }}
+        autoComplete="username"
+        autoFocus
+      />
+      <Field
+        id="password"
+        label="Password"
+        type="password"
+        value={password}
+        onChange={(value) => {
+          setPassword(value);
+          clearError();
+        }}
+        autoComplete="current-password"
+      />
+      <FormError message={error} />
+      <SubmitButton busy={busy} disabled={!email || !password}>
+        Sign in
+      </SubmitButton>
+      <Link href="/forgot-password" className={`${authLinkClass} self-start text-[0.95rem]`}>
+        Forgot password?
+      </Link>
+    </form>
+  );
+}
+
+export function AcceptInviteForm({ token, email }: { token: string; email: string }) {
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const { error, busy, submit, clearError } = useSubmit("/api/auth/accept-invite", () => {
+    router.replace("/report");
+    router.refresh();
+  });
+
+  return (
+    <form
+      onSubmit={(event) => submit(event, { token, name, password })}
+      className="flex flex-col gap-5"
+      noValidate
+    >
+      <Field
+        id="email"
+        label="Email"
+        type="email"
+        value={email}
+        onChange={() => {}}
+        autoComplete="username"
+        readOnly
+      />
+      <Field
+        id="name"
+        label="Your name"
+        value={name}
+        onChange={(value) => {
+          setName(value);
+          clearError();
+        }}
+        autoComplete="name"
+        autoFocus
+        hint="As it should appear on your reports, for example Dr. A. Sharma."
+      />
+      <Field
+        id="new-password"
+        label="Choose a password"
+        type="password"
+        value={password}
+        onChange={(value) => {
+          setPassword(value);
+          clearError();
+        }}
+        autoComplete="new-password"
+        hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
+      />
+      <FormError message={error} />
+      <SubmitButton busy={busy} disabled={!name.trim() || !password}>
+        Create account
+      </SubmitButton>
+    </form>
+  );
+}
+
+export function ForgotPasswordForm() {
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+  const { error, busy, submit, clearError } = useSubmit("/api/auth/forgot-password", () =>
+    setSent(true),
+  );
+
+  if (sent) {
+    return (
+      <p role="status" className="rounded-3xl bg-teal-tint p-6 leading-relaxed text-ink">
+        If <strong>{email}</strong> has an account, a reset link is on its way. It works
+        once and expires in one hour.
+      </p>
+    );
+  }
+
+  return (
+    <form onSubmit={(event) => submit(event, { email })} className="flex flex-col gap-5" noValidate>
+      <Field
+        id="email"
+        label="Email"
+        type="email"
+        value={email}
+        onChange={(value) => {
+          setEmail(value);
+          clearError();
+        }}
+        autoComplete="username"
+        autoFocus
+      />
+      <FormError message={error} />
+      <SubmitButton busy={busy} disabled={!email}>
+        Send reset link
+      </SubmitButton>
+    </form>
+  );
+}
+
+export function ResetPasswordForm({ token }: { token: string }) {
+  const router = useRouter();
+  const [password, setPassword] = useState("");
+  const { error, busy, submit, clearError } = useSubmit("/api/auth/reset-password", () => {
+    router.replace("/report");
+    router.refresh();
+  });
+
+  return (
+    <form
+      onSubmit={(event) => submit(event, { token, password })}
+      className="flex flex-col gap-5"
+      noValidate
+    >
+      <Field
+        id="new-password"
+        label="New password"
+        type="password"
+        value={password}
+        onChange={(value) => {
+          setPassword(value);
+          clearError();
+        }}
+        autoComplete="new-password"
+        autoFocus
+        hint={`At least ${MIN_PASSWORD_LENGTH} characters. You will be signed out on other devices.`}
+      />
+      <FormError message={error} />
+      <SubmitButton busy={busy} disabled={!password}>
+        Save password
+      </SubmitButton>
+    </form>
+  );
+}

@@ -1,13 +1,10 @@
-import type { NextRequest } from "next/server";
-import { SESSION_COOKIE, isAuthorised } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth/session";
 
 // Issues a short-lived Deepgram token so the browser can stream audio
 // straight to the STT service without the API key or audio touching our server.
-export async function POST(request: NextRequest) {
-  // The proxy already blocks signed-out requests; checked again here so the
-  // route stays protected if the proxy matcher ever changes.
-  if (!isAuthorised(request.cookies.get(SESSION_COOKIE)?.value)) {
-    return Response.json({ error: "Signed out." }, { status: 401 });
+export async function POST() {
+  if (!(await getCurrentUser())) {
+    return Response.json({ error: "Signed out. Sign in again." }, { status: 401 });
   }
 
   const key = process.env.DEEPGRAM_API_KEY;

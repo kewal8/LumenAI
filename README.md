@@ -14,15 +14,33 @@ the report is written in your template and copied ready to paste into PACS.
 ```bash
 cp .env.example .env.local   # then fill in the keys
 npm install
+npm run db:migrate           # creates the tables
 npm run dev
 ```
 
-Keys needed: `DEEPGRAM_API_KEY` (role Member or higher) and `ANTHROPIC_API_KEY`.
+Needed in `.env.local`: `DATABASE_URL` (Neon Postgres), `DEEPGRAM_API_KEY`
+(role Member or higher) and `ANTHROPIC_API_KEY`.
+
+## Accounts
+
+Sign-up is by invitation only. Create an invite and send the printed link:
+
+```bash
+npm run invite -- you@example.com --admin               # yourself, first
+npm run invite -- doctor@example.com                    # a solo radiologist
+npm run invite -- owner@centre.com --org "Centre name"  # a diagnostic centre
+```
+
+Each account belongs to an organisation; a solo radiologist is an organisation
+of one. Passwords are stored hashed (scrypt) and sessions last 30 days.
+
+Password-reset emails need `RESEND_API_KEY` and `EMAIL_FROM`. Without them the
+reset link is written to the server log.
 
 ## Deploy
 
-Set `APP_PASSWORD` along with the two keys. Without it a deployed app stays
-locked. Everyone you give the password to shares one login.
+Set `DATABASE_URL`, `DEEPGRAM_API_KEY`, `ANTHROPIC_API_KEY` and `APP_URL` in
+Vercel, then run `npm run db:migrate` once against the production database.
 
-Do not use real patient data: there are no per-user accounts or data
-agreements with the speech and AI providers yet.
+Do not use real patient data: there are no data agreements with the speech and
+AI providers yet.

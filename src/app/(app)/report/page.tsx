@@ -305,8 +305,8 @@ export default function ReportPage() {
       <aside className="flex flex-col gap-3">
         <header className="flex items-baseline justify-between">
           <h2 className="font-semibold">Dictation</h2>
-          <Link href="/" className="text-sm text-zinc-500 hover:underline">
-            Home
+          <Link href="/tools" className="text-sm text-zinc-500 hover:underline">
+            Tools
           </Link>
         </header>
 
