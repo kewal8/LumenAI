@@ -346,7 +346,7 @@ export default function ReportPage() {
               if (!busy && !dictation.recording) send(Promise.resolve(draft));
             }
           }}
-          readOnly={dictation.recording}
+          readOnly={dictation.recording || dictation.starting}
           rows={4}
           placeholder="Dictate your positive findings here"
           className={`${inputClass} border-zinc-300 dark:border-zinc-700`}
@@ -355,14 +355,18 @@ export default function ReportPage() {
         <div className="flex gap-2">
           <button
             onClick={toggleMic}
-            disabled={busy}
+            disabled={busy || dictation.starting}
             className={`flex-1 rounded-full px-4 py-2 text-sm font-medium text-white disabled:opacity-40 ${
               dictation.recording
                 ? "bg-red-600 hover:bg-red-700"
                 : "bg-blue-600 hover:bg-blue-700"
             }`}
           >
-            {dictation.recording ? "Stop and update report" : "Dictate"}
+            {dictation.recording
+              ? "Stop and update report"
+              : dictation.starting
+                ? "Starting…"
+                : "Dictate"}
           </button>
           <button
             onClick={() => send(Promise.resolve(draft))}

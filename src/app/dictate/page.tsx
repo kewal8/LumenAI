@@ -24,7 +24,7 @@ export default function DictatePage() {
   const [keyterms, setKeyterms] = useState(DEFAULT_KEYTERMS);
   const [words, setWords] = useState<Word[]>([]);
 
-  const { recording, interim, error, start, stop } = useDictation({
+  const { recording, starting, interim, error, start, stop } = useDictation({
     model,
     language,
     keyterms: keyterms
@@ -95,11 +95,12 @@ export default function DictatePage() {
       <div className="flex items-center gap-3">
         <button
           onClick={recording ? stop : start}
-          className={`rounded-full px-5 py-2 text-sm font-medium text-white ${
+          disabled={starting}
+          className={`rounded-full px-5 py-2 text-sm font-medium text-white disabled:opacity-40 ${
             recording ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"
           }`}
         >
-          {recording ? "Stop" : "Start dictation"}
+          {recording ? "Stop" : starting ? "Starting…" : "Start dictation"}
         </button>
         <button
           onClick={() => setWords([])}

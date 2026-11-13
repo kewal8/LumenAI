@@ -14,6 +14,7 @@ type Options = {
 // Streams microphone audio straight to Deepgram and reports finalised words.
 export function useDictation({ model, language, keyterms, onWords }: Options) {
   const [recording, setRecording] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [interim, setInterim] = useState("");
   const [error, setError] = useState("");
 
@@ -21,6 +22,10 @@ export function useDictation({ model, language, keyterms, onWords }: Options) {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const closedRef = useRef<(() => void) | null>(null);
+  // True from the first click until the session ends. Starting takes a moment
+  // (token, microphone prompt), and a second click in that gap would open a
+  // second session that transcribes the same speech again.
+  const activeRef = useRef(false);
 
   function cleanup() {
     if (recorderRef.current?.state === "recording") recorderRef.current.stop();
@@ -28,6 +33,8 @@ export function useDictation({ model, language, keyterms, onWords }: Options) {
     recorderRef.current = null;
     streamRef.current = null;
     socketRef.current = null;
+    activeRef.current = false;
+    setStarting(false);
     setRecording(false);
     setInterim("");
     closedRef.current?.();
@@ -35,6 +42,9 @@ export function useDictation({ model, language, keyterms, onWords }: Options) {
   }
 
   async function start() {
+    if (activeRef.current) return;
+    activeRef.current = true;
+    setStarting(true);
     setError("");
     try {
       const tokenRes = await fetch("/api/stt-token", { method: "POST" });
@@ -67,6 +77,7 @@ export function useDictation({ model, language, keyterms, onWords }: Options) {
           }
         };
         recorder.start(250);
+        setStarting(false);
         setRecording(true);
       };
 
@@ -117,5 +128,5 @@ export function useDictation({ model, language, keyterms, onWords }: Options) {
     });
   }
 
-  return { recording, interim, error, start, stop };
+  return { recording, starting, interim, error, start, stop };
 }
