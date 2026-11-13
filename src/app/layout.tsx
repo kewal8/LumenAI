@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Radiology reporting",
+  title: "LumenAI",
   description: "Dictate findings, get a PACS-ready report.",
 };
 
