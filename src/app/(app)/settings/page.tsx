@@ -9,6 +9,9 @@ import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { parsePasteProfile } from "@/lib/reportFormat";
 
+// Reads the signed-in user's data on every request, so it is rendered on demand.
+export const instant = false;
+
 export const metadata = { title: "Settings · LumenAI" };
 
 export default async function SettingsPage() {

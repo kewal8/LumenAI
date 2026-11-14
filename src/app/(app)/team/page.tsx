@@ -4,6 +4,9 @@ import { requireUser, type Role } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { ROLE_LABELS, assignableRoles, canManageMember, canManageTeam } from "@/lib/team";
 
+// Reads the signed-in user's data on every request, so it is rendered on demand.
+export const instant = false;
+
 export const metadata = { title: "Team · LumenAI" };
 
 export default async function TeamPage() {
