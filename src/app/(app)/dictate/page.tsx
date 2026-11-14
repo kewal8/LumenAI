@@ -56,7 +56,7 @@ export default function DictatePage() {
             value={model}
             onChange={(event) => setModel(event.target.value)}
             disabled={recording}
-            className="rounded border border-ink/20 bg-transparent px-2 py-1.5"
+            className="rounded border border-ink/50 bg-transparent px-2 py-1.5"
           >
             {MODELS.map((name) => (
               <option key={name}>{name}</option>
@@ -69,7 +69,7 @@ export default function DictatePage() {
             value={language}
             onChange={(event) => setLanguage(event.target.value)}
             disabled={recording}
-            className="rounded border border-ink/20 bg-transparent px-2 py-1.5"
+            className="rounded border border-ink/50 bg-transparent px-2 py-1.5"
           >
             {LANGUAGES.map((code) => (
               <option key={code}>{code}</option>
@@ -83,7 +83,7 @@ export default function DictatePage() {
             onChange={(event) => setKeyterms(event.target.value)}
             disabled={recording}
             rows={4}
-            className="rounded border border-ink/20 bg-transparent px-2 py-1.5 font-mono text-xs"
+            className="rounded border border-ink/50 bg-transparent px-2 py-1.5 font-mono text-xs"
           />
         </label>
       </section>
@@ -101,14 +101,14 @@ export default function DictatePage() {
         <button
           onClick={() => setWords([])}
           disabled={recording || words.length === 0}
-          className="rounded-full border border-ink/20 px-4 py-2 text-sm disabled:opacity-40"
+          className="rounded-full border border-ink/50 px-4 py-2 text-sm disabled:opacity-40"
         >
           Clear
         </button>
         <button
           onClick={() => navigator.clipboard.writeText(transcript)}
           disabled={words.length === 0}
-          className="rounded-full border border-ink/20 px-4 py-2 text-sm disabled:opacity-40"
+          className="rounded-full border border-ink/50 px-4 py-2 text-sm disabled:opacity-40"
         >
           Copy text
         </button>
@@ -123,7 +123,7 @@ export default function DictatePage() {
         </p>
       )}
 
-      <section className="min-h-48 rounded border border-ink/20 p-4 leading-7">
+      <section className="min-h-48 rounded border border-ink/50 p-4 leading-7">
         {words.length === 0 && !interim && (
           <span className="text-ink-quiet">Transcript appears here.</span>
         )}

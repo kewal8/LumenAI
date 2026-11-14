@@ -7,10 +7,10 @@ import { useState } from "react";
 import { Field, FieldLabel, FormError, send } from "@/components/auth/fields";
 import type { Role } from "@/lib/auth/session";
 import { ROLE_LABELS } from "@/lib/team";
-import { buttonClass, selectClass } from "./ui";
+import { Select, buttonClass } from "./ui";
 
 const POPUP =
-  "app-layer fixed left-1/2 top-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/[0.1] bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(15_38_36/0.5)] outline-none sm:p-8";
+  "app-layer fixed left-1/2 top-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/40 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(15_38_36/0.5)] outline-none sm:p-8";
 const BACKDROP = "app-backdrop fixed inset-0 z-50 bg-[#0f2624]/40";
 
 export function InviteButton({ roles }: { roles: Role[] }) {
@@ -80,7 +80,7 @@ export function InviteButton({ roles }: { roles: Role[] }) {
                 value={link}
                 aria-label="Invitation link"
                 onFocus={(event) => event.target.select()}
-                className="h-11 w-full rounded-full border border-ink/25 bg-canvas px-4 text-[0.9rem] text-ink outline-none"
+                className="h-11 w-full rounded-full border border-ink/60 bg-canvas px-4 text-[0.9rem] text-ink outline-none"
               />
               <FormError message={error} />
               <div className="flex gap-2">
@@ -108,18 +108,17 @@ export function InviteButton({ roles }: { roles: Role[] }) {
               />
               <div className="flex flex-col gap-1.5">
                 <FieldLabel id="invite-role" label="Role" />
-                <select
+                <Select
                   id="invite-role"
                   value={role}
                   onChange={(event) => setRole(event.target.value as Role)}
-                  className={selectClass}
                 >
                   {roles.map((option) => (
                     <option key={option} value={option}>
                       {ROLE_LABELS[option]}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <FormError message={error} />
               <div className="flex gap-2">
@@ -150,19 +149,18 @@ export function RoleSelect({ memberId, role, roles }: { memberId: string; role: 
   }
 
   return (
-    <select
+    <Select
       aria-label="Role"
       value={value}
       disabled={busy}
       onChange={(event) => change(event.target.value as Role)}
-      className={selectClass}
     >
       {roles.map((option) => (
         <option key={option} value={option}>
           {ROLE_LABELS[option]}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 

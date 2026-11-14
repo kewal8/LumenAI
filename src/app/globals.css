@@ -221,7 +221,41 @@ html[data-landing-theme="dark"] {
   }
 }
 
-/* Signed-in app: same tokens, plain canvas, denser type. */
+/* Signed-in app: the same brand, tuned for clarity over softness. People use
+   it all day on ordinary and older laptop screens, so secondary text, lines
+   and accents are much darker here than on the public pages. Menus and
+   dialogs (.app-layer) are rendered outside .app and get the same values. */
+.app,
+.app-layer {
+  --c-canvas: #eceff0;
+  --c-surface: #ffffff;
+  --c-ink: #06110f;
+  --c-ink-soft: #24322f;
+  --c-ink-quiet: #3f4f4c;
+  --c-line: #b9c3c1;
+  --c-teal: #0a5f58;
+  --c-teal-deep: #06433e;
+  --c-teal-tint: #cdebe6;
+  --c-amber-deep: #6e4605;
+  --c-flag: #9c2a17;
+  --c-btn: #06110f;
+}
+
+html[data-landing-theme="dark"] :is(.app, .app-layer) {
+  --c-canvas: #061412;
+  --c-surface: #0e2421;
+  --c-ink: #f4faf9;
+  --c-ink-soft: #d3e5e1;
+  --c-ink-quiet: #b3cbc6;
+  --c-line: #3a625c;
+  --c-teal: #7fe3d4;
+  --c-teal-deep: #b4efe6;
+  --c-teal-tint: #153f3f;
+  --c-amber-deep: #f8d79b;
+  --c-flag: #ffb3a1;
+  --c-btn: #f4faf9;
+}
+
 .app {
   isolation: isolate;
   font-weight: 500;

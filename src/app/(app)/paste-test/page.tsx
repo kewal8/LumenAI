@@ -64,7 +64,7 @@ export default function PasteTestPage() {
   }
 
   const selectClass =
-    "rounded border border-ink/20 bg-transparent px-2 py-1.5";
+    "rounded border border-ink/50 bg-transparent px-2 py-1.5";
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-10">
@@ -153,7 +153,7 @@ export default function PasteTestPage() {
 
       {/* White sheet in both themes: this previews what lands in the PACS editor. */}
       <section
-        className="rounded border border-ink/20 bg-[#fff] p-8"
+        className="rounded border border-ink/50 bg-[#fff] p-8"
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </main>

@@ -51,7 +51,7 @@ export function Field({
           autoFocus={autoFocus}
           readOnly={readOnly}
           aria-describedby={hint || capsLock ? `${id}-hint` : undefined}
-          className={`${dense ? "h-11" : "h-13"} w-full rounded-full border border-ink/25 bg-surface pl-5 text-base text-ink outline-none transition-colors hover:border-ink/45 focus:border-teal read-only:bg-transparent read-only:text-ink-soft ${
+          className={`${dense ? "h-11" : "h-13"} w-full rounded-full border border-ink/60 bg-surface pl-5 text-base text-ink outline-none transition-colors hover:border-ink focus:border-teal read-only:bg-transparent read-only:text-ink-soft ${
             isPassword ? "pr-13" : "pr-5"
           }`}
         />
@@ -118,7 +118,7 @@ export function SubmitButton({
     <button
       type="submit"
       disabled={busy || disabled}
-      className={`group flex ${dense ? "h-12" : "h-13"} items-center justify-between rounded-full bg-btn pl-6 pr-1.5 text-base font-bold text-btn-text transition-[background-color,transform,opacity] duration-200 hover:bg-teal-deep active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-btn`}
+      className={`group flex ${dense ? "h-12" : "h-13"} items-center justify-between rounded-full bg-btn pl-6 pr-1.5 text-base font-bold text-btn-text transition-[background-color,transform,opacity] duration-200 hover:bg-teal-deep active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-btn`}
     >
       {busy ? "One moment" : children}
       <span

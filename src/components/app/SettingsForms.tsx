@@ -13,7 +13,7 @@ import {
   buildReportHtml,
   type PasteProfile,
 } from "@/lib/reportFormat";
-import { buttonClass, selectClass } from "./ui";
+import { Select, buttonClass } from "./ui";
 
 function useSave() {
   const router = useRouter();
@@ -200,18 +200,17 @@ export function PasteFormatForm({ profile: initial }: { profile: PasteProfile })
         {controls.map(({ key, label, options }) => (
           <div key={key} className="flex flex-col gap-1.5">
             <FieldLabel id={`paste-${key}`} label={label} />
-            <select
+            <Select
               id={`paste-${key}`}
               value={profile[key]}
               onChange={(event) =>
                 set(key, (key === "size" ? Number(event.target.value) : event.target.value) as never)
               }
-              className={selectClass}
             >
               {options.map((option) => (
                 <option key={option}>{option}</option>
               ))}
-            </select>
+            </Select>
           </div>
         ))}
       </div>
@@ -219,7 +218,7 @@ export function PasteFormatForm({ profile: initial }: { profile: PasteProfile })
       {/* White in both themes: this previews what lands in the PACS editor. */}
       <div
         aria-label="Preview of a pasted report"
-        className="rounded-2xl border border-ink/15 bg-[#fff] p-6"
+        className="rounded-2xl border border-ink/45 bg-[#fff] p-6"
         dangerouslySetInnerHTML={{ __html: buildReportHtml(SAMPLE, profile) }}
       />
 

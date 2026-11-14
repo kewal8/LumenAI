@@ -65,14 +65,14 @@ function NavLinks({ user, onNavigate }: { user: ShellUser; onNavigate?: () => vo
         return (
           <div key={item.href}>
             {index === staffStart && (
-              <p className="mb-1 mt-5 px-3 text-[0.8rem] font-semibold text-ink-quiet">LumenAI staff</p>
+              <p className="mb-1 mt-5 px-3 text-[0.85rem] font-bold text-ink-soft">LumenAI staff</p>
             )}
             <Link
               href={item.href}
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
-              className={`flex h-10 items-center gap-3 rounded-full px-3 text-[0.95rem] font-semibold transition-colors ${
-                active ? "bg-teal/[0.1] text-teal-deep" : "text-ink-soft hover:bg-ink/[0.05] hover:text-ink"
+              className={`flex h-11 items-center gap-3 rounded-full px-3 text-[1rem] font-semibold transition-colors ${
+                active ? "bg-teal text-white" : "text-ink hover:bg-ink/10"
               }`}
             >
               <item.icon weight={active ? "fill" : "regular"} className="h-5 w-5 shrink-0" />
@@ -86,7 +86,7 @@ function NavLinks({ user, onNavigate }: { user: ShellUser; onNavigate?: () => vo
 }
 
 const MENU_ITEM =
-  "flex h-10 cursor-default select-none items-center gap-3 rounded-full px-3 text-[0.92rem] font-semibold text-ink-soft outline-none data-[highlighted]:bg-ink/[0.06] data-[highlighted]:text-ink";
+  "flex h-10 cursor-default select-none items-center gap-3 rounded-full px-3 text-[0.95rem] font-semibold text-ink outline-none data-[highlighted]:bg-ink/10";
 
 function UserMenu({ user }: { user: ShellUser }) {
   const router = useRouter();
@@ -100,22 +100,22 @@ function UserMenu({ user }: { user: ShellUser }) {
 
   return (
     <Menu.Root>
-      <Menu.Trigger className="flex w-full items-center gap-3 rounded-2xl p-2 text-left outline-none transition-colors hover:bg-ink/[0.05] data-[popup-open]:bg-ink/[0.05]">
+      <Menu.Trigger className="flex w-full items-center gap-3 rounded-2xl p-2 text-left outline-none transition-colors hover:bg-ink/10 data-[popup-open]:bg-ink/10">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-teal text-[0.85rem] font-bold text-btn-text">
           {initials(user.name)}
         </span>
         <span className="min-w-0 flex-1 leading-tight">
-          <span className="block truncate text-[0.92rem] font-semibold">{user.name}</span>
-          <span className="block truncate text-[0.82rem] text-ink-quiet">
+          <span className="block truncate text-[0.95rem] font-bold">{user.name}</span>
+          <span className="block truncate text-[0.85rem] text-ink-soft">
             {user.organisation ?? user.email}
           </span>
         </span>
-        <CaretUpDown className="h-4 w-4 shrink-0 text-ink-quiet" />
+        <CaretUpDown weight="bold" className="h-4 w-4 shrink-0 text-ink" />
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner side="top" align="start" sideOffset={8} className="z-50">
-          <Menu.Popup className="app-layer w-60 origin-[var(--transform-origin)] rounded-3xl border border-ink/[0.1] bg-surface p-2 shadow-[0_18px_50px_-18px_rgb(15_38_36/0.45)] outline-none">
-            <p className="truncate px-3 pb-2 pt-1.5 text-[0.82rem] text-ink-quiet">{user.email}</p>
+          <Menu.Popup className="app-layer w-60 origin-[var(--transform-origin)] rounded-3xl border border-ink/40 bg-surface p-2 shadow-[0_18px_50px_-18px_rgb(15_38_36/0.45)] outline-none">
+            <p className="truncate px-3 pb-2 pt-1.5 text-[0.85rem] text-ink-soft">{user.email}</p>
             <Menu.Item className={MENU_ITEM} onClick={() => router.push("/settings")}>
               <GearSix className="h-5 w-5" />
               Settings
@@ -157,7 +157,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
           <Dialog.Root open={navOpen} onOpenChange={setNavOpen}>
             <Dialog.Trigger
               aria-label="Open menu"
-              className="grid h-10 w-10 place-items-center rounded-full text-ink-soft hover:bg-ink/[0.06]"
+              className="grid h-10 w-10 place-items-center rounded-full text-ink hover:bg-ink/10"
             >
               <List className="h-6 w-6" />
             </Dialog.Trigger>
@@ -169,7 +169,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
                     <Dialog.Title className="text-[1.05rem] font-semibold">Menu</Dialog.Title>
                     <Dialog.Close
                       aria-label="Close menu"
-                      className="grid h-10 w-10 place-items-center rounded-full text-ink-soft hover:bg-ink/[0.06]"
+                      className="grid h-10 w-10 place-items-center rounded-full text-ink hover:bg-ink/10"
                     >
                       <X className="h-5 w-5" />
                     </Dialog.Close>

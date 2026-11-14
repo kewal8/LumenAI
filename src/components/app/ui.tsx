@@ -1,19 +1,40 @@
+import { CaretDown } from "@phosphor-icons/react/dist/ssr";
+
 /** Small shared pieces for signed-in screens. Controls are pills, panels are 24px. */
 
-export const PANEL = "rounded-3xl border border-ink/[0.1] bg-surface";
+export const PANEL = "rounded-3xl border border-ink/40 bg-surface";
 
 const BUTTON =
-  "inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[0.92rem] font-semibold transition-[background-color,color,border-color,transform] duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-full px-5 text-[0.95rem] font-bold transition-[background-color,color,border-color,transform] duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60";
 
 export const buttonClass = {
   primary: `${BUTTON} bg-btn text-btn-text hover:bg-teal-deep`,
-  secondary: `${BUTTON} border border-ink/25 hover:border-ink/50 hover:bg-ink/[0.04]`,
-  danger: `${BUTTON} border border-flag/40 text-flag hover:bg-flag/10`,
-  quiet: `${BUTTON} px-3 text-ink-soft hover:bg-ink/[0.06] hover:text-ink`,
+  secondary: `${BUTTON} border-[1.5px] border-ink/70 text-ink hover:border-ink hover:bg-ink/[0.06]`,
+  danger: `${BUTTON} border-[1.5px] border-flag text-flag hover:bg-flag/10`,
+  quiet: `${BUTTON} px-3 text-ink underline decoration-ink/40 underline-offset-4 hover:bg-ink/10 hover:decoration-ink`,
 };
 
-export const selectClass =
-  "h-10 rounded-full border border-ink/25 bg-surface pl-4 pr-9 text-[0.92rem] font-semibold text-ink outline-none transition-colors hover:border-ink/45 focus:border-teal disabled:opacity-50";
+/**
+ * Dropdown with our own arrow. The browser's built-in arrow differs between
+ * Windows and Mac and sits too close to the edge of a pill.
+ */
+export function Select({ className = "", children, ...rest }: React.ComponentProps<"select">) {
+  return (
+    <span className="relative inline-flex max-w-full">
+      <select
+        {...rest}
+        className={`h-11 w-full appearance-none rounded-full border-[1.5px] border-ink/70 bg-surface pl-4 pr-11 text-[0.95rem] font-semibold text-ink outline-none transition-colors hover:border-ink focus:border-teal disabled:opacity-60 ${className}`}
+      >
+        {children}
+      </select>
+      <CaretDown
+        weight="bold"
+        aria-hidden="true"
+        className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink"
+      />
+    </span>
+  );
+}
 
 export function PageHeader({
   title,
@@ -73,13 +94,13 @@ export function Badge({
   tone?: "neutral" | "teal" | "amber";
 }) {
   const tones = {
-    neutral: "border-ink/15 bg-ink/[0.04] text-ink-soft",
-    teal: "border-teal/25 bg-teal/[0.09] text-teal-deep",
-    amber: "border-amber/30 bg-amber/[0.14] text-amber-deep",
+    neutral: "border-ink/50 bg-ink/[0.06] text-ink",
+    teal: "border-teal/60 bg-teal/[0.12] text-teal-deep",
+    amber: "border-amber bg-amber/25 text-amber-deep",
   };
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[0.8rem] font-semibold ${tones[tone]}`}
+      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[0.85rem] font-bold ${tones[tone]}`}
     >
       {children}
     </span>
@@ -88,7 +109,7 @@ export function Badge({
 
 export function EmptyState({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-3xl border border-dashed border-ink/20 px-6 py-12 text-center">
+    <div className="rounded-3xl border border-dashed border-ink/50 px-6 py-12 text-center">
       <p className="font-semibold">{title}</p>
       <p className="mx-auto mt-1 max-w-[46ch] text-[0.95rem] text-ink-soft">{body}</p>
     </div>
