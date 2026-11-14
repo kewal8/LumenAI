@@ -1,5 +1,14 @@
 "use client";
 
+import {
+  CheckCircle,
+  Copy,
+  Microphone,
+  PencilSimpleLine,
+  Plus,
+  Stop,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { copyReport } from "@/lib/clipboard";
 import {
@@ -77,7 +86,12 @@ export function ReportWorkspace({
       ),
   });
 
+  const started = messages.length > 0 || copyState !== "empty";
+
   function newCase(next = template) {
+    if (started && !window.confirm("Start a new case? The current report will be cleared.")) {
+      return;
+    }
     setTemplate(next);
     setReport(reportFromTemplate(next));
     setMessages([]);
@@ -205,179 +219,289 @@ export function ReportWorkspace({
     .flatMap((section) => section.lines)
     .filter((line) => line.warnings.length > 0).length;
 
-  const inputClass =
-    "w-full resize-none rounded border px-2 py-1 text-sm leading-6 bg-transparent";
+  const status = dictation.recording
+    ? "listening"
+    : dictation.starting
+      ? "starting"
+      : busy
+        ? "writing"
+        : "ready";
 
+  // Report text looks like plain text until it is hovered or clicked into.
+  const lineClass =
+    "block w-full resize-none rounded-lg border border-transparent bg-transparent px-2.5 py-1 text-ink outline-none transition-colors [field-sizing:content] hover:border-ink/25 focus:border-teal focus:bg-surface";
+
+  // On a laptop the workspace is exactly one screen tall: the report scrolls
+  // inside its column and the dictation panel never moves.
   return (
-    <main className="mx-auto grid w-full max-w-6xl flex-1 gap-6 px-6 py-8 lg:grid-cols-[1fr_22rem]">
-      <section className="flex flex-col gap-4">
-        <header className="flex flex-wrap items-center gap-3">
-          <select
-            value={template.id}
-            onChange={(event) =>
-              newCase(templates.find((item) => item.id === event.target.value))
-            }
-            className="rounded border border-ink/20 bg-transparent px-2 py-1.5 text-sm"
-          >
-            {templates.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
+    <main className="flex min-w-0 flex-1 flex-col lg:h-[100dvh] lg:flex-none lg:flex-row lg:overflow-hidden">
+      {/* The report: what will be pasted into PACS. */}
+      <section className="order-2 flex min-w-0 flex-1 flex-col lg:order-1 lg:overflow-hidden">
+        <header className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-5 py-3 sm:px-8">
+          <label className="flex items-center gap-2.5 text-[0.95rem] font-semibold">
+            Template
+            <select
+              value={template.id}
+              onChange={(event) => newCase(templates.find((item) => item.id === event.target.value))}
+              className="h-11 max-w-[16rem] rounded-full border border-ink/30 bg-surface pl-4 pr-9 text-[0.95rem] font-semibold text-ink outline-none hover:border-ink/60 focus:border-teal"
+            >
+              {templates.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
+            type="button"
             onClick={() => newCase()}
-            className="rounded-full border border-ink/20 px-4 py-1.5 text-sm"
+            className="inline-flex h-11 items-center gap-2 rounded-full border border-ink/30 px-4 text-[0.95rem] font-semibold transition-colors hover:border-ink/60 hover:bg-ink/[0.04]"
           >
+            <Plus weight="bold" className="h-4 w-4" />
             New case
           </button>
 
-          <button
-            onClick={() => copy(report)}
-            disabled={copyState === "empty"}
-            className={`ml-auto rounded-full px-4 py-1.5 text-sm font-medium ${
-              copyState === "copied"
-                ? "bg-teal/[0.1] text-teal-deep"
-                : copyState === "stale"
-                  ? "bg-flag text-btn-text hover:bg-flag/90"
-                  : "border border-ink/20 text-ink-quiet"
-            }`}
-          >
-            {copyState === "copied" && "Copied. Press Ctrl+V in PACS"}
-            {copyState === "stale" && "Not copied. Click to copy"}
-            {copyState === "empty" && "Nothing to copy yet"}
-          </button>
+          <div className="ml-auto flex items-center gap-3 whitespace-nowrap" aria-live="polite">
+            {copyState === "copied" ? (
+              <button
+                type="button"
+                onClick={() => copy(report)}
+                className="inline-flex h-11 items-center gap-2 rounded-full bg-teal px-5 text-[0.95rem] font-bold text-white"
+              >
+                <CheckCircle weight="fill" className="h-5 w-5" />
+                Copied. Press Ctrl+V
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => copy(report)}
+                disabled={busy}
+                className="inline-flex h-11 items-center gap-2 rounded-full bg-btn px-5 text-[0.95rem] font-bold text-btn-text transition-colors hover:bg-teal-deep disabled:opacity-50"
+              >
+                <Copy weight="bold" className="h-5 w-5" />
+                Copy report
+              </button>
+            )}
+          </div>
         </header>
 
-        {flaggedLines > 0 && (
-          <p className="rounded border border-amber/50 bg-amber/[0.14] px-3 py-2 text-sm text-amber-deep">
-            {flaggedLines} line{flaggedLines > 1 ? "s" : ""} need checking before
-            sign-off.
-          </p>
-        )}
+        <div className="min-h-0 flex-1 px-4 py-6 sm:px-8 lg:overflow-y-auto">
+          <div className="mx-auto flex max-w-[52rem] flex-col gap-4">
+            {flaggedLines > 0 && (
+              <p
+                role="alert"
+                className="flex items-center gap-2.5 rounded-2xl border border-flag/50 bg-flag/10 px-4 py-3 font-semibold text-flag"
+              >
+                <WarningCircle weight="fill" className="h-5 w-5 shrink-0" />
+                {flaggedLines} {flaggedLines === 1 ? "line needs" : "lines need"} checking before
+                you sign.
+              </p>
+            )}
 
-        {/* Report text is set in Arial, as the PACS editor will show it. */}
-        <article className="flex flex-col gap-4 rounded-3xl border border-ink/[0.1] bg-surface p-6 font-[Arial,Helvetica,sans-serif] tracking-normal">
-          <h1 className="text-center text-sm font-bold">{report.title}</h1>
+            {/* Set in Arial, as the PACS editor will show it. */}
+            <article className="rounded-3xl border border-ink/15 bg-surface px-5 py-7 font-[Arial,Helvetica,sans-serif] text-[0.95rem] leading-[1.6] tracking-normal text-ink shadow-[0_1px_2px_rgb(15_38_36/0.06)] sm:px-9 sm:py-9">
+              <h1 className="text-center text-[1.05rem] font-bold">{report.title}</h1>
 
-          {report.sections.map((section) => (
-            <div key={section.id} className="flex flex-col gap-1.5">
-              <h2 className="text-sm font-bold">{section.heading}:</h2>
-              {section.lines.map((line) => (
-                <div key={line.id}>
-                  <textarea
-                    value={line.text}
-                    onChange={(event) =>
-                      editLine(section.id, line.id, event.target.value)
-                    }
-                    rows={Math.max(1, Math.ceil(line.text.length / 90))}
-                    title={line.source ? `Dictated: "${line.source}"` : undefined}
-                    className={`${inputClass} ${
-                      line.warnings.length > 0
-                        ? "border-flag bg-flag/10"
-                        : line.status === "normal"
-                          ? "border-transparent text-ink-quiet"
-                          : "border-teal/40 bg-teal/[0.07]"
-                    }`}
-                  />
-                  {line.warnings.map((warning) => (
-                    <p key={warning} className="px-2 text-xs text-flag">
-                      {warning}
-                    </p>
-                  ))}
-                  {line.source && (
-                    <p className="px-2 text-xs text-ink-quiet">
-                      Dictated: “{line.source}”
-                    </p>
-                  )}
+              {report.sections.map((section) => (
+                <div key={section.id} className="mt-6">
+                  <h2 className="px-2.5 font-bold">{section.heading}:</h2>
+                  <ul className="mt-1.5 flex flex-col gap-0.5">
+                    {section.lines.map((line) => {
+                      const changed = line.status !== "normal";
+                      const flagged = line.warnings.length > 0;
+                      return (
+                        <li
+                          key={line.id}
+                          className={`rounded-xl ${
+                            flagged
+                              ? "bg-flag/10 ring-1 ring-flag/50"
+                              : changed
+                                ? "bg-teal/[0.09] ring-1 ring-teal/30"
+                                : ""
+                          }`}
+                        >
+                          <textarea
+                            value={line.text}
+                            onChange={(event) => editLine(section.id, line.id, event.target.value)}
+                            rows={Math.max(1, Math.ceil(line.text.length / 88))}
+                            aria-label={`${section.heading} line`}
+                            className={`${lineClass} ${changed ? "font-bold" : ""}`}
+                          />
+                          {(line.source || flagged) && (
+                            <div className="px-2.5 pb-2 font-[family-name:var(--font-brand)] text-[0.85rem] leading-snug">
+                              {line.warnings.map((warning) => (
+                                <p key={warning} className="flex items-start gap-1.5 font-semibold text-flag">
+                                  <WarningCircle weight="fill" className="mt-0.5 h-4 w-4 shrink-0" />
+                                  {warning}
+                                </p>
+                              ))}
+                              {line.source && (
+                                <p className="text-ink-soft">You said: “{line.source}”</p>
+                              )}
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               ))}
-            </div>
-          ))}
 
-          <div className="flex flex-col gap-1.5">
-            <h2 className="text-sm font-bold">IMPRESSION:</h2>
-            <textarea
-              value={report.impression.join("\n")}
-              onChange={(event) =>
-                edited({ ...report, impression: event.target.value.split("\n") })
-              }
-              rows={Math.max(2, report.impression.length)}
-              className={`${inputClass} border-ink/20`}
-            />
+              <div className="mt-6">
+                <h2 className="px-2.5 font-bold">IMPRESSION:</h2>
+                <textarea
+                  value={report.impression.join("\n")}
+                  onChange={(event) =>
+                    edited({ ...report, impression: event.target.value.split("\n") })
+                  }
+                  rows={Math.max(1, report.impression.length)}
+                  aria-label="Impression"
+                  className={`${lineClass} mt-1.5 ${started ? "font-bold" : ""}`}
+                />
+              </div>
+            </article>
+
+            <p className="flex items-center justify-center gap-2 pb-2 text-[0.9rem] text-ink-soft">
+              <PencilSimpleLine className="h-4 w-4" />
+              Click any line to change it by hand.
+            </p>
           </div>
-        </article>
+        </div>
       </section>
 
-      <aside className="flex flex-col gap-3">
-        <header className="flex items-baseline justify-between">
-          <h2 className="font-semibold">Dictation</h2>
-        </header>
-
-        <ol className="flex flex-1 flex-col gap-2 overflow-y-auto">
-          {messages.length === 0 && (
-            <li className="text-sm text-ink-quiet">
-              Dictate or type only the abnormal findings. Everything else stays
-              normal.
-            </li>
-          )}
-          {messages.map((message, index) => (
-            <li
-              key={index}
-              className="rounded border border-ink/20 p-2 text-sm"
-            >
-              <p>{message.dictation}</p>
-              <p className="mt-1 text-xs text-ink-quiet">
-                {message.changed} line{message.changed === 1 ? "" : "s"} updated
-                {message.flagged > 0 && `, ${message.flagged} to check`}
-              </p>
-            </li>
-          ))}
-        </ol>
-
-        {(error || dictation.error) && (
-          <p className="rounded border border-flag/40 bg-flag/10 px-3 py-2 text-sm text-flag">
-            {error || dictation.error}
-          </p>
-        )}
-
-        <textarea
-          value={[draft, dictation.interim].filter(Boolean).join(" ")}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              if (!busy && !dictation.recording) send(Promise.resolve(draft));
-            }
-          }}
-          readOnly={dictation.recording || dictation.starting}
-          rows={4}
-          placeholder="Dictate your positive findings here"
-          className={`${inputClass} border-ink/20`}
-        />
-
-        <div className="flex gap-2">
-          <button
-            onClick={toggleMic}
-            disabled={busy || dictation.starting}
-            className={`flex-1 rounded-full px-4 py-2 text-sm font-medium text-btn-text disabled:opacity-40 ${
-              dictation.recording
-                ? "bg-flag hover:bg-flag/90"
-                : "bg-btn hover:bg-teal-deep"
+      {/* Dictation: always in view on a laptop screen, beside the report. */}
+      <aside
+        aria-label="Dictation"
+        className="order-1 flex shrink-0 flex-col border-b border-line bg-surface lg:order-2 lg:h-full lg:w-[25rem] lg:border-b-0 lg:border-l xl:w-[27rem]"
+      >
+        <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-3 lg:h-[4.25rem]">
+          <h2 className="text-[1.2rem] font-semibold tracking-[-0.02em]">Dictation</h2>
+          <p
+            role="status"
+            className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[0.9rem] font-bold ${
+              status === "listening"
+                ? "bg-flag text-white"
+                : status === "ready"
+                  ? "bg-ink/[0.07] text-ink"
+                  : "bg-amber/25 text-amber-deep"
             }`}
           >
-            {dictation.recording
-              ? "Stop and update report"
-              : dictation.starting
-                ? "Starting…"
-                : "Dictate"}
-          </button>
+            <span
+              aria-hidden="true"
+              className={`h-2.5 w-2.5 rounded-full ${
+                status === "listening"
+                  ? "animate-pulse bg-white"
+                  : status === "ready"
+                    ? "bg-teal"
+                    : "animate-pulse bg-amber"
+              }`}
+            />
+            {status === "listening" && "Listening"}
+            {status === "starting" && "Starting"}
+            {status === "writing" && "Writing report"}
+            {status === "ready" && "Ready"}
+          </p>
+        </header>
+
+        <div className="flex max-h-56 min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4 lg:max-h-none">
+          {messages.length === 0 ? (
+            <ol className="flex flex-col gap-4 text-[1rem] leading-snug">
+              {[
+                ["Press the button and speak", "Say only what is abnormal, in any order."],
+                ["Check the report", "Everything you did not mention stays normal."],
+                ["Paste into PACS", "The report is copied for you. Press Ctrl+V."],
+              ].map(([title, body], index) => (
+                <li key={title} className="flex gap-3">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-ink/[0.08] text-[0.9rem] font-bold">
+                    {index + 1}
+                  </span>
+                  <span>
+                    <span className="block font-semibold">{title}</span>
+                    <span className="block text-ink-soft">{body}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <ol className="flex flex-col gap-3">
+              {messages.map((message, index) => (
+                <li key={index} className="rounded-2xl border border-ink/15 px-4 py-3">
+                  <p className="text-[0.98rem] leading-snug">{message.dictation}</p>
+                  <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.88rem] font-semibold">
+                    <span className="flex items-center gap-1.5 text-teal-deep">
+                      <CheckCircle weight="fill" className="h-4 w-4" />
+                      {message.changed} {message.changed === 1 ? "line" : "lines"} updated
+                    </span>
+                    {message.flagged > 0 && (
+                      <span className="flex items-center gap-1.5 text-flag">
+                        <WarningCircle weight="fill" className="h-4 w-4" />
+                        {message.flagged} to check
+                      </span>
+                    )}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-line px-5 py-4">
+          {(error || dictation.error) && (
+            <p
+              role="alert"
+              className="flex items-start gap-2 rounded-2xl border border-flag/50 bg-flag/10 px-3.5 py-2.5 text-[0.92rem] font-semibold text-flag"
+            >
+              <WarningCircle weight="fill" className="mt-0.5 h-4 w-4 shrink-0" />
+              {error || dictation.error}
+            </p>
+          )}
+
+          <textarea
+            value={[draft, dictation.interim].filter(Boolean).join(" ")}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                if (!busy && !dictation.recording && draft.trim()) send(Promise.resolve(draft));
+              }
+            }}
+            readOnly={dictation.recording || dictation.starting}
+            rows={3}
+            aria-label="What you said"
+            placeholder="Your words appear here. You can also type."
+            className={`w-full resize-none rounded-2xl border-2 bg-surface px-4 py-3 text-[1.02rem] leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-quiet ${
+              dictation.recording ? "border-flag" : "border-ink/25 focus:border-teal"
+            }`}
+          />
+
           <button
+            type="button"
+            onClick={toggleMic}
+            disabled={busy || dictation.starting}
+            className={`flex h-14 items-center justify-center gap-3 rounded-full text-[1.05rem] font-bold text-white transition-[background-color,transform] duration-150 active:scale-[0.98] disabled:opacity-60 ${
+              dictation.recording ? "bg-flag hover:bg-flag/90" : "bg-teal hover:bg-teal-deep"
+            }`}
+          >
+            {dictation.recording ? (
+              <>
+                <Stop weight="fill" className="h-5 w-5" />
+                Stop and write report
+              </>
+            ) : (
+              <>
+                <Microphone weight="fill" className="h-6 w-6" />
+                {busy ? "Writing report" : dictation.starting ? "Starting" : "Start speaking"}
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
             onClick={() => send(Promise.resolve(draft))}
             disabled={busy || dictation.recording || !draft.trim()}
-            className="rounded-full border border-ink/20 px-4 py-2 text-sm disabled:opacity-40"
+            className="h-11 rounded-full border border-ink/30 text-[0.95rem] font-semibold transition-colors hover:border-ink/60 hover:bg-ink/[0.04] disabled:opacity-45"
           >
-            {busy ? "Updating…" : "Update"}
+            Update report from typed text
           </button>
         </div>
       </aside>
