@@ -9,6 +9,7 @@ export type StoredTemplate = TemplateDraft & {
   mine: boolean;
   ownerName: string;
   canEdit: boolean;
+  updatedAt: string;
 };
 
 type Row = Record<string, unknown>;
@@ -26,6 +27,7 @@ function fromRow(row: Row, user: CurrentUser): StoredTemplate {
     ownerName: row.owner_name as string,
     // Your own templates, plus shared ones if you manage the organisation.
     canEdit: mine || canManageTeam(user.org?.role),
+    updatedAt: (row.updated_at as Date).toISOString(),
   };
 }
 

@@ -1,26 +1,17 @@
 import { ReportWorkspace } from "@/components/report/ReportWorkspace";
 import { requireUser } from "@/lib/auth/session";
-import { db } from "@/lib/db";
-import { parsePasteProfile } from "@/lib/reportFormat";
-import { toTemplate } from "@/lib/templateInput";
-import { listTemplates } from "@/lib/templateStore";
-import { CT_BRAIN_PLAIN } from "@/lib/templates";
+import { loadWorkspace } from "@/lib/workspace";
 
 // Reads the signed-in user's data on every request, so it is rendered on demand.
 export const instant = false;
 
-export const metadata = { title: "Report · LumenAI" };
+export const metadata = { title: "New report · LumenAI" };
 
-export default async function ReportPage() {
+export default async function NewReportPage({ searchParams }: PageProps<"/report">) {
   const user = await requireUser();
-  const [[row], stored] = await Promise.all([
-    db()`select paste_profile from users where id = ${user.id}`,
-    listTemplates(user),
-  ]);
+  const { template } = await searchParams;
+  const { profile, templates } = await loadWorkspace(user, typeof template === "string" ? template : null);
 
-  // Until someone adds their own, the built-in sample keeps the screen usable.
-  const templates =
-    stored.length > 0 ? stored.map((template) => toTemplate(template.id, template)) : [CT_BRAIN_PLAIN];
-
-  return <ReportWorkspace profile={parsePasteProfile(row?.paste_profile)} templates={templates} />;
+  // Keyed by the starting template so choosing another one starts a clean report.
+  return <ReportWorkspace key={templates[0].id} profile={profile} templates={templates} />;
 }

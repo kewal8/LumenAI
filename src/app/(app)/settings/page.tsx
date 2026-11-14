@@ -1,3 +1,4 @@
+import { Buildings, ClipboardText, LockKey, UserCircle } from "@phosphor-icons/react/dist/ssr";
 import {
   OrganisationForm,
   PasswordForm,
@@ -22,11 +23,12 @@ export default async function SettingsPage() {
     <Page>
       <PageHeader title="Settings" description="Your account and how reports are formatted." />
 
-      <Section title="Profile">
+      <Section title="Profile" icon={<UserCircle weight="fill" className="h-5 w-5" />}>
         <ProfileForm name={user.name} email={user.email} />
       </Section>
 
       <Section
+        icon={<ClipboardText weight="fill" className="h-5 w-5" />}
         title="Report paste format"
         description="How a report is formatted when it is copied for your PACS editor. Change it if the paste loses its font or headings."
       >
@@ -34,12 +36,16 @@ export default async function SettingsPage() {
       </Section>
 
       {user.org?.role === "owner" && (
-        <Section title="Organisation" description="Shown to everyone in your team.">
+        <Section
+          icon={<Buildings weight="fill" className="h-5 w-5" />}
+          title="Organisation"
+          description="Shown to everyone in your team."
+        >
           <OrganisationForm name={user.org.name} />
         </Section>
       )}
 
-      <Section title="Password">
+      <Section title="Password" icon={<LockKey weight="fill" className="h-5 w-5" />}>
         <PasswordForm />
       </Section>
     </Page>

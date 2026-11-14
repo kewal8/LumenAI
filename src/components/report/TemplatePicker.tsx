@@ -21,7 +21,7 @@ export function TemplatePicker({
 }) {
   if (templates.length < 2) {
     return (
-      <Select value={value} onChange={(event) => onChange(event.target.value)} className="max-w-[16rem]">
+      <Select value={value} onChange={(event) => onChange(event.target.value)} aria-label="Template" className="w-[16rem]">
         {templates.map((template) => (
           <option key={template.id} value={template.id}>
             {template.name}
@@ -39,7 +39,7 @@ export function TemplatePicker({
       value={items.find((item) => item.value === value) ?? null}
       onValueChange={(item) => item && onChange(item.value)}
     >
-      <Combobox.InputGroup className="relative inline-flex w-[18rem] max-w-full">
+      <Combobox.InputGroup className="relative inline-flex w-[16rem] max-w-full">
         <Combobox.Input
           aria-label="Template"
           placeholder="Search templates"

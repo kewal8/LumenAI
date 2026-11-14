@@ -3,11 +3,13 @@
 AI reporting assistant for radiologists. Dictate only the abnormal findings;
 the report is written in your template and copied ready to paste into PACS.
 
-## Pages
+## Screens
 
-- `/report` – dictate or type findings, get the report and impression
-- `/dictate` – speech recognition accuracy test
-- `/paste-test` – check formatting survives pasting into a PACS editor
+- `/` – public landing page, `/book-a-demo` – demo request form
+- `/report` – new report: dictate findings, get the report and impression
+- `/reports` – saved reports
+- `/templates` – a doctor's own report templates
+- `/team`, `/settings` – people, roles and account settings
 
 ## Run locally
 

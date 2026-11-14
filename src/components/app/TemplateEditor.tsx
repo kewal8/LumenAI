@@ -1,13 +1,13 @@
 "use client";
 
-import { ArrowLeft, Plus, Sparkle, Trash } from "@phosphor-icons/react";
+import { ArrowLeft, Plus, Rows, Sparkle, Trash } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Field, FieldLabel, FormError, send } from "@/components/auth/fields";
 import { TEMPLATE_LIMITS, type TemplateDraft } from "@/lib/templateInput";
 import { ConfirmAction } from "./TeamClient";
-import { PANEL, buttonClass } from "./ui";
+import { IconTile, PANEL, buttonClass } from "./ui";
 
 const areaClass =
   "w-full resize-y rounded-2xl border border-ink/35 bg-surface px-4 py-3 text-[0.95rem] leading-relaxed text-ink outline-none transition-colors hover:border-ink/60 focus:border-teal";
@@ -189,6 +189,12 @@ export function TemplateEditor({ template, canShare }: Props) {
 
       {draft.sections.map((section, index) => (
         <section key={index} className={`${PANEL} flex flex-col gap-4 p-6 sm:p-8`}>
+          <p className="flex items-center gap-3 text-[1.05rem] font-semibold">
+            <IconTile tone="neutral">
+              <Rows weight="fill" className="h-5 w-5" />
+            </IconTile>
+            Section {index + 1} of {draft.sections.length}
+          </p>
           <div className="flex items-end gap-3">
             <div className="flex-1">
               <Field

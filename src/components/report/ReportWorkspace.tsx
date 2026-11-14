@@ -1,8 +1,10 @@
 "use client";
 
+import { Dialog } from "@base-ui/react/dialog";
 import {
   CheckCircle,
   Copy,
+  FloppyDisk,
   Info,
   Microphone,
   PencilSimpleLine,
@@ -10,7 +12,10 @@ import {
   Stop,
   WarningCircle,
 } from "@phosphor-icons/react";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { buttonClass } from "@/components/app/ui";
+import { send as sendJson } from "@/components/auth/fields";
 import { copyReport } from "@/lib/clipboard";
 import {
   applyPatch,
@@ -54,12 +59,22 @@ function toBlob(text: string, type: string) {
 export function ReportWorkspace({
   profile,
   templates,
+  saved,
 }: {
   profile: PasteProfile;
   templates: Template[];
+  /** A saved report being reopened. Left out for a new report. */
+  saved?: { id: string; template: Template; report: Report };
 }) {
-  const [template, setTemplate] = useState(templates[0]);
-  const [report, setReport] = useState(() => reportFromTemplate(templates[0]));
+  const router = useRouter();
+  const [template, setTemplate] = useState(saved?.template ?? templates[0]);
+  const [report, setReport] = useState(() => saved?.report ?? reportFromTemplate(templates[0]));
+  const [savedId, setSavedId] = useState(saved?.id ?? null);
+  // True while the report has changes that are not in "Reports" yet.
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // The template waiting to be started while the "Save this report?" question is open.
+  const [pending, setPending] = useState<Template | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraftState] = useState("");
   const [busy, setBusy] = useState(false);
@@ -91,12 +106,42 @@ export function ReportWorkspace({
       ),
   });
 
-  const started = messages.length > 0 || copyState !== "empty";
+  const hasFindings = report.sections.some((section) =>
+    section.lines.some((line) => line.status !== "normal"),
+  );
 
+  async function save() {
+    setSaving(true);
+    setError("");
+    const body = { template, report: reportRef.current };
+    const result = savedId
+      ? await sendJson<{ id: string }>("PATCH", `/api/reports/${savedId}`, body)
+      : await sendJson<{ id: string }>("POST", "/api/reports", body);
+    setSaving(false);
+    if (result.error || !result.data) {
+      setError(result.error);
+      return false;
+    }
+    setSavedId(result.data.id);
+    setDirty(false);
+    return true;
+  }
+
+  // Asks first when there is work that has not been saved.
   function newCase(next = template) {
-    if (started && !window.confirm("Start a new case? The current report will be cleared.")) {
+    if (dirty) setPending(next);
+    else startNew(next);
+  }
+
+  function startNew(next: Template) {
+    setPending(null);
+    // A reopened report lives at its own address; a new one starts on the New report screen.
+    if (saved) {
+      router.push(`/report?template=${encodeURIComponent(next.id)}`);
       return;
     }
+    setSavedId(null);
+    setDirty(false);
     setTemplate(next);
     setReport(reportFromTemplate(next));
     setMessages([]);
@@ -132,6 +177,7 @@ export function ReportWorkspace({
     const ops: PatchOp[] = body.ops;
     const next = applyPatch(reportRef.current, template, ops, body.impression);
     setReport(next);
+    setDirty(true);
     setMessages((previous) => [
       ...previous,
       {
@@ -200,6 +246,7 @@ export function ReportWorkspace({
   const editTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   function edited(next: Report) {
     setReport(next);
+    setDirty(true);
     setCopyState("stale");
     clearTimeout(editTimer.current);
     editTimer.current = setTimeout(() => copy(next), 500);
@@ -260,10 +307,51 @@ export function ReportWorkspace({
             className="inline-flex h-11 items-center gap-2 rounded-full border border-ink/35 px-4 text-[0.95rem] font-semibold transition-colors hover:border-ink/60 hover:bg-ink/[0.04]"
           >
             <Plus weight="bold" className="h-4 w-4" />
-            New case
+            New report
           </button>
 
-          <div className="ml-auto flex items-center gap-3 whitespace-nowrap" aria-live="polite">
+        </header>
+
+        <div className="min-h-0 flex-1 px-4 py-6 sm:px-8 lg:overflow-y-auto">
+          <div className="mx-auto flex max-w-[72rem] flex-col gap-4">
+            {flaggedLines > 0 && (
+              <p
+                role="alert"
+                className="flex items-center gap-2.5 rounded-2xl border border-flag/50 bg-flag/10 px-4 py-3 font-semibold text-flag"
+              >
+                <WarningCircle weight="fill" className="h-5 w-5 shrink-0" />
+                {flaggedLines} {flaggedLines === 1 ? "line needs" : "lines need"} checking before
+                you sign.
+              </p>
+            )}
+
+            {/* Set in Arial, as the PACS editor will show it. */}
+            <article className="rounded-3xl border border-ink/20 bg-surface px-5 py-7 font-[Arial,Helvetica,sans-serif] text-[0.95rem] leading-[1.6] tracking-normal text-ink shadow-[0_1px_2px_rgb(15_38_36/0.06)] sm:px-9 sm:py-9">
+              <div
+                aria-live="polite"
+                className="sticky top-0 z-10 -mx-5 -mt-7 mb-7 flex flex-wrap items-center gap-3 rounded-t-3xl border-b border-line bg-surface px-5 py-3 font-[family-name:var(--font-brand)] sm:-mx-9 sm:-mt-9 sm:mb-8 sm:px-6"
+              >
+                <p className="mr-auto flex items-center gap-2 text-[0.95rem] font-semibold text-ink-soft">
+                  {savedId && !dirty ? (
+                    <>
+                      <CheckCircle weight="fill" className="h-5 w-5 text-teal" />
+                      Saved in Reports
+                    </>
+                  ) : savedId ? (
+                    "Changes not saved"
+                  ) : (
+                    "Not saved yet"
+                  )}
+                </p>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving || busy || (savedId !== null && !dirty)}
+              className={buttonClass.secondary}
+            >
+              <FloppyDisk weight="bold" className="h-5 w-5" />
+              {saving ? "Saving" : "Save"}
+            </button>
             {copyState === "copied" ? (
               <button
                 type="button"
@@ -285,23 +373,7 @@ export function ReportWorkspace({
               </button>
             )}
           </div>
-        </header>
 
-        <div className="min-h-0 flex-1 px-4 py-6 sm:px-8 lg:overflow-y-auto">
-          <div className="mx-auto flex max-w-[72rem] flex-col gap-4">
-            {flaggedLines > 0 && (
-              <p
-                role="alert"
-                className="flex items-center gap-2.5 rounded-2xl border border-flag/50 bg-flag/10 px-4 py-3 font-semibold text-flag"
-              >
-                <WarningCircle weight="fill" className="h-5 w-5 shrink-0" />
-                {flaggedLines} {flaggedLines === 1 ? "line needs" : "lines need"} checking before
-                you sign.
-              </p>
-            )}
-
-            {/* Set in Arial, as the PACS editor will show it. */}
-            <article className="rounded-3xl border border-ink/20 bg-surface px-5 py-7 font-[Arial,Helvetica,sans-serif] text-[0.95rem] leading-[1.6] tracking-normal text-ink shadow-[0_1px_2px_rgb(15_38_36/0.06)] sm:px-9 sm:py-9">
               <h1 className="text-center text-[1.05rem] font-bold">{report.title}</h1>
 
               {report.sections.map((section) => (
@@ -358,7 +430,7 @@ export function ReportWorkspace({
                   }
                   rows={Math.max(1, report.impression.length)}
                   aria-label="Impression"
-                  className={`${lineClass} mt-1.5 ${started ? "font-bold" : ""}`}
+                  className={`${lineClass} mt-1.5 ${hasFindings ? "font-bold" : ""}`}
                 />
               </div>
             </article>
@@ -526,6 +598,44 @@ export function ReportWorkspace({
           </button>
         </div>
       </aside>
+
+      <Dialog.Root open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="app-backdrop fixed inset-0 z-50 bg-[#06110f]/50" />
+          <Dialog.Popup className="app-layer fixed left-1/2 top-1/2 z-50 w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/20 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(6_17_15/0.55)] outline-none sm:p-8">
+            <Dialog.Title className="text-[1.4rem] font-semibold tracking-[-0.02em]">
+              Save this report?
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-[1.02rem] leading-relaxed text-ink-soft">
+              {savedId
+                ? "You changed this report after saving it. Save the changes before starting a new one?"
+                : "This report is not saved yet. Save it to Reports before starting a new one?"}
+            </Dialog.Description>
+            <div className="mt-6 flex flex-col gap-2.5">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={async () => {
+                  const next = pending;
+                  if (next && (await save())) startNew(next);
+                }}
+                className={`${buttonClass.primary} h-12`}
+              >
+                <FloppyDisk weight="bold" className="h-5 w-5" />
+                {saving ? "Saving" : "Save and start new report"}
+              </button>
+              <button
+                type="button"
+                onClick={() => pending && startNew(pending)}
+                className={`${buttonClass.danger} h-12`}
+              >
+                Do not save
+              </button>
+              <Dialog.Close className={`${buttonClass.quiet} h-12`}>Go back to this report</Dialog.Close>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
     </main>
   );
 }

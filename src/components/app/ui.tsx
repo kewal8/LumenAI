@@ -72,17 +72,24 @@ export function Page({ children }: { children: React.ReactNode }) {
 export function Section({
   title,
   description,
+  icon,
   children,
 }: {
   title: string;
   description?: string;
+  icon?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section className={`${PANEL} grid gap-x-10 gap-y-6 p-6 sm:p-8 lg:grid-cols-[minmax(14rem,1fr)_2fr]`}>
-      <div>
-        <h2 className="text-[1.15rem] font-semibold tracking-[-0.02em]">{title}</h2>
-        {description && <p className="mt-1 max-w-[44ch] text-[0.95rem] text-ink-soft">{description}</p>}
+      <div className="flex items-start gap-4">
+        {icon && <IconTile>{icon}</IconTile>}
+        <div className="min-w-0">
+          <h2 className="text-[1.15rem] font-semibold tracking-[-0.02em]">{title}</h2>
+          {description && (
+            <p className="mt-1 max-w-[44ch] text-[0.95rem] text-ink-soft">{description}</p>
+          )}
+        </div>
       </div>
       <div className="min-w-0">{children}</div>
     </section>
@@ -110,10 +117,23 @@ export function Badge({
   );
 }
 
-export function EmptyState({ title, body }: { title: string; body: string }) {
+export function EmptyState({
+  title,
+  body,
+  icon,
+}: {
+  title: string;
+  body: string;
+  icon?: React.ReactNode;
+}) {
   return (
-    <div className="rounded-3xl border border-dashed border-ink/25 px-6 py-12 text-center">
-      <p className="font-semibold">{title}</p>
+    <div className="flex flex-col items-center rounded-3xl border border-dashed border-ink/25 px-6 py-12 text-center">
+      {icon && (
+        <span className="mb-4">
+          <IconTile tone="neutral">{icon}</IconTile>
+        </span>
+      )}
+      <p className="text-[1.05rem] font-semibold">{title}</p>
       <p className="mx-auto mt-1 max-w-[46ch] text-[0.95rem] text-ink-soft">{body}</p>
     </div>
   );
@@ -127,4 +147,71 @@ export function formatDate(value: string | Date | null) {
     year: "numeric",
     timeZone: "Asia/Kolkata",
   });
+}
+
+export function formatDateTime(value: string | Date) {
+  return new Date(value).toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
+}
+
+/** Square icon badge that anchors a card or a list row. */
+export function IconTile({
+  children,
+  tone = "teal",
+}: {
+  children: React.ReactNode;
+  tone?: "teal" | "amber" | "neutral";
+}) {
+  const tones = {
+    teal: "bg-teal/[0.12] text-teal-deep",
+    amber: "bg-amber/25 text-amber-deep",
+    neutral: "bg-ink/[0.07] text-ink",
+  };
+  return (
+    <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${tones[tone]}`}>
+      {children}
+    </span>
+  );
+}
+
+/** Small pill for one item in a set, such as a section of a template. */
+export function Chip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex h-7 items-center rounded-full bg-ink/[0.07] px-3 text-[0.85rem] font-semibold text-ink">
+      {children}
+    </span>
+  );
+}
+
+/** One fact with its icon, for the footer of a card or row. */
+export function Meta({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[0.9rem] font-semibold text-ink-soft">
+      <span className="text-ink-quiet [&>svg]:h-4 [&>svg]:w-4">{icon}</span>
+      {children}
+    </span>
+  );
+}
+
+/** Round badge with a person's initials. */
+export function Avatar({ name }: { name: string }) {
+  const parts = name.replace(/^dr\.?\s+/i, "").split(/\s+/).filter(Boolean);
+  const initials = ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
+  return (
+    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-teal text-[0.9rem] font-bold text-white">
+      {initials}
+    </span>
+  );
+}
+
+/** "TECHNIQUE" becomes "Technique"; mixed-case text is left as typed. */
+export function tidyHeading(text: string) {
+  return text === text.toUpperCase() ? text.charAt(0) + text.slice(1).toLowerCase() : text;
 }

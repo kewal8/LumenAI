@@ -6,7 +6,7 @@ import {
   CalendarCheck,
   CaretUpDown,
   Files,
-  Flask,
+  FolderOpen,
   GearSix,
   List,
   Moon,
@@ -32,12 +32,12 @@ export type ShellUser = {
 type NavItem = { href: string; label: string; icon: Icon; staffOnly?: boolean };
 
 const NAV: NavItem[] = [
-  { href: "/report", label: "Report", icon: NotePencil },
+  { href: "/report", label: "New report", icon: NotePencil },
+  { href: "/reports", label: "Reports", icon: FolderOpen },
   { href: "/templates", label: "Templates", icon: Files },
   { href: "/team", label: "Team", icon: UsersThree },
   { href: "/settings", label: "Settings", icon: GearSix },
   { href: "/demo-requests", label: "Demo requests", icon: CalendarCheck, staffOnly: true },
-  { href: "/tools", label: "Test tools", icon: Flask, staffOnly: true },
 ];
 
 function initials(name: string) {
