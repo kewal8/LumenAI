@@ -15,6 +15,7 @@ import {
   EmptyState,
   IconTile,
   Meta,
+  LIST_HEAD,
   PANEL,
   Page,
   PageHeader,
@@ -82,6 +83,13 @@ export default async function TeamPage() {
           noun="people"
           single="person"
           listClassName={`${PANEL} overflow-hidden`}
+          head={
+            <div aria-hidden="true" className={`${LIST_HEAD} gap-x-4 lg:flex`}>
+              <span className="flex-1">Person</span>
+              <span className="w-52">Last sign-in</span>
+              <span className="w-56 text-right">Role</span>
+            </div>
+          }
           items={members.map((member) => {
             const target = {
               id: member.id as string,
@@ -106,10 +114,9 @@ export default async function TeamPage() {
                       {member.email}
                     </p>
                   </div>
-                  <span className="w-52">
-                    <Meta icon={<Clock weight="bold" />}>
-                      Last sign-in {formatDate(member.last_login_at)}
-                    </Meta>
+                  <span className="w-52 text-[0.95rem] font-semibold">
+                    <span className="mr-1.5 text-ink-soft lg:hidden">Last sign-in</span>
+                    {formatDate(member.last_login_at)}
                   </span>
                   <div className="flex w-56 items-center justify-end gap-1">
                     {manageable ? (

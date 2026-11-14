@@ -163,6 +163,8 @@ export type AccountRow = {
     staff: boolean;
     disabled: boolean;
     lastLogin: string | null;
+    updates30: number;
+    seconds30: number;
   }[];
 };
 
@@ -180,7 +182,13 @@ export async function listAccounts(): Promise<AccountRow[]> {
       from organizations o order by o.created_at desc
     `,
     sql`
-      select m.org_id, m.role, u.id, u.name, u.email, u.is_platform_admin, u.disabled_at, u.last_login_at
+      select m.org_id, m.role, u.id, u.name, u.email, u.is_platform_admin, u.disabled_at, u.last_login_at,
+             (select count(*)::int from usage_events e
+               where e.user_id = u.id and e.org_id = m.org_id and e.purpose = 'report'
+                 and e.created_at > now() - interval '30 days') as updates_30,
+             (select coalesce(sum(seconds), 0)::int from usage_events e
+               where e.user_id = u.id and e.org_id = m.org_id
+                 and e.created_at > now() - interval '30 days') as seconds_30
       from memberships m join users u on u.id = m.user_id
       order by array_position(array['owner', 'admin', 'radiologist'], m.role), u.name
     `,
@@ -203,6 +211,8 @@ export async function listAccounts(): Promise<AccountRow[]> {
         staff: member.is_platform_admin,
         disabled: member.disabled_at !== null,
         lastLogin: member.last_login_at?.toISOString() ?? null,
+        updates30: member.updates_30,
+        seconds30: member.seconds_30,
       })),
   }));
 }

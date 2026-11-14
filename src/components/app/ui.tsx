@@ -161,6 +161,10 @@ export function formatDateTime(value: string | Date) {
   });
 }
 
+/** Column headings above the rows of a list. Add the same columns as the rows. */
+export const LIST_HEAD =
+  "hidden border-b border-line bg-ink/[0.04] px-6 py-3 text-[0.82rem] font-bold uppercase tracking-[0.04em] text-ink-soft";
+
 /** Square icon badge that anchors a card or a list row. */
 export function IconTile({
   children,

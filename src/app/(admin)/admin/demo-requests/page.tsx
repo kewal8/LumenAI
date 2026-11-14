@@ -12,6 +12,7 @@ import {
   Badge,
   EmptyState,
   Meta,
+  LIST_HEAD,
   PANEL,
   Page,
   PageHeader,
@@ -61,6 +62,13 @@ export default async function DemoRequestsPage() {
           placeholder="Search by name, organisation or contact"
           noun="requests"
           listClassName={`${PANEL} overflow-hidden`}
+          head={
+            <div aria-hidden="true" className={`${LIST_HEAD} gap-x-6 lg:flex`}>
+              <span className="flex-1">Request</span>
+              <span className="w-64">Contact</span>
+              <span className="w-40">Status</span>
+            </div>
+          }
           items={requests.map((request) => ({
             key: request.id as string,
             text: [
@@ -124,10 +132,12 @@ export default async function DemoRequestsPage() {
                     {formatDate(request.created_at)}
                   </Meta>
                 </div>
-                <DemoStatusSelect
-                  id={request.id}
-                  status={request.status as DemoStatus}
-                />
+                <span className="w-40">
+                  <DemoStatusSelect
+                    id={request.id}
+                    status={request.status as DemoStatus}
+                  />
+                </span>
               </li>
             ),
           }))}

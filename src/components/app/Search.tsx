@@ -68,12 +68,15 @@ export function FilterList({
   noun,
   single,
   listClassName,
+  head,
 }: {
   items: { key: string; text: string; node: React.ReactNode }[];
   placeholder: string;
   noun: string;
   single?: string;
   listClassName: string;
+  /** Column headings, drawn inside the list's frame above the rows. */
+  head?: React.ReactNode;
 }) {
   const [query, setQuery] = useState("");
   const shown = items.filter((item) => matchesSearch(item.text, query));
@@ -92,7 +95,10 @@ export function FilterList({
       {shown.length === 0 ? (
         <EmptyState title={`Nothing matches “${query}”`} body="Check the spelling or try fewer words." />
       ) : (
-        <ul className={listClassName}>{shown.map((item) => item.node)}</ul>
+        <div className={listClassName}>
+          {head}
+          <ul>{shown.map((item) => item.node)}</ul>
+        </div>
       )}
     </div>
   );
