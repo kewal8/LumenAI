@@ -51,7 +51,7 @@ export function Field({
           autoFocus={autoFocus}
           readOnly={readOnly}
           aria-describedby={hint || capsLock ? `${id}-hint` : undefined}
-          className={`${dense ? "h-11" : "h-13"} w-full rounded-full border border-ink/60 bg-surface pl-5 text-base text-ink outline-none transition-colors hover:border-ink focus:border-teal read-only:bg-transparent read-only:text-ink-soft ${
+          className={`${dense ? "h-11" : "h-13"} w-full rounded-full border border-ink/35 bg-surface pl-5 text-base text-ink outline-none transition-colors hover:border-ink/60 focus:border-teal read-only:bg-transparent read-only:text-ink-soft ${
             isPassword ? "pr-13" : "pr-5"
           }`}
         />

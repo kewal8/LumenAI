@@ -237,7 +237,7 @@ export function ReportWorkspace({
 
   // Report text looks like plain text until it is hovered or clicked into.
   const lineClass =
-    "block w-full resize-none rounded-lg border border-transparent bg-transparent px-2.5 py-1 text-ink outline-none transition-colors [field-sizing:content] hover:border-ink focus:border-teal focus:bg-surface";
+    "block w-full resize-none rounded-lg border border-transparent bg-transparent px-2.5 py-1 text-ink outline-none transition-colors [field-sizing:content] hover:border-ink/60 focus:border-teal focus:bg-surface";
 
   // On a laptop the workspace is exactly one screen tall: the report scrolls
   // inside its column and the dictation panel never moves.
@@ -263,7 +263,7 @@ export function ReportWorkspace({
           <button
             type="button"
             onClick={() => newCase()}
-            className="inline-flex h-11 items-center gap-2 rounded-full border border-ink/65 px-4 text-[0.95rem] font-semibold transition-colors hover:border-ink hover:bg-ink/[0.04]"
+            className="inline-flex h-11 items-center gap-2 rounded-full border border-ink/35 px-4 text-[0.95rem] font-semibold transition-colors hover:border-ink/60 hover:bg-ink/[0.04]"
           >
             <Plus weight="bold" className="h-4 w-4" />
             New case
@@ -307,7 +307,7 @@ export function ReportWorkspace({
             )}
 
             {/* Set in Arial, as the PACS editor will show it. */}
-            <article className="rounded-3xl border border-ink/45 bg-surface px-5 py-7 font-[Arial,Helvetica,sans-serif] text-[0.95rem] leading-[1.6] tracking-normal text-ink shadow-[0_1px_2px_rgb(15_38_36/0.06)] sm:px-9 sm:py-9">
+            <article className="rounded-3xl border border-ink/20 bg-surface px-5 py-7 font-[Arial,Helvetica,sans-serif] text-[0.95rem] leading-[1.6] tracking-normal text-ink shadow-[0_1px_2px_rgb(15_38_36/0.06)] sm:px-9 sm:py-9">
               <h1 className="text-center text-[1.05rem] font-bold">{report.title}</h1>
 
               {report.sections.map((section) => (
@@ -390,7 +390,7 @@ export function ReportWorkspace({
               status === "listening"
                 ? "bg-flag text-white"
                 : status === "ready"
-                  ? "border border-ink/50 bg-surface text-ink"
+                  ? "border border-ink/25 bg-surface text-ink"
                   : "bg-amber/25 text-amber-deep"
             }`}
           >
@@ -433,7 +433,7 @@ export function ReportWorkspace({
           ) : (
             <ol className="flex flex-col gap-3">
               {messages.map((message, index) => (
-                <li key={index} className="rounded-2xl border border-ink/45 px-4 py-3">
+                <li key={index} className="rounded-2xl border border-ink/20 px-4 py-3">
                   <p className="text-[0.98rem] leading-snug">{message.dictation}</p>
                   <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.88rem] font-semibold">
                     <span className="flex items-center gap-1.5 text-teal-deep">
@@ -497,7 +497,7 @@ export function ReportWorkspace({
             aria-label="What you said"
             placeholder="Your words appear here. You can also type."
             className={`w-full resize-none rounded-2xl border-2 bg-surface px-4 py-3 text-[1.02rem] leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-quiet ${
-              dictation.recording ? "border-flag" : "border-ink/60 focus:border-teal"
+              dictation.recording ? "border-flag" : "border-ink/35 focus:border-teal"
             }`}
           />
 
@@ -526,7 +526,7 @@ export function ReportWorkspace({
             type="button"
             onClick={() => send(Promise.resolve(draft))}
             disabled={busy || dictation.recording || !draft.trim()}
-            className="h-11 rounded-full border border-ink/65 text-[0.95rem] font-bold text-ink transition-colors hover:border-ink hover:bg-ink/[0.06] disabled:opacity-60"
+            className="h-11 rounded-full border border-ink/35 text-[0.95rem] font-bold text-ink transition-colors hover:border-ink/60 hover:bg-ink/[0.06] disabled:opacity-60"
           >
             Update report from typed text
           </button>

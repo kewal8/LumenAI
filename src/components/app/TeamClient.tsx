@@ -10,7 +10,7 @@ import { ROLE_LABELS } from "@/lib/team";
 import { Select, buttonClass } from "./ui";
 
 const POPUP =
-  "app-layer fixed left-1/2 top-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/40 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(15_38_36/0.5)] outline-none sm:p-8";
+  "app-layer fixed left-1/2 top-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/20 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(15_38_36/0.5)] outline-none sm:p-8";
 const BACKDROP = "app-backdrop fixed inset-0 z-50 bg-[#0f2624]/40";
 
 export function InviteButton({ roles }: { roles: Role[] }) {
@@ -80,7 +80,7 @@ export function InviteButton({ roles }: { roles: Role[] }) {
                 value={link}
                 aria-label="Invitation link"
                 onFocus={(event) => event.target.select()}
-                className="h-11 w-full rounded-full border border-ink/60 bg-canvas px-4 text-[0.9rem] text-ink outline-none"
+                className="h-11 w-full rounded-full border border-ink/35 bg-canvas px-4 text-[0.9rem] text-ink outline-none"
               />
               <FormError message={error} />
               <div className="flex gap-2">

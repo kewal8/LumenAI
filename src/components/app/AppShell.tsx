@@ -114,7 +114,7 @@ function UserMenu({ user }: { user: ShellUser }) {
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner side="top" align="start" sideOffset={8} className="z-50">
-          <Menu.Popup className="app-layer w-60 origin-[var(--transform-origin)] rounded-3xl border border-ink/40 bg-surface p-2 shadow-[0_18px_50px_-18px_rgb(15_38_36/0.45)] outline-none">
+          <Menu.Popup className="app-layer w-60 origin-[var(--transform-origin)] rounded-3xl border border-ink/20 bg-surface p-2 shadow-[0_18px_50px_-18px_rgb(15_38_36/0.45)] outline-none">
             <p className="truncate px-3 pb-2 pt-1.5 text-[0.85rem] text-ink-soft">{user.email}</p>
             <Menu.Item className={MENU_ITEM} onClick={() => router.push("/settings")}>
               <GearSix className="h-5 w-5" />

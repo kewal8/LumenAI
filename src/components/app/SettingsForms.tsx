@@ -218,7 +218,7 @@ export function PasteFormatForm({ profile: initial }: { profile: PasteProfile })
       {/* White in both themes: this previews what lands in the PACS editor. */}
       <div
         aria-label="Preview of a pasted report"
-        className="rounded-2xl border border-ink/45 bg-[#fff] p-6"
+        className="rounded-2xl border border-ink/20 bg-[#fff] p-6"
         dangerouslySetInnerHTML={{ __html: buildReportHtml(SAMPLE, profile) }}
       />
 

@@ -232,7 +232,7 @@ html[data-landing-theme="dark"] {
   --c-ink: #06110f;
   --c-ink-soft: #24322f;
   --c-ink-quiet: #3f4f4c;
-  --c-line: #b9c3c1;
+  --c-line: #d3dad9;
   --c-teal: #0a5f58;
   --c-teal-deep: #06433e;
   --c-teal-tint: #cdebe6;
@@ -247,7 +247,7 @@ html[data-landing-theme="dark"] :is(.app, .app-layer) {
   --c-ink: #f4faf9;
   --c-ink-soft: #d3e5e1;
   --c-ink-quiet: #b3cbc6;
-  --c-line: #3a625c;
+  --c-line: #24443f;
   --c-teal: #7fe3d4;
   --c-teal-deep: #b4efe6;
   --c-teal-tint: #153f3f;

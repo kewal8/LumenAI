@@ -10,7 +10,7 @@ import { ConfirmAction } from "./TeamClient";
 import { PANEL, buttonClass } from "./ui";
 
 const areaClass =
-  "w-full resize-y rounded-2xl border border-ink/60 bg-surface px-4 py-3 text-[0.95rem] leading-relaxed text-ink outline-none transition-colors hover:border-ink focus:border-teal";
+  "w-full resize-y rounded-2xl border border-ink/35 bg-surface px-4 py-3 text-[0.95rem] leading-relaxed text-ink outline-none transition-colors hover:border-ink/60 focus:border-teal";
 
 const BLANK: TemplateDraft = {
   name: "",
