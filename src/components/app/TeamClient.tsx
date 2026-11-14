@@ -173,12 +173,15 @@ export function ConfirmAction({
   body,
   confirmLabel,
   path,
+  redirectTo,
 }: {
   label: string;
   title: string;
   body: string;
   confirmLabel: string;
   path: string;
+  /** Where to go afterwards, when the current screen no longer exists. */
+  redirectTo?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -194,12 +197,13 @@ export function ConfirmAction({
       return;
     }
     setOpen(false);
+    if (redirectTo) router.push(redirectTo);
     router.refresh();
   }
 
   return (
     <Dialog.Root open={open} onOpenChange={(next) => (setOpen(next), setError(""))}>
-      <Dialog.Trigger className={buttonClass.quiet}>{label}</Dialog.Trigger>
+      <Dialog.Trigger type="button" className={buttonClass.quiet}>{label}</Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop className={BACKDROP} />
         <Dialog.Popup className={POPUP}>

@@ -13,6 +13,8 @@ export function handle<Context = unknown>(
     try {
       return await run(request, context);
     } catch (error) {
+      // A body that is missing or not JSON is the caller's mistake, not ours.
+      if (error instanceof SyntaxError) return fail(400, "The request could not be read.");
       if (error instanceof DatabaseNotConfiguredError) {
         return fail(503, "The database is not connected yet.");
       }

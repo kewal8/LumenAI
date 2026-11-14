@@ -5,6 +5,7 @@ import { Menu } from "@base-ui/react/menu";
 import {
   CalendarCheck,
   CaretUpDown,
+  Files,
   Flask,
   GearSix,
   List,
@@ -32,6 +33,7 @@ type NavItem = { href: string; label: string; icon: Icon; staffOnly?: boolean };
 
 const NAV: NavItem[] = [
   { href: "/report", label: "Report", icon: NotePencil },
+  { href: "/templates", label: "Templates", icon: Files },
   { href: "/team", label: "Team", icon: UsersThree },
   { href: "/settings", label: "Settings", icon: GearSix },
   { href: "/demo-requests", label: "Demo requests", icon: CalendarCheck, staffOnly: true },

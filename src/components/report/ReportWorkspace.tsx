@@ -7,6 +7,7 @@ import {
   reportFromTemplate,
   type PatchOp,
   type Report,
+  type Template,
 } from "@/lib/report";
 import {
   buildReportHtml,
@@ -14,7 +15,6 @@ import {
   type FormattedReport,
   type PasteProfile,
 } from "@/lib/reportFormat";
-import { TEMPLATES } from "@/lib/templates";
 import { useDictation } from "@/lib/useDictation";
 
 type Message = { dictation: string; changed: number; flagged: number };
@@ -37,9 +37,15 @@ function toBlob(text: string, type: string) {
   return new Blob([text], { type });
 }
 
-export function ReportWorkspace({ profile }: { profile: PasteProfile }) {
-  const [template, setTemplate] = useState(TEMPLATES[0]);
-  const [report, setReport] = useState(() => reportFromTemplate(TEMPLATES[0]));
+export function ReportWorkspace({
+  profile,
+  templates,
+}: {
+  profile: PasteProfile;
+  templates: Template[];
+}) {
+  const [template, setTemplate] = useState(templates[0]);
+  const [report, setReport] = useState(() => reportFromTemplate(templates[0]));
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraftState] = useState("");
   const [busy, setBusy] = useState(false);
@@ -209,11 +215,11 @@ export function ReportWorkspace({ profile }: { profile: PasteProfile }) {
           <select
             value={template.id}
             onChange={(event) =>
-              newCase(TEMPLATES.find((item) => item.id === event.target.value))
+              newCase(templates.find((item) => item.id === event.target.value))
             }
             className="rounded border border-ink/20 bg-transparent px-2 py-1.5 text-sm"
           >
-            {TEMPLATES.map((item) => (
+            {templates.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
               </option>

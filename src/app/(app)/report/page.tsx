@@ -2,6 +2,9 @@ import { ReportWorkspace } from "@/components/report/ReportWorkspace";
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { parsePasteProfile } from "@/lib/reportFormat";
+import { toTemplate } from "@/lib/templateInput";
+import { listTemplates } from "@/lib/templateStore";
+import { CT_BRAIN_PLAIN } from "@/lib/templates";
 
 // Reads the signed-in user's data on every request, so it is rendered on demand.
 export const instant = false;
@@ -10,6 +13,14 @@ export const metadata = { title: "Report · LumenAI" };
 
 export default async function ReportPage() {
   const user = await requireUser();
-  const [row] = await db()`select paste_profile from users where id = ${user.id}`;
-  return <ReportWorkspace profile={parsePasteProfile(row?.paste_profile)} />;
+  const [[row], stored] = await Promise.all([
+    db()`select paste_profile from users where id = ${user.id}`,
+    listTemplates(user),
+  ]);
+
+  // Until someone adds their own, the built-in sample keeps the screen usable.
+  const templates =
+    stored.length > 0 ? stored.map((template) => toTemplate(template.id, template)) : [CT_BRAIN_PLAIN];
+
+  return <ReportWorkspace profile={parsePasteProfile(row?.paste_profile)} templates={templates} />;
 }
