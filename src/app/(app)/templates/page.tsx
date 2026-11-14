@@ -1,7 +1,8 @@
 import { Plus } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { AddSampleButton } from "@/components/app/AddSampleButton";
-import { Badge, EmptyState, PANEL, Page, PageHeader, buttonClass } from "@/components/app/ui";
+import { TemplateList } from "@/components/app/TemplateList";
+import { EmptyState, Page, PageHeader, buttonClass } from "@/components/app/ui";
 import { requireUser } from "@/lib/auth/session";
 import { listTemplates } from "@/lib/templateStore";
 
@@ -38,38 +39,7 @@ export default async function TemplatesPage() {
           <AddSampleButton />
         </div>
       ) : (
-        <ul className="grid gap-4 md:grid-cols-2">
-          {templates.map((template) => {
-            const lines = template.sections.reduce((total, section) => total + section.lines.length, 0);
-            return (
-              <li key={template.id} className={`${PANEL} flex flex-col gap-4 p-6`}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h2 className="truncate text-[1.15rem] font-semibold tracking-[-0.02em]">
-                      {template.name}
-                    </h2>
-                    <p className="truncate text-[0.9rem] text-ink-soft">{template.title}</p>
-                  </div>
-                  {template.shared && <Badge tone="teal">Shared</Badge>}
-                </div>
-                <p className="text-[0.9rem] text-ink-soft">
-                  {template.sections.map((section) => section.heading).join(", ")}
-                </p>
-                <div className="mt-auto flex items-center justify-between gap-3">
-                  <p className="text-[0.85rem] text-ink-quiet">
-                    {lines} {lines === 1 ? "line" : "lines"}
-                    {!template.mine && `, by ${template.ownerName}`}
-                  </p>
-                  {template.canEdit && (
-                    <Link href={`/templates/${template.id}`} className={buttonClass.secondary}>
-                      Edit
-                    </Link>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <TemplateList templates={templates} />
       )}
     </Page>
   );

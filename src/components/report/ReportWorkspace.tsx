@@ -25,7 +25,7 @@ import {
   type FormattedReport,
   type PasteProfile,
 } from "@/lib/reportFormat";
-import { Select } from "@/components/app/ui";
+import { TemplatePicker } from "./TemplatePicker";
 import { MICROPHONE_MESSAGES, useDictation } from "@/lib/useDictation";
 
 type Message = { dictation: string; changed: number; flagged: number };
@@ -246,20 +246,14 @@ export function ReportWorkspace({
       {/* The report: what will be pasted into PACS. */}
       <section className="order-2 flex min-w-0 flex-1 flex-col lg:order-1 lg:overflow-hidden">
         <header className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-5 py-3 sm:px-8">
-          <label className="flex items-center gap-2.5 text-[0.95rem] font-semibold">
-            Template
-            <Select
+          <div className="flex items-center gap-2.5 text-[0.95rem] font-semibold">
+            <span aria-hidden="true">Template</span>
+            <TemplatePicker
+              templates={templates}
               value={template.id}
-              onChange={(event) => newCase(templates.find((item) => item.id === event.target.value))}
-              className="max-w-[16rem]"
-            >
-              {templates.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </Select>
-          </label>
+              onChange={(id) => newCase(templates.find((item) => item.id === id))}
+            />
+          </div>
           <button
             type="button"
             onClick={() => newCase()}
