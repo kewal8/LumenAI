@@ -65,7 +65,7 @@ export function ProfileForm({ name: initial, email }: { name: string; email: str
         event.preventDefault();
         save("PATCH", "/api/account", { name });
       }}
-      className="flex max-w-md flex-col gap-4"
+      className="flex max-w-2xl flex-col gap-4"
       noValidate
     >
       <Field
@@ -94,7 +94,7 @@ export function OrganisationForm({ name: initial }: { name: string }) {
         event.preventDefault();
         save("PATCH", "/api/account", { organisationName: name });
       }}
-      className="flex max-w-md flex-col gap-4"
+      className="flex max-w-2xl flex-col gap-4"
       noValidate
     >
       <Field
@@ -125,7 +125,7 @@ export function PasswordForm() {
           setNext("");
         }
       }}
-      className="flex max-w-md flex-col gap-4"
+      className="flex max-w-2xl flex-col gap-4"
       noValidate
     >
       <Field

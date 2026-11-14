@@ -11,7 +11,7 @@ export const metadata = { title: "New template · LumenAI" };
 export default async function NewTemplatePage() {
   const user = await requireUser();
   return (
-    <Page narrow>
+    <Page>
       <TemplateEditor canShare={canManageTeam(user.org?.role)} />
     </Page>
   );

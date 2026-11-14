@@ -16,7 +16,7 @@ export default async function EditTemplatePage({ params }: PageProps<"/templates
   if (!template?.canEdit) notFound();
 
   return (
-    <Page narrow>
+    <Page>
       <TemplateEditor
         template={{
           id: template.id,

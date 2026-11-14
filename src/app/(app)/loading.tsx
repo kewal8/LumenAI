@@ -4,7 +4,7 @@ export default function Loading() {
     <main
       aria-busy="true"
       aria-label="Loading"
-      className="mx-auto flex w-full max-w-6xl flex-1 animate-pulse flex-col gap-7 px-5 py-8 sm:px-8 lg:py-10"
+      className="mx-auto flex w-full max-w-[96rem] flex-1 animate-pulse flex-col gap-7 px-5 py-8 sm:px-8 lg:px-10 lg:py-10"
     >
       <div className="flex flex-col gap-3">
         <div className="h-8 w-48 rounded-full bg-ink/[0.08]" />

@@ -19,7 +19,7 @@ export default async function SettingsPage() {
   const [row] = await db()`select paste_profile from users where id = ${user.id}`;
 
   return (
-    <Page narrow>
+    <Page>
       <PageHeader title="Settings" description="Your account and how reports are formatted." />
 
       <Section title="Profile">

@@ -294,7 +294,7 @@ export function ReportWorkspace({
         </header>
 
         <div className="min-h-0 flex-1 px-4 py-6 sm:px-8 lg:overflow-y-auto">
-          <div className="mx-auto flex max-w-[52rem] flex-col gap-4">
+          <div className="mx-auto flex max-w-[72rem] flex-col gap-4">
             {flaggedLines > 0 && (
               <p
                 role="alert"

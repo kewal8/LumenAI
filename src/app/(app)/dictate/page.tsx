@@ -39,7 +39,7 @@ export default function DictatePage() {
   ).length;
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-[96rem] flex-1 flex-col gap-6 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
       <header className="flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold">Dictation test</h1>
       </header>

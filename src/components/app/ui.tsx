@@ -56,18 +56,19 @@ export function PageHeader({
   );
 }
 
-export function Page({ children, narrow = false }: { children: React.ReactNode; narrow?: boolean }) {
+/**
+ * Screens use the full width of the window, and stop growing on very large
+ * displays so lines do not become too long to read.
+ */
+export function Page({ children }: { children: React.ReactNode }) {
   return (
-    <main
-      className={`mx-auto flex w-full flex-1 flex-col gap-7 px-5 py-8 sm:px-8 lg:py-10 ${
-        narrow ? "max-w-3xl" : "max-w-6xl"
-      }`}
-    >
+    <main className="mx-auto flex w-full max-w-[96rem] flex-1 flex-col gap-7 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
       {children}
     </main>
   );
 }
 
+/** A settings-style block: what it is on the left, the controls on the right. */
 export function Section({
   title,
   description,
@@ -78,10 +79,12 @@ export function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className={`${PANEL} p-6 sm:p-8`}>
-      <h2 className="text-[1.15rem] font-semibold tracking-[-0.02em]">{title}</h2>
-      {description && <p className="mt-1 max-w-[60ch] text-[0.95rem] text-ink-soft">{description}</p>}
-      <div className="mt-6">{children}</div>
+    <section className={`${PANEL} grid gap-x-10 gap-y-6 p-6 sm:p-8 lg:grid-cols-[minmax(14rem,1fr)_2fr]`}>
+      <div>
+        <h2 className="text-[1.15rem] font-semibold tracking-[-0.02em]">{title}</h2>
+        {description && <p className="mt-1 max-w-[44ch] text-[0.95rem] text-ink-soft">{description}</p>}
+      </div>
+      <div className="min-w-0">{children}</div>
     </section>
   );
 }
