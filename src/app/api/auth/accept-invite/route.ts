@@ -1,6 +1,6 @@
 import { hashPassword, hashToken } from "@/lib/auth/crypto";
 import { fail, handle } from "@/lib/auth/respond";
-import { passwordProblem } from "@/lib/auth/rules";
+import { homePath, passwordProblem } from "@/lib/auth/rules";
 import { createSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 
@@ -53,5 +53,5 @@ export const POST = handle(async (request) => {
   ]);
 
   await createSession(userId, request.headers.get("user-agent"));
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, home: homePath(invite.is_platform_admin) });
 });

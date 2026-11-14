@@ -24,7 +24,7 @@ import type { DemoStatus } from "@/lib/demo";
 // Reads the signed-in user's data on every request, so it is rendered on demand.
 export const instant = false;
 
-export const metadata = { title: "Demo requests · LumenAI" };
+export const metadata = { title: "Demo requests · LumenAI Admin" };
 
 export default async function DemoRequestsPage() {
   const user = await requireUser();

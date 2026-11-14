@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/rules";
 import { authLinkClass } from "./AuthShell";
-import { Field, FormError, SubmitButton, postAuth } from "./fields";
+import { Field, FormError, SubmitButton, send } from "./fields";
 
-function useSubmit(path: string, onDone: () => void) {
+function useSubmit(path: string, onDone: (home: string) => void) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -15,24 +15,24 @@ function useSubmit(path: string, onDone: () => void) {
     event.preventDefault();
     setBusy(true);
     setError("");
-    const problem = await postAuth(path, body);
-    if (problem) {
-      setError(problem);
+    const result = await send<{ home?: string }>("POST", path, body);
+    if (result.error) {
+      setError(result.error);
       setBusy(false);
       return;
     }
-    onDone();
+    onDone(result.data?.home ?? "/report");
   }
 
   return { error, busy, submit, clearError: () => setError("") };
 }
 
-export function LoginForm({ next }: { next: string }) {
+export function LoginForm({ next }: { next: string | null }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { error, busy, submit, clearError } = useSubmit("/api/auth/login", () => {
-    router.replace(next);
+  const { error, busy, submit, clearError } = useSubmit("/api/auth/login", (home) => {
+    router.replace(next ?? home);
     router.refresh();
   });
 
@@ -80,8 +80,8 @@ export function AcceptInviteForm({ token, email }: { token: string; email: strin
   const router = useRouter();
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
-  const { error, busy, submit, clearError } = useSubmit("/api/auth/accept-invite", () => {
-    router.replace("/report");
+  const { error, busy, submit, clearError } = useSubmit("/api/auth/accept-invite", (home) => {
+    router.replace(home);
     router.refresh();
   });
 
@@ -173,8 +173,8 @@ export function ForgotPasswordForm() {
 export function ResetPasswordForm({ token }: { token: string }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
-  const { error, busy, submit, clearError } = useSubmit("/api/auth/reset-password", () => {
-    router.replace("/report");
+  const { error, busy, submit, clearError } = useSubmit("/api/auth/reset-password", (home) => {
+    router.replace(home);
     router.refresh();
   });
 

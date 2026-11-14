@@ -3,7 +3,10 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { Menu } from "@base-ui/react/menu";
 import {
+  ArrowsLeftRight,
+  Buildings,
   CalendarCheck,
+  ChartBar,
   CaretUpDown,
   Files,
   FolderOpen,
@@ -29,56 +32,71 @@ export type ShellUser = {
   isPlatformAdmin: boolean;
 };
 
-type NavItem = { href: string; label: string; icon: Icon; staffOnly?: boolean };
+export type Area = "doctor" | "admin";
 
-const NAV: NavItem[] = [
-  { href: "/report", label: "New report", icon: NotePencil },
-  { href: "/reports", label: "Reports", icon: FolderOpen },
-  { href: "/templates", label: "Templates", icon: Files },
-  { href: "/team", label: "Team", icon: UsersThree },
-  { href: "/settings", label: "Settings", icon: GearSix },
-  { href: "/demo-requests", label: "Demo requests", icon: CalendarCheck, staffOnly: true },
-];
+type NavItem = { href: string; label: string; icon: Icon; exact?: boolean };
+
+// Doctors write reports. LumenAI staff run the business. The two never share a menu.
+const NAV: Record<Area, NavItem[]> = {
+  doctor: [
+    { href: "/report", label: "New report", icon: NotePencil },
+    { href: "/reports", label: "Reports", icon: FolderOpen },
+    { href: "/templates", label: "Templates", icon: Files },
+    { href: "/team", label: "Team", icon: UsersThree },
+    { href: "/settings", label: "Settings", icon: GearSix },
+  ],
+  admin: [
+    { href: "/admin", label: "Dashboard", icon: ChartBar, exact: true },
+    { href: "/admin/demo-requests", label: "Demo requests", icon: CalendarCheck },
+    { href: "/admin/accounts", label: "Accounts", icon: Buildings },
+  ],
+};
 
 function initials(name: string) {
   const parts = name.replace(/^dr\.?\s+/i, "").split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
 }
 
-function Wordmark() {
+function Wordmark({ area }: { area: Area }) {
   return (
-    <Link href="/report" className="text-[1.3rem] font-bold tracking-[-0.04em]">
-      Lumen<span className="text-teal">AI</span>
+    <Link
+      href={NAV[area][0].href}
+      className="flex items-center gap-2.5 text-[1.3rem] font-bold tracking-[-0.04em]"
+    >
+      <span>
+        Lumen<span className="text-teal">AI</span>
+      </span>
+      {area === "admin" && (
+        <span className="rounded-full bg-ink px-2.5 py-0.5 text-[0.75rem] font-bold tracking-normal text-surface">
+          Admin
+        </span>
+      )}
     </Link>
   );
 }
 
-function NavLinks({ user, onNavigate }: { user: ShellUser; onNavigate?: () => void }) {
+function NavLinks({ area, onNavigate }: { area: Area; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const items = NAV.filter((item) => !item.staffOnly || user.isPlatformAdmin);
-  const staffStart = items.findIndex((item) => item.staffOnly);
 
   return (
-    <nav aria-label="App" className="flex flex-col gap-1">
-      {items.map((item, index) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+    <nav aria-label={area === "admin" ? "Admin" : "App"} className="flex flex-col gap-1">
+      {NAV[area].map((item) => {
+        const active = item.exact
+          ? pathname === item.href
+          : pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
-          <div key={item.href}>
-            {index === staffStart && (
-              <p className="mb-1 mt-5 px-3 text-[0.85rem] font-bold text-ink-soft">LumenAI staff</p>
-            )}
-            <Link
-              href={item.href}
-              onClick={onNavigate}
-              aria-current={active ? "page" : undefined}
-              className={`flex h-11 items-center gap-3 rounded-full px-3 text-[1rem] font-semibold transition-colors ${
-                active ? "bg-teal text-white" : "text-ink hover:bg-ink/10"
-              }`}
-            >
-              <item.icon weight={active ? "fill" : "regular"} className="h-5 w-5 shrink-0" />
-              {item.label}
-            </Link>
-          </div>
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            aria-current={active ? "page" : undefined}
+            className={`flex h-11 items-center gap-3 rounded-full px-3 text-[1rem] font-semibold transition-colors ${
+              active ? "bg-teal text-white" : "text-ink hover:bg-ink/10"
+            }`}
+          >
+            <item.icon weight={active ? "fill" : "regular"} className="h-5 w-5 shrink-0" />
+            {item.label}
+          </Link>
         );
       })}
     </nav>
@@ -88,7 +106,7 @@ function NavLinks({ user, onNavigate }: { user: ShellUser; onNavigate?: () => vo
 const MENU_ITEM =
   "flex h-10 cursor-default select-none items-center gap-3 rounded-full px-3 text-[0.95rem] font-semibold text-ink outline-none data-[highlighted]:bg-ink/10";
 
-function UserMenu({ user }: { user: ShellUser }) {
+function UserMenu({ user, area }: { user: ShellUser; area: Area }) {
   const router = useRouter();
   const { theme, toggle } = useTheme();
 
@@ -116,10 +134,22 @@ function UserMenu({ user }: { user: ShellUser }) {
         <Menu.Positioner side="top" align="start" sideOffset={8} className="z-50">
           <Menu.Popup className="app-layer w-60 origin-[var(--transform-origin)] rounded-3xl border border-ink/20 bg-surface p-2 shadow-[0_18px_50px_-18px_rgb(15_38_36/0.45)] outline-none">
             <p className="truncate px-3 pb-2 pt-1.5 text-[0.85rem] text-ink-soft">{user.email}</p>
-            <Menu.Item className={MENU_ITEM} onClick={() => router.push("/settings")}>
-              <GearSix className="h-5 w-5" />
-              Settings
-            </Menu.Item>
+            {area === "doctor" && (
+              <Menu.Item className={MENU_ITEM} onClick={() => router.push("/settings")}>
+                <GearSix className="h-5 w-5" />
+                Settings
+              </Menu.Item>
+            )}
+            {/* Staff can step into the doctor's workspace to try the product, and back. */}
+            {user.isPlatformAdmin && (
+              <Menu.Item
+                className={MENU_ITEM}
+                onClick={() => router.push(area === "admin" ? "/report" : "/admin")}
+              >
+                <ArrowsLeftRight className="h-5 w-5" />
+                {area === "admin" ? "Doctor workspace" : "Admin panel"}
+              </Menu.Item>
+            )}
             <Menu.Item className={MENU_ITEM} closeOnClick={false} onClick={toggle}>
               {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               {theme === "dark" ? "Light mode" : "Dark mode"}
@@ -136,7 +166,15 @@ function UserMenu({ user }: { user: ShellUser }) {
   );
 }
 
-export function AppShell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
+export function AppShell({
+  user,
+  area,
+  children,
+}: {
+  user: ShellUser;
+  area: Area;
+  children: React.ReactNode;
+}) {
   const [navOpen, setNavOpen] = useState(false);
 
   return (
@@ -144,16 +182,16 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
       <aside className="sticky top-0 hidden h-[100dvh] w-64 shrink-0 flex-col justify-between border-r border-line bg-surface p-4 lg:flex">
         <div>
           <div className="px-3 pb-7 pt-2">
-            <Wordmark />
+            <Wordmark area={area} />
           </div>
-          <NavLinks user={user} />
+          <NavLinks area={area} />
         </div>
-        <UserMenu user={user} />
+        <UserMenu user={user} area={area} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-40 flex items-center justify-between border-b border-line bg-surface px-4 py-3 lg:hidden">
-          <Wordmark />
+          <Wordmark area={area} />
           <Dialog.Root open={navOpen} onOpenChange={setNavOpen}>
             <Dialog.Trigger
               aria-label="Open menu"
@@ -174,9 +212,9 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
                       <X className="h-5 w-5" />
                     </Dialog.Close>
                   </div>
-                  <NavLinks user={user} onNavigate={() => setNavOpen(false)} />
+                  <NavLinks area={area} onNavigate={() => setNavOpen(false)} />
                 </div>
-                <UserMenu user={user} />
+                <UserMenu user={user} area={area} />
               </Dialog.Popup>
             </Dialog.Portal>
           </Dialog.Root>

@@ -1,6 +1,6 @@
 import { burnPasswordCheck, verifyPassword } from "@/lib/auth/crypto";
 import { clientIp, fail, handle } from "@/lib/auth/respond";
-import { normaliseEmail } from "@/lib/auth/rules";
+import { homePath, normaliseEmail } from "@/lib/auth/rules";
 import { createSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 
@@ -27,7 +27,7 @@ export const POST = handle(async (request) => {
   }
 
   const [user] = await sql`
-    select id, password_hash, disabled_at from users where lower(email) = ${email}
+    select id, password_hash, disabled_at, is_platform_admin from users where lower(email) = ${email}
   `;
 
   let ok = false;
@@ -42,5 +42,5 @@ export const POST = handle(async (request) => {
 
   await sql`update users set last_login_at = now() where id = ${user.id}`;
   await createSession(user.id, request.headers.get("user-agent"));
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, home: homePath(user.is_platform_admin) });
 });

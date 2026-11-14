@@ -9,9 +9,9 @@ import type { Role } from "@/lib/auth/session";
 import { ROLE_LABELS } from "@/lib/team";
 import { Select, buttonClass } from "./ui";
 
-const POPUP =
+export const POPUP =
   "app-layer fixed left-1/2 top-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/20 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(15_38_36/0.5)] outline-none sm:p-8";
-const BACKDROP = "app-backdrop fixed inset-0 z-50 bg-[#0f2624]/40";
+export const BACKDROP = "app-backdrop fixed inset-0 z-50 bg-[#0f2624]/40";
 
 export function InviteButton({ roles }: { roles: Role[] }) {
   const router = useRouter();
@@ -172,6 +172,9 @@ export function ConfirmAction({
   confirmLabel,
   path,
   redirectTo,
+  method = "DELETE",
+  payload,
+  tone = "danger",
 }: {
   label: string;
   title: string;
@@ -180,6 +183,9 @@ export function ConfirmAction({
   path: string;
   /** Where to go afterwards, when the current screen no longer exists. */
   redirectTo?: string;
+  method?: "DELETE" | "PATCH";
+  payload?: unknown;
+  tone?: "danger" | "primary";
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -188,7 +194,7 @@ export function ConfirmAction({
 
   async function confirm() {
     setBusy(true);
-    const result = await send("DELETE", path);
+    const result = await send(method, path, payload);
     setBusy(false);
     if (result.error) {
       setError(result.error);
@@ -211,7 +217,7 @@ export function ConfirmAction({
             <FormError message={error} />
           </div>
           <div className="mt-5 flex gap-2">
-            <button type="button" onClick={confirm} disabled={busy} className={buttonClass.danger}>
+            <button type="button" onClick={confirm} disabled={busy} className={buttonClass[tone]}>
               {busy ? "Working" : confirmLabel}
             </button>
             <Dialog.Close className={buttonClass.secondary}>Cancel</Dialog.Close>

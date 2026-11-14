@@ -11,6 +11,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <AppShell
+      area="doctor"
       user={{
         name: user.name,
         email: user.email,

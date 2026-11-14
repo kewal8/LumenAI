@@ -70,8 +70,20 @@ export function useDictation({ model, language, keyterms, onWords }: Options) {
   // (token, microphone prompt), and a second click in that gap would open a
   // second session that transcribes the same speech again.
   const activeRef = useRef(false);
+  // When listening began, to report how long the speech service was used.
+  const startedAtRef = useRef<number | null>(null);
 
   function cleanup() {
+    if (startedAtRef.current !== null) {
+      const seconds = Math.round((Date.now() - startedAtRef.current) / 1000);
+      startedAtRef.current = null;
+      fetch("/api/usage/dictation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seconds }),
+        keepalive: true,
+      }).catch(() => {});
+    }
     if (recorderRef.current?.state === "recording") recorderRef.current.stop();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     recorderRef.current = null;
@@ -123,6 +135,7 @@ export function useDictation({ model, language, keyterms, onWords }: Options) {
           }
         };
         recorder.start(250);
+        startedAtRef.current = Date.now();
         setStarting(false);
         setRecording(true);
       };

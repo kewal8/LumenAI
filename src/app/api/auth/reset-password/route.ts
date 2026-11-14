@@ -1,6 +1,6 @@
 import { hashPassword, hashToken } from "@/lib/auth/crypto";
 import { fail, handle } from "@/lib/auth/respond";
-import { passwordProblem } from "@/lib/auth/rules";
+import { homePath, passwordProblem } from "@/lib/auth/rules";
 import { createSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 
@@ -14,7 +14,7 @@ export const POST = handle(async (request) => {
 
   const sql = db();
   const [reset] = await sql`
-    select r.id, r.user_id, u.email
+    select r.id, r.user_id, u.email, u.is_platform_admin
     from password_resets r join users u on u.id = r.user_id
     where r.token_hash = ${hashToken(token)} and r.used_at is null
       and r.expires_at > now() and u.disabled_at is null
@@ -31,5 +31,5 @@ export const POST = handle(async (request) => {
   ]);
 
   await createSession(reset.user_id, request.headers.get("user-agent"));
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, home: homePath(reset.is_platform_admin) });
 });

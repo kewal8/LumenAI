@@ -3,6 +3,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { PatchOp, Report, Template } from "@/lib/report";
+import { recordClaudeUsage } from "@/lib/usage";
 import { validateLine } from "@/lib/validate";
 
 const MODEL = process.env.REPORT_MODEL ?? "claude-opus-5-5";
@@ -51,7 +52,8 @@ type GenerateRequest = {
 };
 
 export async function POST(request: Request) {
-  if (!(await getCurrentUser())) {
+  const user = await getCurrentUser();
+  if (!user) {
     return Response.json({ error: "Signed out. Sign in again." }, { status: 401 });
   }
 
@@ -95,6 +97,8 @@ export async function POST(request: Request) {
         },
       ],
     });
+
+    await recordClaudeUsage(user, "report", response.model, response.usage);
 
     if (response.stop_reason === "refusal") {
       return Response.json(

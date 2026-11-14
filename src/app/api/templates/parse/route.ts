@@ -3,6 +3,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { apiUser, fail, handle } from "@/lib/auth/respond";
 import { parseTemplateDraft } from "@/lib/templateInput";
+import { recordClaudeUsage } from "@/lib/usage";
 
 const MODEL = process.env.REPORT_MODEL ?? "claude-opus-5-5";
 const MAX_CHARACTERS = 20000;
@@ -54,6 +55,8 @@ export const POST = handle(async (request) => {
       system: SYSTEM,
       messages: [{ role: "user", content: `<template_text>\n${text}\n</template_text>` }],
     });
+
+    await recordClaudeUsage(user, "template", response.model, response.usage);
 
     if (response.stop_reason === "refusal" || !response.parsed_output) {
       return fail(422, "This text could not be converted. Start with a blank template instead.");
