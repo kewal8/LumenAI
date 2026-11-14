@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type Word = { text: string; confidence: number };
 
@@ -11,12 +11,56 @@ type Options = {
   onWords: (words: Word[]) => void;
 };
 
+export type MicrophoneAccess = "unknown" | "ask" | "allowed" | "blocked";
+
+/** Plain-language messages for the people using this, not for developers. */
+export const MICROPHONE_MESSAGES = {
+  ask: "Your browser will ask to use the microphone. Choose Allow. LumenAI listens only while the red Listening sign is showing.",
+  blocked:
+    "The microphone is blocked for LumenAI. Click the lock icon beside the web address at the top of the screen, change Microphone to Allow, then reload this page.",
+  missing:
+    "No microphone was found. Plug in a headset or microphone, then press Start speaking again.",
+  busy: "The microphone is being used by another program, such as a video call. Close that program, then press Start speaking again.",
+  unsupported:
+    "This browser cannot use the microphone here. Open LumenAI in Google Chrome or Microsoft Edge.",
+  offline:
+    "Could not reach the speech service. Check your internet connection, then press Start speaking again.",
+};
+
+function microphoneProblem(cause: unknown) {
+  const name = cause instanceof DOMException ? cause.name : "";
+  if (name === "NotAllowedError" || name === "SecurityError") return MICROPHONE_MESSAGES.blocked;
+  if (name === "NotFoundError" || name === "OverconstrainedError") return MICROPHONE_MESSAGES.missing;
+  if (name === "NotReadableError" || name === "AbortError") return MICROPHONE_MESSAGES.busy;
+  if (cause instanceof TypeError) return MICROPHONE_MESSAGES.offline;
+  return cause instanceof Error && cause.message ? cause.message : MICROPHONE_MESSAGES.offline;
+}
+
 // Streams microphone audio straight to Deepgram and reports finalised words.
 export function useDictation({ model, language, keyterms, onWords }: Options) {
   const [recording, setRecording] = useState(false);
   const [starting, setStarting] = useState(false);
   const [interim, setInterim] = useState("");
   const [error, setError] = useState("");
+  const [access, setAccess] = useState<MicrophoneAccess>("unknown");
+
+  // Know before the first click whether the browser will ask, allow or refuse.
+  useEffect(() => {
+    let status: PermissionStatus | undefined;
+    const read = () => {
+      if (!status) return;
+      setAccess(status.state === "granted" ? "allowed" : status.state === "denied" ? "blocked" : "ask");
+    };
+    navigator.permissions
+      ?.query({ name: "microphone" as PermissionName })
+      .then((result) => {
+        status = result;
+        read();
+        result.addEventListener("change", read);
+      })
+      .catch(() => {});
+    return () => status?.removeEventListener("change", read);
+  }, []);
 
   const socketRef = useRef<WebSocket | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -51,8 +95,10 @@ export function useDictation({ model, language, keyterms, onWords }: Options) {
       const tokenBody = await tokenRes.json();
       if (!tokenRes.ok) throw new Error(tokenBody.error);
 
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error(MICROPHONE_MESSAGES.unsupported);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      setAccess("allowed");
 
       const params = new URLSearchParams({
         model,
@@ -103,11 +149,13 @@ export function useDictation({ model, language, keyterms, onWords }: Options) {
       };
 
       socket.onerror = () => {
-        setError("Speech connection failed. Check the model, language and API key.");
+        setError(MICROPHONE_MESSAGES.offline);
       };
       socket.onclose = cleanup;
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not start dictation.");
+      const problem = microphoneProblem(cause);
+      if (problem === MICROPHONE_MESSAGES.blocked) setAccess("blocked");
+      setError(problem);
       cleanup();
     }
   }
@@ -128,5 +176,5 @@ export function useDictation({ model, language, keyterms, onWords }: Options) {
     });
   }
 
-  return { recording, starting, interim, error, start, stop };
+  return { recording, starting, interim, error, access, start, stop };
 }

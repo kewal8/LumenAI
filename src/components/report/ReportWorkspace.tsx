@@ -3,6 +3,7 @@
 import {
   CheckCircle,
   Copy,
+  Info,
   Microphone,
   PencilSimpleLine,
   Plus,
@@ -24,7 +25,7 @@ import {
   type FormattedReport,
   type PasteProfile,
 } from "@/lib/reportFormat";
-import { useDictation } from "@/lib/useDictation";
+import { MICROPHONE_MESSAGES, useDictation } from "@/lib/useDictation";
 
 type Message = { dictation: string; changed: number; flagged: number };
 type CopyState = "empty" | "copied" | "stale";
@@ -41,6 +42,9 @@ function formatted(report: Report): FormattedReport {
     ],
   };
 }
+
+const COPY_BLOCKED =
+  "The report is ready, but your browser did not let it copy by itself. Press Copy report, then paste into PACS.";
 
 function toBlob(text: string, type: string) {
   return new Blob([text], { type });
@@ -107,6 +111,7 @@ export function ReportWorkspace({
       setCopyState("copied");
     } catch {
       setCopyState("stale");
+      setError(COPY_BLOCKED);
     }
   }
 
@@ -171,7 +176,9 @@ export function ReportWorkspace({
 
     try {
       await nextReport;
-      setCopyState((await copied) ? "copied" : "stale");
+      const done = await copied;
+      setCopyState(done ? "copied" : "stale");
+      if (!done) setError(COPY_BLOCKED);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not update the report.");
     } finally {
@@ -446,6 +453,17 @@ export function ReportWorkspace({
         </div>
 
         <div className="flex flex-col gap-3 border-t border-line px-5 py-4">
+          {/* Known before any click: say so, instead of waiting for a failed attempt. */}
+          {dictation.access === "blocked" && !error && !dictation.error && (
+            <p
+              role="alert"
+              className="flex items-start gap-2 rounded-2xl border border-flag/50 bg-flag/10 px-3.5 py-2.5 text-[0.92rem] font-semibold text-flag"
+            >
+              <WarningCircle weight="fill" className="mt-0.5 h-4 w-4 shrink-0" />
+              {MICROPHONE_MESSAGES.blocked}
+            </p>
+          )}
+
           {(error || dictation.error) && (
             <p
               role="alert"
@@ -453,6 +471,14 @@ export function ReportWorkspace({
             >
               <WarningCircle weight="fill" className="mt-0.5 h-4 w-4 shrink-0" />
               {error || dictation.error}
+            </p>
+          )}
+
+          {/* Shown before the browser's own question, so it does not come as a surprise. */}
+          {dictation.access === "ask" && !dictation.error && !error && (
+            <p className="flex items-start gap-2 rounded-2xl bg-ink/[0.05] px-3.5 py-2.5 text-[0.92rem] leading-snug text-ink">
+              <Info weight="fill" className="mt-0.5 h-4 w-4 shrink-0 text-teal" />
+              {MICROPHONE_MESSAGES.ask}
             </p>
           )}
 
