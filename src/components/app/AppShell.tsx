@@ -8,6 +8,7 @@ import {
   CalendarCheck,
   ChartBar,
   CaretUpDown,
+  CreditCard,
   Files,
   FolderOpen,
   GearSix,
@@ -43,6 +44,7 @@ const NAV: Record<Area, NavItem[]> = {
     { href: "/reports", label: "Reports", icon: FolderOpen },
     { href: "/templates", label: "Templates", icon: Files },
     { href: "/team", label: "Team", icon: UsersThree },
+    { href: "/plans", label: "Plans", icon: CreditCard },
     { href: "/settings", label: "Settings", icon: GearSix },
   ],
   admin: [

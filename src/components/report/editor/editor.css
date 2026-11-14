@@ -1,0 +1,96 @@
+/* The report sheet. Shown as the PACS editor will show it, so the doctor sees
+   what will be pasted. Colours use the app's tokens for contrast. */
+.report-doc {
+  outline: none;
+  line-height: 1.5;
+  letter-spacing: normal;
+  color: var(--c-ink);
+  caret-color: var(--c-teal);
+}
+
+.report-doc h1,
+.report-doc h2 {
+  font-size: 1em;
+  font-weight: 700;
+  padding: 0 0.6em;
+}
+
+.report-doc h1 {
+  font-size: 1.1em;
+  margin: 0 0 0.9em;
+}
+
+.report-doc h2 {
+  margin: 1.2em 0 0.3em;
+}
+
+.report-doc p {
+  margin: 0 0 0.25em;
+  padding: 0.2em 0.6em;
+  border-radius: 0.6em;
+  min-height: 1.5em;
+}
+
+.report-doc ul,
+.report-doc ol {
+  margin: 0 0 0.5em;
+  padding-left: 2em;
+}
+
+.report-doc ul {
+  list-style: disc;
+}
+
+.report-doc ol {
+  list-style: decimal;
+}
+
+.report-doc li p {
+  padding-left: 0.3em;
+}
+
+/* Lines written from a dictation or changed by hand stand out from normal ones. */
+.report-doc p[data-status="spoken"],
+.report-doc p[data-status="edited"] {
+  background: color-mix(in srgb, var(--c-teal) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c-teal) 45%, transparent);
+}
+
+.report-doc p.report-line-flagged {
+  background: color-mix(in srgb, var(--c-flag) 11%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c-flag) 65%, transparent);
+}
+
+.report-doc ::selection {
+  background: color-mix(in srgb, var(--c-teal) 30%, transparent);
+}
+
+/* Notes under a line. Not part of the report: never copied or printed. */
+.report-note {
+  font-family: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--c-ink-soft);
+  margin: -0.1em 0 0.5em;
+  padding: 0 0.7em;
+  user-select: none;
+}
+
+.report-doc .report-note p {
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  border-radius: 0;
+}
+
+.report-doc .report-note .report-note-flag {
+  color: var(--c-flag);
+  font-weight: 700;
+}
+
+/* The cursor shows where typing goes; a box around the whole sheet is noise. */
+.report-doc:focus,
+.report-doc:focus-visible {
+  outline: none !important;
+}

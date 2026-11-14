@@ -30,11 +30,43 @@ export type ReportSection = {
   lines: ReportLine[];
 };
 
+/** One dictation that was written into the report, kept as its history. */
+export type LogEntry = {
+  id: string;
+  /** ISO time the report was updated. */
+  at: string;
+  kind: "created" | "updated";
+  dictation: string;
+  changes: { heading: string; text: string; flagged: boolean }[];
+};
+
 export type Report = {
   title: string;
   sections: ReportSection[];
   impression: string[];
+  /** Saved with the report so its history is still there when it is reopened. */
+  log?: LogEntry[];
 };
+
+/** Describes what one dictation changed, for the report log. */
+export function logEntryFor(
+  report: Report,
+  ops: PatchOp[],
+  dictation: string,
+  first: boolean,
+): LogEntry {
+  return {
+    id: crypto.randomUUID(),
+    at: new Date().toISOString(),
+    kind: first ? "created" : "updated",
+    dictation,
+    changes: ops.map((op) => ({
+      heading: report.sections.find((section) => section.id === op.sectionId)?.heading ?? "",
+      text: op.op === "reset" ? "Put back to the normal wording." : op.text,
+      flagged: op.warnings.length > 0,
+    })),
+  };
+}
 
 export type PatchOp = {
   op: "replace" | "add" | "reset";
