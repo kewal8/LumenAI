@@ -112,7 +112,8 @@ export const ReportLines = Extension.create({
           };
 
           newState.doc.descendants((node, pos) => {
-            if (node.type.name === "heading") {
+            // Headings, and a template's own title, heading and blank-line paragraphs.
+            if (node.type.name === "heading" || node.attrs.role) {
               if (node.attrs.role === "section") {
                 section = node.attrs.sectionId;
                 inImpression = false;
@@ -236,7 +237,7 @@ export function applyPatchToEditor(editor: Editor, { template, ops, impression }
       );
       const last =
         findBlock(tr.doc, (node) => isLine(node) && node.attrs.sectionId === op.sectionId) ??
-        findBlock(tr.doc, (node) => node.type.name === "heading" && node.attrs.sectionId === op.sectionId);
+        findBlock(tr.doc, (node) => node.attrs.role === "section" && node.attrs.sectionId === op.sectionId);
       if (last) insertAfter(last.pos, last.node, created);
       continue;
     }
@@ -273,7 +274,7 @@ export function applyPatchToEditor(editor: Editor, { template, ops, impression }
     const created = paragraph.create({ impression: true }, text ? schema.text(text) : undefined);
     const anchor =
       existing[existing.length - 1] ??
-      findBlock(tr.doc, (node) => node.type.name === "heading" && node.attrs.role === "impression");
+      findBlock(tr.doc, (node) => node.attrs.role === "impression");
     if (anchor) insertAfter(anchor.pos, anchor.node, created);
     else tr.insert(tr.doc.content.size, created);
   });

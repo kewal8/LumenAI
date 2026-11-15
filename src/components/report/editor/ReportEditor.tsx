@@ -124,7 +124,7 @@ function ToolButton({
 }
 
 function Divider() {
-  return <span aria-hidden="true" className="mx-1 h-6 w-px shrink-0 bg-ink/30" />;
+  return <span aria-hidden="true" className="mx-0.5 h-6 w-px shrink-0 bg-ink/30" />;
 }
 
 function SwatchMenu({
@@ -189,7 +189,7 @@ function onSelectionOrAll(editor: Editor, run: (chain: ReturnType<Editor["chain"
   run(editor.chain().focus().selectAll()).setTextSelection({ from, to }).run();
 }
 
-function Toolbar({ editor, profile }: { editor: Editor; profile: PasteProfile }) {
+function Toolbar({ editor, profile, flat = false }: { editor: Editor; profile: PasteProfile; flat?: boolean }) {
   const zoom = useZoom();
   const state = useEditorState({
     editor,
@@ -227,7 +227,13 @@ function Toolbar({ editor, profile }: { editor: Editor; profile: PasteProfile })
     <div
       role="toolbar"
       aria-label="Report formatting"
-      className="flex flex-wrap items-center gap-0.5 rounded-[1.75rem] border border-ink/30 bg-surface px-2 py-1.5"
+      // Flat (inside a card): always one row, scrolling sideways on a narrow
+      // screen, so the report below never jumps when the window is resized.
+      className={`flex items-center gap-0.5 ${
+        flat
+          ? "flex-nowrap overflow-x-auto [scrollbar-width:thin]"
+          : "flex-wrap rounded-[1.75rem] border border-ink/30 bg-surface px-2 py-1.5"
+      }`}
     >
       <ToolButton label="Undo" disabled={!state.canUndo} onClick={() => editor.chain().focus().undo().run()}>
         <ArrowCounterClockwise weight="bold" />
@@ -241,7 +247,7 @@ function Toolbar({ editor, profile }: { editor: Editor; profile: PasteProfile })
         aria-label="Font"
         value={state.font}
         onChange={(event) => onSelectionOrAll(editor, (chain) => chain.setFontFamily(event.target.value))}
-        className="!h-10 min-w-[9.5rem]"
+        className="!h-10 min-w-[8rem]"
       >
         {PASTE_FONTS.map((font) => (
           <option key={font}>{font}</option>
@@ -367,11 +373,24 @@ export function ReportEditor({
   initialDoc,
   profile,
   onChange,
+  variant = "card",
+  overlay,
+  footer,
 }: {
   ref?: React.Ref<ReportEditorHandle>;
   initialDoc: DocNode;
   profile: PasteProfile;
   onChange?: (doc: DocNode) => void;
+  /** Drawn alongside the editor once it exists, such as the Speak button at the cursor. */
+  overlay?: (editor: Editor) => React.ReactNode;
+  /** Shown under the report on the same sheet and not editable, such as the sign-off. */
+  footer?: React.ReactNode;
+  /**
+   * "card": the editor draws its own toolbar pill and sheet.
+   * "embedded": it fills a card someone else drew; the toolbar is a flat strip
+   * and the report scrolls underneath it.
+   */
+  variant?: "card" | "embedded";
 }) {
   const zoom = useZoom();
   const editor = useEditor({
@@ -413,6 +432,28 @@ export function ReportEditor({
     [editor, initialDoc],
   );
 
+  if (variant === "embedded") {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        {editor && (
+          <div className="shrink-0 border-b border-line bg-ink/[0.025] px-3 py-1.5">
+            <Toolbar editor={editor} profile={profile} flat />
+          </div>
+        )}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-9">
+          <div
+            className="mx-auto max-w-[46rem]"
+            style={{ fontFamily: `'${profile.font}', Arial, sans-serif`, fontSize: `${profile.size}pt`, zoom: zoom / 100 }}
+          >
+            <EditorContent editor={editor} />
+            {footer}
+          </div>
+        </div>
+        {editor && overlay?.(editor)}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {editor && (
@@ -425,7 +466,9 @@ export function ReportEditor({
         style={{ fontFamily: `'${profile.font}', Arial, sans-serif`, fontSize: `${profile.size}pt`, zoom: zoom / 100 }}
       >
         <EditorContent editor={editor} />
+        {footer}
       </div>
+      {editor && overlay?.(editor)}
     </div>
   );
 }

@@ -56,16 +56,16 @@ export function buildReportHtml(
     .map(({ heading: label, lines }) => {
       const body =
         listStyle === "bullets"
-          ? `<ul style="margin:0 0 8pt 0;">${lines
+          ? `<ul style="margin:0;">${lines
               .map((line) => `<li style="${base}">${escapeHtml(line)}</li>`)
               .join("")}</ul>`
           : lines
               .map(
                 (line) =>
-                  `<p style="${base}margin:0 0 4pt 0;">${escapeHtml(line)}</p>`,
+                  `<p style="${base}margin:0;">${escapeHtml(line)}</p>`,
               )
               .join("");
-      return `<p style="${heading}margin:8pt 0 2pt 0;">${escapeHtml(label)}:</p>${body}`;
+      return `<p style="${heading}margin:8pt 0 0 0;">${escapeHtml(label)}:</p>${body}`;
     })
     .join("");
 
@@ -94,6 +94,8 @@ export function buildPrintHtml(
   profile: PasteProfile,
   signature: Signature | undefined,
   letterhead: { header: string | null; footer: string | null } | null,
+  /** The report body as HTML, when it comes from the rich editor. */
+  bodyHtml?: string,
 ) {
   const header = letterhead?.header ? `<img src="${letterhead.header}" alt="">` : "";
   const footer = letterhead?.footer ? `<img src="${letterhead.footer}" alt="">` : "";
@@ -107,7 +109,7 @@ img{display:block}
 thead img,tfoot img{width:100%;height:auto}
 .body{padding:${header ? "6mm" : "18mm"} 18mm ${footer ? "6mm" : "18mm"}}
 tfoot td{vertical-align:bottom}
-</style></head><body><table><thead><tr><td>${header}</td></tr></thead><tfoot><tr><td>${footer}</td></tr></tfoot><tbody><tr><td><div class="body">${buildReportHtml(report, profile, signature)}</div></td></tr></tbody></table></body></html>`;
+</style></head><body><table><thead><tr><td>${header}</td></tr></thead><tfoot><tr><td>${footer}</td></tr></tfoot><tbody><tr><td><div class="body">${bodyHtml ?? buildReportHtml(report, profile, signature)}</div></td></tr></tbody></table></body></html>`;
 }
 
 export function buildReportText(

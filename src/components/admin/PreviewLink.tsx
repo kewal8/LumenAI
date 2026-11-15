@@ -1,5 +1,6 @@
 "use client";
 
+import { Spinner } from "@/components/Spinner";
 import { Dialog } from "@base-ui/react/dialog";
 import { Check, Copy, Plus } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
@@ -117,6 +118,7 @@ export function PreviewLinkButton() {
               <FormError message={error} />
               <div className="flex gap-2">
                 <button type="submit" disabled={busy || !label.trim()} className={buttonClass.primary}>
+                  {busy && <Spinner />}
                   {busy ? "Creating" : "Create link"}
                 </button>
                 <Dialog.Close className={buttonClass.secondary}>Cancel</Dialog.Close>

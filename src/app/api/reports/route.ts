@@ -7,14 +7,17 @@ export const POST = handle(async (request) => {
   if (user instanceof Response) return user;
   if (!user.org) return fail(403, "Your account is not part of an organisation.");
 
-  const input = parseReportInput(await request.json());
+  const body = await request.json();
+  const input = parseReportInput(body);
   if (typeof input === "string") return fail(400, input);
+  const finalize = body?.finalize === true;
 
   const [row] = await db()`
-    insert into reports (org_id, user_id, template_name, title, template, content)
+    insert into reports (org_id, user_id, template_name, title, template, content, finalized_at)
     values (${user.org.id}, ${user.id}, ${input.template.name}, ${input.report.title},
-            ${JSON.stringify(input.template)}::jsonb, ${JSON.stringify(input.report)}::jsonb)
-    returning id
+            ${JSON.stringify(input.template)}::jsonb, ${JSON.stringify(input.report)}::jsonb,
+            ${finalize ? new Date() : null})
+    returning id, finalized_at
   `;
-  return Response.json({ ok: true, id: row.id });
+  return Response.json({ ok: true, id: row.id, finalizedAt: row.finalized_at });
 });

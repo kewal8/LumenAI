@@ -14,6 +14,13 @@ export function normaliseEmail(value: unknown) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254 ? email : null;
 }
 
+/** An Indian mobile number as 10 digits, from what was typed ("+91 98765 43210"), or null. */
+export function normalisePhone(value: unknown) {
+  if (typeof value !== "string") return null;
+  const digits = value.replace(/[\s()-]/g, "").replace(/^(\+91|0091|0)/, "");
+  return /^[6-9]\d{9}$/.test(digits) ? digits : null;
+}
+
 /** Only same-site paths are followed after sign-in, never an outside address. */
 export function safeNextPath(value: string | null | undefined) {
   return value && value.startsWith("/") && !value.startsWith("//") ? value : "/report";

@@ -7,8 +7,11 @@ import {
   ListChecks,
   Microphone,
   PencilSimple,
+  Printer,
   Prohibit,
+  SealCheck,
   ShieldCheck,
+  Signature,
   UsersThree,
   X,
 } from "@phosphor-icons/react/dist/ssr";
@@ -77,10 +80,10 @@ const PROBLEMS = [
 ];
 
 const STEPS = [
-  { title: "Open it beside your viewer", body: "A browser tab next to PACS." },
-  { title: "Choose the template", body: "The report starts complete and normal." },
+  { title: "Open a template", body: "Beside your PACS viewer, or on its own. The report starts complete and normal." },
   { title: "Dictate the abnormal", body: "Speak, stop, and the report updates." },
-  { title: "Paste and sign in PACS", body: "Ctrl+V, read once, finalise as usual." },
+  { title: "Review and finalise", body: "Read it once. It is saved with your other reports." },
+  { title: "Into PACS, or printed", body: "Paste it with Ctrl+V, or print it signed on your letterhead. No PACS needed." },
 ];
 
 const OLD_WAY = [
@@ -94,7 +97,7 @@ const NEW_WAY = [
   "Say only what is abnormal",
   "See the words each line came from",
   "Impression written from your findings",
-  "Paste once, already formatted",
+  "Paste into PACS, or print it signed",
 ];
 
 const RESPONSIBILITIES = [
@@ -112,7 +115,7 @@ const CENTRE_POINTS = [
   {
     icon: <Browsers className="h-5 w-5" />,
     title: "Nothing to install",
-    body: "Runs in the browser beside your PACS. No server to size.",
+    body: "Runs in the browser, with your PACS or on its own. No server to size.",
   },
   {
     icon: <UsersThree className="h-5 w-5" />,
@@ -146,8 +149,8 @@ export default function LandingPage() {
             <span className="text-teal">Get the finished report.</span>
           </h1>
           <p className="hero-in mt-6 max-w-[46ch] text-[1.1rem] leading-relaxed text-ink-soft [--i:1]">
-            Speak your findings. LumenAI writes the full report in your template,
-            ready to paste into PACS.
+            Speak your findings. LumenAI writes the full report in your template.
+            Paste it into your PACS, or finalise, sign and print it right here.
           </p>
           <div className="hero-in mt-9 flex flex-wrap items-center justify-center gap-3 [--i:2]">
             <PrimaryButton>Book a demo</PrimaryButton>
@@ -214,9 +217,9 @@ export default function LandingPage() {
                     <Browsers className="h-5 w-5" />
                   </IconTile>
                   <div>
-                    <h3 className="font-semibold leading-snug">Beside the PACS you already use</h3>
+                    <h3 className="font-semibold leading-snug">With your PACS, or on its own</h3>
                     <p className="mt-1 text-[0.98rem] leading-relaxed text-ink-soft">
-                      A browser tab next to your viewer. Nothing to install.
+                      A browser tab next to your viewer, or a complete reporting desk by itself. Nothing to install.
                     </p>
                   </div>
                 </li>
@@ -278,8 +281,8 @@ export default function LandingPage() {
               Built so you can <span className="text-teal">sign it.</span>
             </h2>
             <p className="mx-auto mt-5 max-w-[50ch] text-center text-[1.05rem] leading-relaxed text-ink-soft">
-              Every line is tied to what you said, and the finished report goes
-              into PACS without retyping.
+              Every line is tied to what you said. The finished report goes into
+              PACS without retyping, or leaves LumenAI signed, on your letterhead.
             </p>
           </Reveal>
 
@@ -352,6 +355,35 @@ export default function LandingPage() {
               </div>
               {/* TODO: real screenshot, report pasted into a PACS editor. */}
               <ScreenshotFrame label="Pasted into PACS" layout="paste" />
+            </Item>
+
+            {/* The other way out: no PACS needed to finish a report. */}
+            <Item as="article" lift className="on-night flex flex-col gap-8 rounded-3xl bg-night p-7 text-on-night sm:p-9 lg:col-span-6 lg:flex-row lg:items-center lg:gap-12">
+              <div className="lg:max-w-[24rem]">
+                <h3 className="text-[1.4rem] font-semibold leading-snug tracking-[-0.03em]">
+                  No PACS? It finishes the report itself.
+                </h3>
+                <p className="mt-2 leading-relaxed text-on-night-soft">
+                  Finalise, sign and print from LumenAI. Every report is kept, ready to open again.
+                </p>
+              </div>
+              <ul className="grid flex-1 gap-3 sm:grid-cols-3">
+                {[
+                  { icon: <SealCheck className="h-5 w-5" />, title: "Finalise and save", body: "Kept in your reports" },
+                  { icon: <Signature className="h-5 w-5" />, title: "Your signature", body: "Under every report" },
+                  { icon: <Printer className="h-5 w-5" />, title: "Print or PDF", body: "On your letterhead" },
+                ].map((item) => (
+                  <li key={item.title} className="flex items-center gap-3.5 rounded-2xl border border-night-line px-4 py-3.5">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-on-night/[0.1] text-teal-glow">
+                      {item.icon}
+                    </span>
+                    <span>
+                      <span className="block font-semibold leading-snug">{item.title}</span>
+                      <span className="block text-[0.92rem] text-on-night-soft">{item.body}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </Item>
           </Stagger>
         </section>

@@ -68,7 +68,7 @@ export function Page({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** A settings-style block: what it is on the left, the controls on the right. */
+/** A settings block: what it is across the top, then its controls at full width. */
 export function Section({
   title,
   description,
@@ -81,17 +81,15 @@ export function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className={`${PANEL} grid gap-x-10 gap-y-6 p-6 sm:p-8 lg:grid-cols-[minmax(14rem,1fr)_2fr]`}>
-      <div className="flex items-start gap-4">
-        {icon && <IconTile>{icon}</IconTile>}
+    <section className={`${PANEL} overflow-hidden`}>
+      <header className="flex items-center gap-4 border-b border-line px-6 py-5 sm:px-8">
+        {icon && <IconTile tone="neutral">{icon}</IconTile>}
         <div className="min-w-0">
-          <h2 className="text-[1.15rem] font-semibold tracking-[-0.02em]">{title}</h2>
-          {description && (
-            <p className="mt-1 max-w-[44ch] text-[0.95rem] text-ink-soft">{description}</p>
-          )}
+          <h2 className="text-[1.15rem] font-semibold tracking-[-0.01em]">{title}</h2>
+          {description && <p className="mt-0.5 text-[0.95rem] text-ink-soft">{description}</p>}
         </div>
-      </div>
-      <div className="min-w-0">{children}</div>
+      </header>
+      <div className="p-6 sm:p-8">{children}</div>
     </section>
   );
 }
@@ -163,20 +161,21 @@ export function formatDateTime(value: string | Date) {
 
 /** Column headings above the rows of a list. Add the same columns as the rows. */
 export const LIST_HEAD =
-  "hidden border-b border-line bg-ink/[0.04] px-6 py-3 text-[0.82rem] font-bold uppercase tracking-[0.04em] text-ink-soft";
+  "t-label hidden border-b border-line bg-ink/[0.04] px-6 py-3";
 
 /** Square icon badge that anchors a card or a list row. */
 export function IconTile({
   children,
-  tone = "teal",
+  tone = "neutral",
 }: {
   children: React.ReactNode;
+  /** Neutral by default. Teal only for something that went right, amber for something waiting. */
   tone?: "teal" | "amber" | "neutral";
 }) {
   const tones = {
-    teal: "bg-teal/[0.12] text-teal-deep",
-    amber: "bg-amber/25 text-amber-deep",
-    neutral: "bg-ink/[0.07] text-ink",
+    teal: "bg-teal/[0.14] text-teal-deep",
+    amber: "bg-amber/30 text-amber-deep",
+    neutral: "bg-ink/[0.08] text-ink",
   };
   return (
     <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${tones[tone]}`}>

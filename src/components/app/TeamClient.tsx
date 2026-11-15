@@ -1,5 +1,6 @@
 "use client";
 
+import { Spinner } from "@/components/Spinner";
 import { Dialog } from "@base-ui/react/dialog";
 import { Check, Copy, Plus } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
@@ -123,6 +124,7 @@ export function InviteButton({ roles }: { roles: Role[] }) {
               <FormError message={error} />
               <div className="flex gap-2">
                 <button type="submit" disabled={busy || !email} className={buttonClass.primary}>
+                  {busy && <Spinner />}
                   {busy ? "Creating" : "Create invitation"}
                 </button>
                 <Dialog.Close className={buttonClass.secondary}>Cancel</Dialog.Close>
@@ -218,6 +220,7 @@ export function ConfirmAction({
           </div>
           <div className="mt-5 flex gap-2">
             <button type="button" onClick={confirm} disabled={busy} className={buttonClass[tone]}>
+              {busy && <Spinner />}
               {busy ? "Working" : confirmLabel}
             </button>
             <Dialog.Close className={buttonClass.secondary}>Cancel</Dialog.Close>

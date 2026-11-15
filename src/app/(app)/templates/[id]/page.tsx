@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
-import { TemplateEditor } from "@/components/app/TemplateEditor";
+import { TemplateCanvas } from "@/components/app/TemplateCanvas";
 import { Page } from "@/components/app/ui";
 import { requireUser } from "@/lib/auth/session";
+import type { DocNode } from "@/lib/reportDoc";
 import { canManageTeam } from "@/lib/team";
+import { draftToDoc } from "@/lib/templateDoc";
 import { findTemplate } from "@/lib/templateStore";
 
 // Reads the signed-in user's data on every request, so it is rendered on demand.
@@ -17,14 +19,15 @@ export default async function EditTemplatePage({ params }: PageProps<"/templates
 
   return (
     <Page>
-      <TemplateEditor
+      <TemplateCanvas
+        key={template.updatedAt}
         template={{
           id: template.id,
-          shared: template.shared,
           name: template.name,
-          title: template.title,
-          sections: template.sections,
-          normalImpression: template.normalImpression,
+          modality: template.modality,
+          shared: template.shared,
+          // Templates saved before the open editor are laid out from their sections.
+          doc: (template.doc as DocNode | null) ?? draftToDoc(template),
         }}
         canShare={canManageTeam(user.org?.role)}
       />

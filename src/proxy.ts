@@ -9,6 +9,7 @@ const PUBLIC_PAGES = new Set([
   "/",
   "/book-a-demo",
   "/login",
+  "/signup",
   "/accept-invite",
   "/forgot-password",
   "/reset-password",

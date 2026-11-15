@@ -166,7 +166,7 @@ export function DemoRequestForm() {
       </div>
 
       <FormError message={error} />
-      <SubmitButton busy={busy} dense disabled={!form.name.trim() || !form.email || !form.phone}>
+      <SubmitButton busy={busy} busyLabel="Sending your request" dense disabled={!form.name.trim() || !form.email || !form.phone}>
         Request a demo
       </SubmitButton>
     </form>

@@ -14,8 +14,10 @@ import {
   GearSix,
   LinkSimple,
   List,
+  LockSimple,
   Moon,
   NotePencil,
+  SidebarSimple,
   SignOut,
   Sun,
   UsersThree,
@@ -24,7 +26,7 @@ import {
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useTheme } from "@/components/landing/ThemeToggle";
 
 export type ShellUser = {
@@ -32,6 +34,8 @@ export type ShellUser = {
   email: string;
   organisation: string | null;
   isPlatformAdmin: boolean;
+  /** No active plan yet: the report editor is closed. */
+  locked?: boolean;
 };
 
 export type Area = "doctor" | "admin";
@@ -41,7 +45,7 @@ type NavItem = { href: string; label: string; icon: Icon; exact?: boolean };
 // Doctors write reports. LumenAI staff run the business. The two never share a menu.
 const NAV: Record<Area, NavItem[]> = {
   doctor: [
-    { href: "/report", label: "New report", icon: NotePencil },
+    { href: "/report", label: "New report", icon: NotePencil, exact: true },
     { href: "/reports", label: "Reports", icon: FolderOpen },
     { href: "/templates", label: "Templates", icon: Files },
     { href: "/team", label: "Team", icon: UsersThree },
@@ -56,6 +60,39 @@ const NAV: Record<Area, NavItem[]> = {
   ],
 };
 
+// Whether the side menu is folded down to icons. A comfort setting, kept on
+// this computer only.
+const MENU_KEY = "lumenai-menu";
+const menuListeners = new Set<() => void>();
+
+function menuIsCompact() {
+  try {
+    return localStorage.getItem(MENU_KEY) === "compact";
+  } catch {
+    return false;
+  }
+}
+
+function setMenuCompact(compact: boolean) {
+  try {
+    localStorage.setItem(MENU_KEY, compact ? "compact" : "full");
+  } catch {
+    // Not remembered next time.
+  }
+  menuListeners.forEach((listener) => listener());
+}
+
+function useCompactMenu() {
+  return useSyncExternalStore(
+    (listener) => {
+      menuListeners.add(listener);
+      return () => menuListeners.delete(listener);
+    },
+    menuIsCompact,
+    () => false,
+  );
+}
+
 function initials(name: string) {
   const parts = name.replace(/^dr\.?\s+/i, "").split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
@@ -65,13 +102,13 @@ function Wordmark({ area }: { area: Area }) {
   return (
     <Link
       href={NAV[area][0].href}
-      className="flex items-center gap-2.5 text-[1.3rem] font-bold tracking-[-0.04em]"
+      className="flex items-center gap-2 text-[1.2rem] font-bold tracking-[-0.04em]"
     >
       <span>
         Lumen<span className="text-teal">AI</span>
       </span>
       {area === "admin" && (
-        <span className="rounded-full bg-ink px-2.5 py-0.5 text-[0.75rem] font-bold tracking-normal text-surface">
+        <span className="rounded-full bg-ink px-2 py-0.5 text-[0.7rem] font-bold tracking-normal text-surface">
           Admin
         </span>
       )}
@@ -79,7 +116,19 @@ function Wordmark({ area }: { area: Area }) {
   );
 }
 
-function NavLinks({ area, onNavigate }: { area: Area; onNavigate?: () => void }) {
+function NavLinks({
+  area,
+  onNavigate,
+  compact = false,
+  locked = false,
+}: {
+  area: Area;
+  onNavigate?: () => void;
+  /** Icons only, for the folded side menu. */
+  compact?: boolean;
+  /** Marks the report editor as closed until a plan is active. */
+  locked?: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -94,12 +143,26 @@ function NavLinks({ area, onNavigate }: { area: Area; onNavigate?: () => void })
             href={item.href}
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
-            className={`flex h-11 items-center gap-3 rounded-full px-3 text-[1rem] font-semibold transition-colors ${
-              active ? "bg-teal text-white" : "text-ink hover:bg-ink/10"
+            title={compact ? item.label : undefined}
+            // The current screen is a solid black pill; the others are quieter,
+            // so one glance shows where you are. Teal is kept for actions.
+            className={`relative flex h-11 items-center gap-3 rounded-full text-[1rem] transition-colors ${
+              compact ? "w-11 justify-center" : "px-3"
+            } ${
+              active
+                ? "bg-ink font-bold text-surface"
+                : "font-semibold text-ink-soft hover:bg-ink/[0.08] hover:text-ink"
             }`}
           >
             <item.icon weight={active ? "fill" : "regular"} className="h-5 w-5 shrink-0" />
-            {item.label}
+            <span className={compact ? "sr-only" : undefined}>{item.label}</span>
+            {locked && item.href === "/report" && (
+              <LockSimple
+                weight="fill"
+                aria-label="Locked until your plan is active"
+                className={`h-4 w-4 shrink-0 text-amber-deep ${compact ? "absolute right-0.5 top-0.5 h-3.5 w-3.5" : "ml-auto"}`}
+              />
+            )}
           </Link>
         );
       })}
@@ -108,9 +171,9 @@ function NavLinks({ area, onNavigate }: { area: Area; onNavigate?: () => void })
 }
 
 const MENU_ITEM =
-  "flex h-10 cursor-default select-none items-center gap-3 rounded-full px-3 text-[0.95rem] font-semibold text-ink outline-none data-[highlighted]:bg-ink/10";
+  "flex h-10 cursor-pointer select-none items-center gap-3 rounded-full px-3 text-[0.95rem] font-semibold text-ink outline-none data-[highlighted]:bg-ink/10";
 
-function UserMenu({ user, area }: { user: ShellUser; area: Area }) {
+function UserMenu({ user, area, compact = false }: { user: ShellUser; area: Area; compact?: boolean }) {
   const router = useRouter();
   const { theme, toggle } = useTheme();
 
@@ -122,17 +185,24 @@ function UserMenu({ user, area }: { user: ShellUser; area: Area }) {
 
   return (
     <Menu.Root>
-      <Menu.Trigger className="flex w-full items-center gap-3 rounded-2xl p-2 text-left outline-none transition-colors hover:bg-ink/10 data-[popup-open]:bg-ink/10">
+      <Menu.Trigger
+        title={compact ? user.name : undefined}
+        className={`flex items-center gap-3 rounded-2xl text-left outline-none transition-colors hover:bg-ink/10 data-[popup-open]:bg-ink/10 ${
+          compact ? "p-1" : "w-full p-2"
+        }`}
+      >
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-teal text-[0.85rem] font-bold text-btn-text">
           {initials(user.name)}
         </span>
-        <span className="min-w-0 flex-1 leading-tight">
-          <span className="block truncate text-[0.95rem] font-bold">{user.name}</span>
-          <span className="block truncate text-[0.85rem] text-ink-soft">
-            {user.organisation ?? user.email}
-          </span>
-        </span>
-        <CaretUpDown weight="bold" className="h-4 w-4 shrink-0 text-ink" />
+        {!compact && (
+          <>
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block truncate text-[0.95rem] font-bold text-ink">{user.name}</span>
+              <span className="t-meta block truncate">{user.organisation ?? user.email}</span>
+            </span>
+            <CaretUpDown weight="bold" className="h-4 w-4 shrink-0 text-ink-quiet" />
+          </>
+        )}
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner side="top" align="start" sideOffset={8} className="z-50">
@@ -180,17 +250,32 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const [navOpen, setNavOpen] = useState(false);
+  const compact = useCompactMenu();
 
   return (
     <div className="app flex min-h-[100dvh] flex-1">
-      <aside className="sticky top-0 hidden h-[100dvh] w-64 shrink-0 flex-col justify-between border-r border-line bg-surface p-4 lg:flex">
-        <div>
-          <div className="px-3 pb-7 pt-2">
-            <Wordmark area={area} />
+      <aside
+        className={`sticky top-0 hidden h-[100dvh] shrink-0 flex-col justify-between border-r border-line bg-surface transition-[width] duration-200 lg:flex ${
+          compact ? "w-[4.25rem] items-center px-0 py-4" : "w-[13.5rem] p-3"
+        }`}
+      >
+        <div className={compact ? "flex flex-col items-center" : undefined}>
+          <div className={`flex items-center pb-6 pt-1 ${compact ? "justify-center" : "justify-between pl-2"}`}>
+            {!compact && <Wordmark area={area} />}
+            <button
+              type="button"
+              onClick={() => setMenuCompact(!compact)}
+              aria-label={compact ? "Show the menu" : "Hide the menu"}
+              aria-expanded={!compact}
+              title={compact ? "Show the menu" : "Hide the menu, for more room"}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-quiet transition-colors hover:bg-ink/[0.08] hover:text-ink"
+            >
+              <SidebarSimple weight={compact ? "fill" : "regular"} className="h-5 w-5" />
+            </button>
           </div>
-          <NavLinks area={area} />
+          <NavLinks area={area} compact={compact} locked={user.locked} />
         </div>
-        <UserMenu user={user} area={area} />
+        <UserMenu user={user} area={area} compact={compact} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -216,7 +301,7 @@ export function AppShell({
                       <X className="h-5 w-5" />
                     </Dialog.Close>
                   </div>
-                  <NavLinks area={area} onNavigate={() => setNavOpen(false)} />
+                  <NavLinks area={area} onNavigate={() => setNavOpen(false)} locked={user.locked} />
                 </div>
                 <UserMenu user={user} area={area} />
               </Dialog.Popup>

@@ -159,6 +159,7 @@ export type AccountRow = {
     id: string;
     name: string;
     email: string;
+    phone: string | null;
     role: string;
     staff: boolean;
     disabled: boolean;
@@ -182,7 +183,7 @@ export async function listAccounts(): Promise<AccountRow[]> {
       from organizations o order by o.created_at desc
     `,
     sql`
-      select m.org_id, m.role, u.id, u.name, u.email, u.is_platform_admin, u.disabled_at, u.last_login_at,
+      select m.org_id, m.role, u.id, u.name, u.email, u.phone, u.is_platform_admin, u.disabled_at, u.last_login_at,
              (select count(*)::int from usage_events e
                where e.user_id = u.id and e.org_id = m.org_id and e.purpose = 'report'
                  and e.created_at > now() - interval '30 days') as updates_30,
@@ -207,6 +208,7 @@ export async function listAccounts(): Promise<AccountRow[]> {
         id: member.id,
         name: member.name,
         email: member.email,
+        phone: member.phone ?? null,
         role: member.role,
         staff: member.is_platform_admin,
         disabled: member.disabled_at !== null,

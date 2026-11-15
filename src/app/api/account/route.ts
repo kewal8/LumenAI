@@ -29,6 +29,10 @@ export const PATCH = handle(async (request) => {
     await sql`update users set paste_profile = ${profile}::jsonb where id = ${user.id}`;
   }
 
+  if (typeof body.floatingBox === "boolean") {
+    await sql`update users set floating_box = ${body.floatingBox} where id = ${user.id}`;
+  }
+
   if (body.shortcuts !== undefined) {
     const shortcuts = JSON.stringify(parseShortcuts(body.shortcuts));
     await sql`update users set shortcuts = ${shortcuts}::jsonb where id = ${user.id}`;

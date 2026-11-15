@@ -1,4 +1,4 @@
-import { TemplateEditor } from "@/components/app/TemplateEditor";
+import { TemplateCanvas } from "@/components/app/TemplateCanvas";
 import { Page } from "@/components/app/ui";
 import { requireUser } from "@/lib/auth/session";
 import { canManageTeam } from "@/lib/team";
@@ -12,7 +12,7 @@ export default async function NewTemplatePage() {
   const user = await requireUser();
   return (
     <Page>
-      <TemplateEditor canShare={canManageTeam(user.org?.role)} />
+      <TemplateCanvas canShare={canManageTeam(user.org?.role)} />
     </Page>
   );
 }

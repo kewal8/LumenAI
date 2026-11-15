@@ -1,6 +1,5 @@
 import { Files, Plus } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
-import { AddSampleButton } from "@/components/app/AddSampleButton";
 import { TemplateList } from "@/components/app/TemplateList";
 import { EmptyState, Page, PageHeader, buttonClass } from "@/components/app/ui";
 import { requireUser } from "@/lib/auth/session";
@@ -29,16 +28,11 @@ export default async function TemplatesPage() {
       />
 
       {templates.length === 0 ? (
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-full">
-            <EmptyState
-              icon={<Files weight="fill" className="h-5 w-5" />}
-              title="No templates yet"
-              body="Paste one of your own templates, or add the sample CT Brain template to see how it works. Until then the Report screen uses the sample."
-            />
-          </div>
-          <AddSampleButton />
-        </div>
+        <EmptyState
+          icon={<Files weight="fill" className="h-5 w-5" />}
+          title="No templates yet"
+          body="Press New template, then write or paste one of your own."
+        />
       ) : (
         <TemplateList templates={templates} />
       )}

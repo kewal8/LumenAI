@@ -1,5 +1,6 @@
 "use client";
 
+import { Spinner } from "@/components/Spinner";
 import { CheckCircle } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -43,6 +44,7 @@ function SaveRow({ busy, saved, disabled }: { busy: boolean; saved: boolean; dis
   return (
     <div className="flex items-center gap-3">
       <button type="submit" disabled={busy || disabled} className={buttonClass.primary}>
+        {busy && <Spinner />}
         {busy ? "Saving" : "Save"}
       </button>
       {saved && (
@@ -111,7 +113,43 @@ export function OrganisationForm({ name: initial }: { name: string }) {
   );
 }
 
-export function PasswordForm() {
+/** The password line of the profile: closed until someone chooses to change it. */
+export function ChangePassword() {
+  const [open, setOpen] = useState(false);
+  const [changed, setChanged] = useState(false);
+
+  if (open) {
+    return (
+      <div className="rounded-2xl border border-ink/25 p-5">
+        <p className="mb-4 font-semibold">Change password</p>
+        <PasswordForm onCancel={() => setOpen(false)} onDone={() => (setOpen(false), setChanged(true))} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink/25 px-5 py-4">
+      <div>
+        <p className="font-semibold">Password</p>
+        {changed ? (
+          <p role="status" className="flex items-center gap-1.5 text-[0.92rem] text-teal-deep">
+            <CheckCircle weight="fill" className="h-4 w-4" />
+            Password changed
+          </p>
+        ) : (
+          <p aria-hidden="true" className="text-[1.1rem] leading-tight tracking-[0.2em] text-ink-soft">
+            ••••••••••
+          </p>
+        )}
+      </div>
+      <button type="button" onClick={() => (setOpen(true), setChanged(false))} className={buttonClass.secondary}>
+        Change password
+      </button>
+    </div>
+  );
+}
+
+function PasswordForm({ onCancel, onDone }: { onCancel: () => void; onDone: () => void }) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const { busy, error, saved, save, touch } = useSave();
@@ -120,10 +158,7 @@ export function PasswordForm() {
     <form
       onSubmit={async (event) => {
         event.preventDefault();
-        if (await save("POST", "/api/account/password", { current, next })) {
-          setCurrent("");
-          setNext("");
-        }
+        if (await save("POST", "/api/account/password", { current, next })) onDone();
       }}
       className="flex max-w-2xl flex-col gap-4"
       noValidate
@@ -136,6 +171,7 @@ export function PasswordForm() {
         value={current}
         onChange={(value) => (setCurrent(value), touch())}
         autoComplete="current-password"
+        autoFocus
       />
       <Field
         dense
@@ -148,7 +184,12 @@ export function PasswordForm() {
         hint={`At least ${MIN_PASSWORD_LENGTH} characters. Other devices will be signed out.`}
       />
       <FormError message={error} />
-      <SaveRow busy={busy} saved={saved} disabled={!current || !next} />
+      <div className="flex flex-wrap items-center gap-2">
+        <SaveRow busy={busy} saved={saved} disabled={!current || !next} />
+        <button type="button" onClick={onCancel} disabled={busy} className={buttonClass.secondary}>
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { Spinner } from "@/components/Spinner";
 import { CaretRight, Eye, EyeSlash, WarningCircle } from "@phosphor-icons/react";
 import { useState } from "react";
 
@@ -106,11 +107,14 @@ export function FormError({ message }: { message: string }) {
 export function SubmitButton({
   children,
   busy,
+  busyLabel = "One moment",
   disabled,
   dense,
 }: {
   children: React.ReactNode;
   busy: boolean;
+  /** What is happening while it works, such as "Signing in". */
+  busyLabel?: string;
   disabled?: boolean;
   dense?: boolean;
 }) {
@@ -120,14 +124,18 @@ export function SubmitButton({
       disabled={busy || disabled}
       className={`group flex ${dense ? "h-12" : "h-13"} items-center justify-between rounded-full bg-btn pl-6 pr-1.5 text-base font-bold text-btn-text transition-[background-color,transform,opacity] duration-200 hover:bg-teal-deep active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-btn`}
     >
-      {busy ? "One moment" : children}
+      {busy ? busyLabel : children}
       <span
         className={`grid ${dense ? "h-9 w-9" : "h-10 w-10"} place-items-center rounded-full bg-teal text-btn-text`}
       >
-        <CaretRight
-          weight="bold"
-          className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-disabled:translate-x-0"
-        />
+        {busy ? (
+          <Spinner />
+        ) : (
+          <CaretRight
+            weight="bold"
+            className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-disabled:translate-x-0"
+          />
+        )}
       </span>
     </button>
   );

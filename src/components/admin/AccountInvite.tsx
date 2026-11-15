@@ -1,5 +1,6 @@
 "use client";
 
+import { Spinner } from "@/components/Spinner";
 import { Dialog } from "@base-ui/react/dialog";
 import { Check, Copy, Plus } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
@@ -131,6 +132,7 @@ export function AccountInviteButton() {
                   disabled={busy || !email || (kind === "centre" && !organisation.trim())}
                   className={buttonClass.primary}
                 >
+                  {busy && <Spinner />}
                   {busy ? "Creating" : "Create invitation"}
                 </button>
                 <Dialog.Close className={buttonClass.secondary}>Cancel</Dialog.Close>

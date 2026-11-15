@@ -1,7 +1,7 @@
 import { apiUser, fail, handle } from "@/lib/auth/respond";
 import { db } from "@/lib/db";
 import { canManageTeam } from "@/lib/team";
-import { parseTemplateDraft } from "@/lib/templateInput";
+import { parseTemplateBody } from "@/lib/templateInput";
 import { findTemplate } from "@/lib/templateStore";
 
 type Context = RouteContext<"/api/templates/[id]">;
@@ -13,8 +13,9 @@ export const PATCH = handle<Context>(async (request, context) => {
   if (!template?.canEdit) return fail(403, "You cannot change this template.");
 
   const body = await request.json();
-  const draft = parseTemplateDraft(body);
-  if (typeof draft === "string") return fail(400, draft);
+  const input = parseTemplateBody(body);
+  if (typeof input === "string") return fail(400, input);
+  const { draft, modality, doc } = input;
   // Only an owner or admin decides whether the whole organisation gets it.
   const shared = canManageTeam(user.org?.role) ? body.shared === true : template.shared;
 
@@ -23,6 +24,7 @@ export const PATCH = handle<Context>(async (request, context) => {
     set name = ${draft.name}, title = ${draft.title}, shared = ${shared},
         sections = ${JSON.stringify(draft.sections)}::jsonb,
         normal_impression = ${JSON.stringify(draft.normalImpression)}::jsonb,
+        modality = ${modality}, doc = ${doc ? JSON.stringify(doc) : null}::jsonb,
         updated_at = now()
     where id = ${template.id}
   `;

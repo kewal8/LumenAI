@@ -1,78 +1,68 @@
 "use client";
 
 import { Combobox } from "@base-ui/react/combobox";
-import { CaretDown, Check } from "@phosphor-icons/react";
-import { Select } from "@/components/app/ui";
+import { CaretDown, Check, MagnifyingGlass } from "@phosphor-icons/react";
 
 type Option = { value: string; label: string };
 
 /**
- * Chooses the template for a report. With one template it is a plain
- * dropdown; with several it becomes a box you can type in to find one.
+ * Chooses the template for a report: a button showing the current one, which
+ * opens a list with a search box at the top. The search box has the cursor as
+ * soon as the list opens, so a template is two or three letters away.
  */
 export function TemplatePicker({
   templates,
   value,
   onChange,
+  className = "w-[16rem]",
 }: {
   templates: { id: string; name: string }[];
   value: string;
   onChange: (id: string) => void;
+  /** Width of the button. */
+  className?: string;
 }) {
-  if (templates.length < 2) {
-    return (
-      <Select value={value} onChange={(event) => onChange(event.target.value)} aria-label="Template" className="w-[16rem]">
-        {templates.map((template) => (
-          <option key={template.id} value={template.id}>
-            {template.name}
-          </option>
-        ))}
-      </Select>
-    );
-  }
-
   const items: Option[] = templates.map((template) => ({ value: template.id, label: template.name }));
+  const current = items.find((item) => item.value === value) ?? null;
 
   return (
-    <Combobox.Root
-      items={items}
-      value={items.find((item) => item.value === value) ?? null}
-      onValueChange={(item) => item && onChange(item.value)}
-    >
-      <Combobox.InputGroup className="relative inline-flex w-[16rem] max-w-full">
-        <Combobox.Input
-          aria-label="Template"
-          placeholder="Search templates"
-          onFocus={(event) => event.target.select()}
-          className="h-11 w-full rounded-full border border-ink/40 bg-surface pl-4 pr-11 text-[0.95rem] font-semibold text-ink outline-none transition-colors placeholder:font-medium placeholder:text-ink-quiet hover:border-ink/60 focus:border-teal"
-        />
-        <Combobox.Trigger
-          aria-label="Show all templates"
-          className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-ink hover:bg-ink/10"
-        >
-          <CaretDown weight="bold" className="h-4 w-4" />
-        </Combobox.Trigger>
-      </Combobox.InputGroup>
+    <Combobox.Root items={items} value={current} onValueChange={(item) => item && onChange(item.value)}>
+      <Combobox.Trigger
+        aria-label={`Template: ${current?.label ?? "none"}. Change template`}
+        className={`inline-flex h-11 max-w-full items-center justify-between gap-3 rounded-full border border-ink/40 bg-surface pl-4 pr-3.5 text-[0.95rem] font-semibold text-ink outline-none transition-colors hover:border-ink/60 data-[popup-open]:border-teal ${className}`}
+      >
+        <span className="truncate">{current?.label ?? "Choose a template"}</span>
+        <CaretDown weight="bold" className="h-4 w-4 shrink-0" />
+      </Combobox.Trigger>
 
       <Combobox.Portal>
         <Combobox.Positioner sideOffset={6} align="start" className="z-50 outline-none">
-          <Combobox.Popup className="app-layer w-[max(var(--anchor-width),18rem)] max-w-[var(--available-width)] origin-[var(--transform-origin)] rounded-3xl border border-ink/20 bg-surface p-2 shadow-[0_18px_50px_-18px_rgb(15_38_36/0.45)]">
+          <Combobox.Popup className="app-layer w-[max(var(--anchor-width),24rem)] max-w-[var(--available-width)] origin-[var(--transform-origin)] overflow-hidden rounded-3xl border border-ink/20 bg-surface shadow-[0_18px_50px_-18px_rgb(15_38_36/0.45)]">
+            <label className="flex items-center gap-3 border-b border-line px-5">
+              <MagnifyingGlass weight="bold" aria-hidden="true" className="h-4 w-4 shrink-0 text-ink" />
+              <Combobox.Input
+                aria-label="Search templates"
+                placeholder="Search templates"
+                // The app-wide focus ring would draw a box inside the dropdown.
+                // The blinking caret already shows where typing goes.
+                style={{ outline: "none" }}
+                className="h-13 w-full bg-transparent text-[1rem] font-semibold text-ink outline-none placeholder:font-medium placeholder:text-ink-quiet"
+              />
+            </label>
             <Combobox.Empty>
-              <p className="px-3 py-3 text-[0.95rem] text-ink-soft">No template with that name.</p>
+              <p className="px-5 py-4 text-[0.95rem] text-ink-soft">No template with that name.</p>
             </Combobox.Empty>
-            <Combobox.List className="max-h-[min(22rem,var(--available-height))] overflow-y-auto overscroll-contain outline-none">
+            <Combobox.List className="max-h-[min(24rem,var(--available-height))] overflow-y-auto overscroll-contain p-2 outline-none">
               {(item: Option) => (
                 <Combobox.Item
                   key={item.value}
                   value={item}
-                  className="flex min-h-11 cursor-default select-none items-center gap-2.5 rounded-full px-3 py-2 text-[0.95rem] font-semibold text-ink outline-none data-[highlighted]:bg-ink/10"
+                  className="flex min-h-11 cursor-pointer select-none items-center justify-between gap-3 rounded-2xl px-3 py-2 text-[0.98rem] font-semibold text-ink outline-none data-[highlighted]:bg-ink/[0.08] data-[selected]:text-teal"
                 >
-                  <span className="grid h-4 w-4 shrink-0 place-items-center text-teal">
-                    <Combobox.ItemIndicator>
-                      <Check weight="bold" className="h-4 w-4" />
-                    </Combobox.ItemIndicator>
-                  </span>
                   {item.label}
+                  <Combobox.ItemIndicator className="shrink-0">
+                    <Check weight="bold" className="h-4 w-4" />
+                  </Combobox.ItemIndicator>
                 </Combobox.Item>
               )}
             </Combobox.List>

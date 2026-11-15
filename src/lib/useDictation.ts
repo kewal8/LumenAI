@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type Word = { text: string; confidence: number };
 
@@ -72,6 +72,21 @@ export function useDictation({ model, language, keyterms, onWords }: Options) {
   const activeRef = useRef(false);
   // When listening began, to report how long the speech service was used.
   const startedAtRef = useRef<number | null>(null);
+  // Listens to the same microphone stream to show how loud the voice is.
+  const audioRef = useRef<{ context: AudioContext; analyser: AnalyserNode; samples: Uint8Array<ArrayBuffer> } | null>(null);
+
+  /** Loudness of the voice right now, 0 (silence) to 1. Safe to call on every frame. */
+  const readLevel = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return 0;
+    audio.analyser.getByteTimeDomainData(audio.samples);
+    let sum = 0;
+    for (const sample of audio.samples) {
+      const centred = (sample - 128) / 128;
+      sum += centred * centred;
+    }
+    return Math.sqrt(sum / audio.samples.length);
+  }, []);
 
   function cleanup() {
     if (startedAtRef.current !== null) {
@@ -86,6 +101,8 @@ export function useDictation({ model, language, keyterms, onWords }: Options) {
     }
     if (recorderRef.current?.state === "recording") recorderRef.current.stop();
     streamRef.current?.getTracks().forEach((track) => track.stop());
+    audioRef.current?.context.close().catch(() => {});
+    audioRef.current = null;
     recorderRef.current = null;
     streamRef.current = null;
     socketRef.current = null;
@@ -111,6 +128,16 @@ export function useDictation({ model, language, keyterms, onWords }: Options) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       setAccess("allowed");
+
+      try {
+        const context = new AudioContext();
+        const analyser = context.createAnalyser();
+        analyser.fftSize = 512;
+        context.createMediaStreamSource(stream).connect(analyser);
+        audioRef.current = { context, analyser, samples: new Uint8Array(analyser.fftSize) };
+      } catch {
+        // No level meter on this browser; dictation itself still works.
+      }
 
       const params = new URLSearchParams({
         model,
@@ -189,5 +216,5 @@ export function useDictation({ model, language, keyterms, onWords }: Options) {
     });
   }
 
-  return { recording, starting, interim, error, access, start, stop };
+  return { recording, starting, interim, error, access, start, stop, readLevel };
 }

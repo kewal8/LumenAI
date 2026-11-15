@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarBlank, FileText } from "@phosphor-icons/react";
+import { CalendarBlank, FileText, SealCheck } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useState } from "react";
 import type { SavedReportSummary } from "@/lib/reportStore";
@@ -45,6 +45,15 @@ export function ReportList({ reports }: { reports: SavedReportSummary[] }) {
                   <span className="truncate text-[1.1rem] font-semibold tracking-[-0.01em]">
                     {report.templateName}
                   </span>
+                  {/* Final reports carry a seal; drafts say so plainly. */}
+                  {report.finalizedAt ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-teal px-2.5 py-0.5 text-[0.85rem] font-bold text-white">
+                      <SealCheck weight="fill" className="h-4 w-4" />
+                      Final
+                    </span>
+                  ) : (
+                    <Badge>Draft</Badge>
+                  )}
                   {report.findings > 0 ? (
                     <Badge tone="amber">
                       {report.findings} {report.findings === 1 ? "finding" : "findings"}
@@ -55,7 +64,11 @@ export function ReportList({ reports }: { reports: SavedReportSummary[] }) {
                 </p>
                 <p className="mt-0.5 truncate text-[0.98rem] text-ink-soft">{report.impression}</p>
                 <p className="mt-2">
-                  <Meta icon={<CalendarBlank weight="bold" />}>{formatDateTime(report.updatedAt)}</Meta>
+                  <Meta icon={<CalendarBlank weight="bold" />}>
+                    {report.finalizedAt
+                      ? `Finalized ${formatDateTime(report.finalizedAt)}`
+                      : `Saved ${formatDateTime(report.updatedAt)}`}
+                  </Meta>
                 </p>
               </div>
               <div className="flex items-center gap-1">

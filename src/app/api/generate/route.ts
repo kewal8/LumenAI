@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
+import { LOCKED_MESSAGE, editorLocked } from "@/lib/subscription";
 import type { PatchOp, Report, Template } from "@/lib/report";
 import { recordClaudeUsage } from "@/lib/usage";
 import { validateLine } from "@/lib/validate";
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
   if (!user) {
     return Response.json({ error: "Signed out. Sign in again." }, { status: 401 });
   }
+  if (await editorLocked(user)) return Response.json({ error: LOCKED_MESSAGE }, { status: 402 });
 
   const { template, report, dictation }: GenerateRequest = await request.json();
   if (!dictation?.trim()) {

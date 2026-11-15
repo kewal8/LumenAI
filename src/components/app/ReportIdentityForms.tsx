@@ -1,5 +1,6 @@
 "use client";
 
+import { Spinner } from "@/components/Spinner";
 import { Switch } from "@base-ui/react/switch";
 import { CheckCircle, Trash, UploadSimple } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
@@ -57,6 +58,7 @@ function SaveRow({
   return (
     <div className="flex flex-wrap items-center gap-3">
       <button type="submit" disabled={busy || disabled} className={buttonClass.primary}>
+        {busy && <Spinner />}
         {busy ? "Saving" : "Save"}
       </button>
       {children}
@@ -206,9 +208,10 @@ export function SignatureForm({ text: initialText, image: initialImage }: { text
         event.preventDefault();
         save({ signature: { text, image } });
       }}
-      className="flex max-w-2xl flex-col gap-5"
+      className="grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]"
       noValidate
     >
+      <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <FieldLabel id="signature-text" label="Sign-off text" optional />
         <textarea
@@ -239,6 +242,32 @@ export function SignatureForm({ text: initialText, image: initialImage }: { text
       />
       <FormError message={error} />
       <SaveRow busy={busy} saved={saved} disabled={text === initialText && image === initialImage} />
+      </div>
+
+      {/* The end of a report as it will be pasted. White in both themes, like paper. */}
+      <figure className="flex flex-col gap-2">
+        <figcaption className="text-[0.95rem] font-semibold">How it ends your report</figcaption>
+        <div className="rounded-2xl border border-ink/25 bg-[#fff] p-6 font-[Arial,Helvetica,sans-serif] text-[0.85rem] leading-[1.5] tracking-normal text-[#000]">
+          <p className="font-bold">IMPRESSION:</p>
+          <p>No significant abnormality detected.</p>
+          {image || text.trim() ? (
+            <div className="mt-5">
+              {/* eslint-disable-next-line @next/next/no-img-element -- a local data URL */}
+              {image && <img src={image} alt="" className="h-12 w-auto max-w-full" />}
+              {text
+                .split("\n")
+                .filter((line) => line.trim())
+                .map((line, index) => (
+                  <p key={index} className={index === 0 ? "font-bold" : ""}>
+                    {line}
+                  </p>
+                ))}
+            </div>
+          ) : (
+            <p className="mt-5 text-[#5b6664]">Your signature and sign-off text will appear here.</p>
+          )}
+        </div>
+      </figure>
     </form>
   );
 }
@@ -258,7 +287,7 @@ export function LetterheadForm({ identity }: { identity: ReportIdentity }) {
         event.preventDefault();
         save({ letterhead: { header, footer, enabled: enabled && hasImage } });
       }}
-      className="grid gap-x-8 gap-y-6 xl:grid-cols-[minmax(0,1fr)_15rem]"
+      className="grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]"
       noValidate
     >
       <div className="flex flex-col gap-5">
@@ -316,7 +345,7 @@ export function LetterheadForm({ identity }: { identity: ReportIdentity }) {
       <figure className="flex flex-col gap-2">
         <div
           aria-label="Preview of a printed page"
-          className={`flex aspect-[210/297] w-full max-w-60 flex-col overflow-hidden rounded-lg border border-ink/25 bg-[#fff] shadow-[0_8px_24px_-12px_rgb(15_38_36/0.35)] ${
+          className={`flex aspect-[210/297] w-full max-w-[22rem] flex-col overflow-hidden rounded-lg border border-ink/25 bg-[#fff] shadow-[0_8px_24px_-12px_rgb(15_38_36/0.35)] ${
             enabled && hasImage ? "" : "[&_img]:opacity-30"
           }`}
         >
@@ -339,6 +368,40 @@ export function LetterheadForm({ identity }: { identity: ReportIdentity }) {
         </figcaption>
       </figure>
     </form>
+  );
+}
+
+/** Turns the floating dictation window on or off. Saved as soon as it is changed. */
+export function FloatingBoxSetting({ enabled: initial }: { enabled: boolean }) {
+  const [enabled, setEnabled] = useState(initial);
+  const { error, saved, save } = useSave();
+
+  return (
+    <div className="flex max-w-2xl flex-col gap-3">
+      <label className="flex items-center justify-between gap-6 rounded-2xl border border-ink/25 px-5 py-4">
+        <span>
+          <span className="block font-semibold">Floating box</span>
+          <span className="block text-[0.92rem] text-ink-soft">
+            When you start speaking, a small dictation window opens and stays on top of PACS. Works in
+            Chrome and Edge on a computer.
+          </span>
+        </span>
+        <Switch.Root
+          checked={enabled}
+          onCheckedChange={(next) => (setEnabled(next), save({ floatingBox: next }))}
+          className="flex h-7 w-12 shrink-0 items-center rounded-full bg-ink/30 p-0.5 transition-colors data-[checked]:bg-teal"
+        >
+          <Switch.Thumb className="h-6 w-6 rounded-full bg-[#fff] shadow transition-transform data-[checked]:translate-x-5" />
+        </Switch.Root>
+      </label>
+      <FormError message={error} />
+      {saved && (
+        <p role="status" className="flex items-center gap-1.5 text-[0.92rem] text-teal-deep">
+          <CheckCircle weight="fill" className="h-4 w-4" />
+          Saved
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -396,7 +459,7 @@ export function ShortcutsForm({ shortcuts: initial }: { shortcuts: Shortcuts }) 
       className="flex flex-col gap-5"
       noValidate
     >
-      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         {SHORTCUT_ACTIONS.map(({ id, label }) => (
           <li key={id}>
             <button

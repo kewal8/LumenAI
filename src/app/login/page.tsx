@@ -21,12 +21,12 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <AuthShell
       title="Sign in"
-      lead="Use the email your invitation was sent to."
+      lead="Use the email you signed up or were invited with."
       footer={
         <>
-          No access yet?{" "}
-          <Link href="/book-a-demo" className={authLinkClass}>
-            Book a demo
+          New to LumenAI?{" "}
+          <Link href="/signup" className={authLinkClass}>
+            Create an account
           </Link>
         </>
       }

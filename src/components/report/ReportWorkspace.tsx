@@ -1,9 +1,11 @@
 "use client";
 
+import { Spinner } from "@/components/Spinner";
 import { Dialog } from "@base-ui/react/dialog";
 import {
   ArrowsClockwise,
   CaretDown,
+  Check,
   CheckCircle,
   CircleNotch,
   Copy,
@@ -11,6 +13,7 @@ import {
   FloppyDisk,
   Info,
   Microphone,
+  Minus,
   PencilSimpleLine,
   Plus,
   ShieldCheck,
@@ -18,12 +21,16 @@ import {
   Stop,
   WarningCircle,
   Printer,
+  SealCheck,
+  ArrowUp,
+  ChatCircle,
+  SidebarSimple,
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Badge, Chip, IconTile, buttonClass, formatDateTime, tidyHeading } from "@/components/app/ui";
+import { buttonClass, formatDateTime, tidyHeading } from "@/components/app/ui";
 import { send as sendJson } from "@/components/auth/fields";
-import { copyReport } from "@/lib/clipboard";
+import { copyReport, writeClipboard } from "@/lib/clipboard";
 import {
   applyPatch,
   logEntryFor,
@@ -41,9 +48,20 @@ import {
   type PasteProfile,
 } from "@/lib/reportFormat";
 import type { ReportIdentity } from "@/lib/reportIdentity";
+import { expandMacros, removeLastMacro, type Macro } from "@/lib/macros";
 import { comboFromEvent, type ShortcutAction, type Shortcuts } from "@/lib/shortcuts";
+import { FinalizeDialog } from "./FinalizeDialog";
+import { FloatingBox, useFloatingWindow } from "./FloatingBox";
+import { useLineVoice } from "./LineVoice";
+import { useEditorVoice } from "./editor/EditorVoice";
+import { MacrosPanel } from "./MacrosPanel";
 import { TemplatePicker } from "./TemplatePicker";
-import { MICROPHONE_MESSAGES, useDictation } from "@/lib/useDictation";
+import { ReportEditor, type ReportEditorHandle } from "./editor/ReportEditor";
+import { docToHtml, docToReport, docToText, reportToDoc, type DocNode } from "@/lib/reportDoc";
+import type { Credits } from "@/lib/workspace";
+import { VoiceMeter } from "./VoiceMeter";
+import { MICROPHONE_MESSAGES, useDictation, type Word } from "@/lib/useDictation";
+import { COMMAND_LABELS, appendSpoken, spokenStream, type SpokenPiece } from "@/lib/voiceCommands";
 
 /** A dictation that could not be written into the report, kept so it can be retried. */
 type FailedDictation = { text: string; message: string };
@@ -55,7 +73,8 @@ function formatted(report: Report): FormattedReport {
     sections: [
       ...report.sections.map((section) => ({
         heading: section.heading,
-        lines: section.lines.map((line) => line.text),
+        // A line started by "next line" and left empty is not part of the report.
+        lines: section.lines.map((line) => line.text).filter((text) => text.trim()),
       })),
       { heading: "IMPRESSION", lines: report.impression },
     ],
@@ -73,6 +92,10 @@ export function ReportWorkspace({
   profile,
   identity,
   shortcuts,
+  floatingBox,
+  macros: initialMacros,
+  credits: initialCredits,
+  design = "classic",
   templates,
   saved,
 }: {
@@ -81,15 +104,26 @@ export function ReportWorkspace({
   identity: ReportIdentity;
   /** The doctor's keyboard shortcuts, from Settings. */
   shortcuts: Shortcuts;
+  /** Whether the floating dictation window opens by itself, from Settings. */
+  floatingBox: boolean;
+  /** The doctor's short forms, expanded in everything they dictate or type. */
+  macros: Macro[];
+  /** AI updates left today for the account. */
+  credits: Credits;
+  /** "future" is the current report screen; "classic" is version one, kept as a backup. */
+  design?: "future" | "classic";
   templates: Template[];
   /** A saved report being reopened. Left out for a new report. */
-  saved?: { id: string; template: Template; report: Report };
+  saved?: { id: string; template: Template; report: Report; finalizedAt?: string | null };
 }) {
   const router = useRouter();
   const signature = { text: identity.signatureText, image: identity.signatureImage };
   const [template, setTemplate] = useState(saved?.template ?? templates[0]);
   const [report, setReport] = useState(() => saved?.report ?? reportFromTemplate(templates[0]));
   const [savedId, setSavedId] = useState(saved?.id ?? null);
+  // When the report was last finalized, and whether the finalized preview is open.
+  const [finalizedAt, setFinalizedAt] = useState<string | null>(saved?.finalizedAt ?? null);
+  const [showFinal, setShowFinal] = useState(false);
   // True while the report has changes that are not in "Reports" yet.
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -106,6 +140,20 @@ export function ReportWorkspace({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [copyState, setCopyState] = useState<CopyState>("empty");
+  const [credits, setCredits] = useState(initialCredits);
+
+  // The new design writes into the rich report editor. Its document is the
+  // report people see, copy and print; the report lines are kept in step with it.
+  const future = design === "future";
+  const editorRef = useRef<ReportEditorHandle>(null);
+  const docFor = (value: Report) => (value.doc as DocNode | undefined) ?? reportToDoc(value, profile);
+  // A new report starts from the template's own page when it has one.
+  const startDoc = (from: Template) => (from.doc as DocNode | undefined) ?? docFor(reportFromTemplate(from));
+  const [initialDoc, setInitialDoc] = useState(() => (saved ? docFor(saved.report) : startDoc(templates[0])));
+  // Changed to start the editor afresh with `initialDoc`, on a new report.
+  const [editorSeed, setEditorSeed] = useState(0);
+  // True while a dictation is being written into the editor, so it is not taken for typing.
+  const applying = useRef(false);
 
   // Mirrors of state for callbacks that outlive a render (speech socket, timers).
   const reportRef = useRef(report);
@@ -118,7 +166,11 @@ export function ReportWorkspace({
   // Keeps the newest log entry in view.
   const logEnd = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    logEnd.current?.scrollIntoView({ block: "nearest" });
+    // Scrolls only the list the log sits in. scrollIntoView would also move
+    // the panel and the page around it, pushing headers out of sight.
+    let list = logEnd.current?.parentElement ?? null;
+    while (list && !/(auto|scroll)/.test(getComputedStyle(list).overflowY)) list = list.parentElement;
+    if (list) list.scrollTop = list.scrollHeight;
   }, [log.length, writing, failed]);
   // Written directly so the last spoken words are readable the moment the
   // speech connection closes, before React has re-rendered.
@@ -126,39 +178,120 @@ export function ReportWorkspace({
   function setDraft(text: string) {
     draftRef.current = text;
     setDraftState(text);
+    // A new dictation starts a new history for "undo that".
+    if (!text) spokenHistory.current = [];
   }
+  // The box before and after each spoken change, newest last, for "undo that".
+  const spokenHistory = useRef<{ before: string; after: string }[]>([]);
+  // The spoken command just carried out, shown for a moment so the doctor knows it was heard.
+  const [heard, setHeard] = useState("");
+  const heardTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  /**
+   * Speech into the dictation box: report words are added, and spoken commands
+   * ("next line", "delete last macro", "undo that") are carried out instead of written.
+   */
+  const listener = useRef(spokenStream());
+  function hear(words: Word[]) {
+    apply(listener.current.push(words.map((word) => word.text).join(" ")));
+  }
+  function apply(pieces: SpokenPiece[]) {
+    let text = draftRef.current;
+    let message = "";
+    for (const piece of pieces) {
+      const before = text;
+      if (piece.kind === "text") {
+        text = appendSpoken(text, piece.text);
+      } else if (piece.command === "newLine" || piece.command === "newParagraph") {
+        text = text.trimEnd() + (piece.command === "newLine" ? "\n" : "\n\n");
+        message = COMMAND_LABELS[piece.command];
+      } else if (piece.command === "deleteMacro") {
+        const result = removeLastMacro(text, macrosRef.current);
+        text = result.text;
+        message = result.macro ? `Removed the macro “${result.macro.shortForm}”` : "No macro to remove";
+      } else {
+        const last = spokenHistory.current.pop();
+        if (last && last.after === text) {
+          text = last.before;
+          message = "Undone";
+        } else {
+          message = "Nothing to undo";
+        }
+        continue;
+      }
+      if (text !== before) spokenHistory.current.push({ before, after: text });
+    }
+    setDraft(text);
+    if (message) {
+      clearTimeout(heardTimer.current);
+      setHeard(message);
+      heardTimer.current = setTimeout(() => setHeard(""), 2500);
+    }
+  }
+
+  const [macros, setMacros] = useState(initialMacros);
+  const macrosRef = useRef(macros);
+  macrosRef.current = macros;
 
   const dictation = useDictation({
     model: "nova-3-medical",
     language: "en-IN",
-    keyterms: [],
-    onWords: (words) =>
-      setDraft(
-        [draftRef.current, words.map((word) => word.text).join(" ")]
-          .filter(Boolean)
-          .join(" "),
-      ),
+    // Helps speech recognition hear short forms such as "CSV" as written.
+    keyterms: macros.map((macro) => macro.shortForm).slice(0, 50),
+    onWords: hear,
   });
+
+  // Speaking straight into one line, word for word, at the cursor.
+  const lineVoice = useLineVoice({ macros });
+  // Only one microphone at a time: no line speaking while a dictation runs.
+  const lineVoiceBlocked = dictation.recording || dictation.starting || busy;
+  // The same, in the rich report editor of the new report screen.
+  const editorVoice = useEditorVoice({ macros });
 
   const hasFindings = report.sections.some((section) =>
     section.lines.some((line) => line.status !== "normal"),
   );
 
-  async function save() {
+  async function save(finalize = false) {
     setSaving(true);
     setError("");
-    const body = { template, report: { ...reportRef.current, log: logRef.current } };
+    const body = { template, report: { ...reportRef.current, log: logRef.current }, finalize };
     const result = savedId
-      ? await sendJson<{ id: string }>("PATCH", `/api/reports/${savedId}`, body)
-      : await sendJson<{ id: string }>("POST", "/api/reports", body);
+      ? await sendJson<{ id: string; finalizedAt: string | null }>("PATCH", `/api/reports/${savedId}`, body)
+      : await sendJson<{ id: string; finalizedAt: string | null }>("POST", "/api/reports", body);
     setSaving(false);
     if (result.error || !result.data) {
       setError(result.error);
       return false;
     }
     setSavedId(result.data.id);
+    setFinalizedAt(result.data.finalizedAt ?? null);
     setDirty(false);
     return true;
+  }
+
+  // The last step: saves the report as final, then shows it as it will print.
+  async function finalize() {
+    if (await save(true)) setShowFinal(true);
+  }
+
+  function printHtml() {
+    const doc = future ? editorRef.current?.getDoc() : undefined;
+    return buildPrintHtml(
+      formatted(report),
+      profile,
+      signature,
+      identity.letterheadEnabled ? { header: identity.headerImage, footer: identity.footerImage } : null,
+      doc ? docToHtml(doc, profile) : undefined,
+    );
+  }
+
+  /** The report for the clipboard: rich and plain, from the editor in the new design. */
+  function clipboardParts(value: Report) {
+    const doc = future ? editorRef.current?.getDoc() : undefined;
+    if (doc) return { html: docToHtml(doc, profile, signature), text: docToText(doc, signature) };
+    const output = formatted(value);
+    return { html: buildReportHtml(output, profile, signature), text: buildReportText(output, profile, signature) };
   }
 
   // Asks first when there is work that has not been saved.
@@ -171,13 +304,15 @@ export function ReportWorkspace({
     setPending(null);
     // A reopened report lives at its own address; a new one starts on the New report screen.
     if (saved) {
-      router.push(`/report?template=${encodeURIComponent(next.id)}`);
+      router.push(`${future ? "/report" : "/report/classic"}?template=${encodeURIComponent(next.id)}`);
       return;
     }
     setSavedId(null);
     setDirty(false);
     setTemplate(next);
     setReport(reportFromTemplate(next));
+    setInitialDoc(startDoc(next));
+    setEditorSeed((seed) => seed + 1);
     setLog([]);
     setWriting(null);
     setFailed(null);
@@ -192,12 +327,7 @@ export function ReportWorkspace({
     const frame = document.createElement("iframe");
     frame.setAttribute("aria-hidden", "true");
     frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
-    frame.srcdoc = buildPrintHtml(
-      formatted(report),
-      profile,
-      signature,
-      identity.letterheadEnabled ? { header: identity.headerImage, footer: identity.footerImage } : null,
-    );
+    frame.srcdoc = printHtml();
     frame.onload = () => {
       frame.contentWindow?.focus();
       frame.contentWindow?.print();
@@ -207,9 +337,9 @@ export function ReportWorkspace({
   }
 
   async function copy(next: Report) {
-    const output = formatted(next);
+    const { html, text } = clipboardParts(next);
     try {
-      await copyReport(buildReportHtml(output, profile, signature), buildReportText(output, profile, signature));
+      await copyReport(html, text);
       setCopyState("copied");
     } catch {
       setCopyState("stale");
@@ -222,7 +352,8 @@ export function ReportWorkspace({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        template,
+        // The page itself is not needed to write the report.
+        template: { ...template, doc: undefined },
         report: reportRef.current,
         dictation: text,
       }),
@@ -231,10 +362,26 @@ export function ReportWorkspace({
     if (!response.ok) throw new Error(body.error);
 
     const ops: PatchOp[] = body.ops;
-    const next = applyPatch(reportRef.current, template, ops, body.impression);
+    let next = applyPatch(reportRef.current, template, ops, body.impression);
+    if (future && editorRef.current) {
+      // Written into the document too, keeping any formatting the doctor added.
+      applying.current = true;
+      editorRef.current.applyPatch({ template, ops, impression: body.impression });
+      applying.current = false;
+      const doc = editorRef.current.getDoc();
+      next = { ...docToReport(doc, next), doc };
+    }
+    reportRef.current = next;
     setReport(next);
     setDirty(true);
-    const entry = logEntryFor(next, ops, text, logRef.current.length === 0);
+    // One credit is one update of the report.
+    setCredits((current) => ({ ...current, used: current.used + 1 }));
+    const entry = logEntryFor(
+      next,
+      ops,
+      text,
+      logRef.current.every((previous) => previous.kind === "unchanged"),
+    );
     setLog((previous) => [...previous, entry]);
     setOpenEntry(entry.id);
     return next;
@@ -253,26 +400,19 @@ export function ReportWorkspace({
     let dictated = "";
     const nextReport = textPromise.then(async (text) => {
       if (!text.trim()) throw new Error("Nothing was dictated.");
-      dictated = text.trim();
+      // Short forms become their full text before the report is written.
+      dictated = expandMacros(text.trim(), macrosRef.current);
       setWriting(dictated);
       const next = await generate(dictated);
       setDraft("");
       return next;
     });
-    const output = nextReport.then(formatted);
+    const output = nextReport.then(clipboardParts);
 
-    const copied = navigator.clipboard
-      .write([
-        new ClipboardItem({
-          "text/html": output.then((value) =>
-            toBlob(buildReportHtml(value, profile, signature), "text/html"),
-          ),
-          "text/plain": output.then((value) =>
-            toBlob(buildReportText(value, profile, signature), "text/plain"),
-          ),
-        }),
-      ])
-      .then(
+    const copied = writeClipboard(
+      output.then((value) => toBlob(value.html, "text/html")),
+      output.then((value) => toBlob(value.text, "text/plain")),
+    ).then(
         () => true,
         () => false,
       );
@@ -293,13 +433,32 @@ export function ReportWorkspace({
     }
   }
 
+  // True when the microphone is on but no voice has been heard for a few seconds.
+  const [quiet, setQuiet] = useState(false);
+
+  const floating = useFloatingWindow();
+
   function toggleMic() {
+    setQuiet(false);
     if (!dictation.recording) {
+      if (lineVoice.live) lineVoice.stop();
+      if (editorVoice.live) editorVoice.stop();
+      listener.current = spokenStream();
+      // The floating window comes up by itself with the first words, so the
+      // doctor can go straight to PACS. A browser only allows a window to be
+      // opened from a click or key press, and this is one.
+      if (floatingBox && floating.supported && !floating.win) floating.open();
       dictation.start();
       return;
     }
     // Stop, wait for the last words, then update the report in one step.
-    send(dictation.stop().then(() => draftRef.current));
+    send(
+      dictation.stop().then(() => {
+        // Words held back in case a phrase carried on are written now.
+        apply(listener.current.flush());
+        return draftRef.current;
+      }),
+    );
   }
 
   // Keyboard shortcuts. The handlers are read through a ref so the listener
@@ -315,6 +474,7 @@ export function ReportWorkspace({
       new: () => !busy && newCase(),
     };
   });
+  const floatingWindow = floating.win;
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const combo = comboFromEvent(event);
@@ -324,9 +484,13 @@ export function ReportWorkspace({
       event.preventDefault();
       actions.current?.[match]();
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [shortcuts]);
+    // The floating window has its own keyboard, so it listens too.
+    const targets = floatingWindow ? [window, floatingWindow] : [window];
+    for (const target of targets) target.addEventListener("keydown", onKey);
+    return () => {
+      for (const target of targets) target.removeEventListener("keydown", onKey);
+    };
+  }, [shortcuts, floatingWindow]);
 
   // Typed edits: recopy shortly after the radiologist stops typing.
   const editTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -336,6 +500,13 @@ export function ReportWorkspace({
     setCopyState("stale");
     clearTimeout(editTimer.current);
     editTimer.current = setTimeout(() => copy(next), 500);
+  }
+
+  function editorChanged(doc: DocNode) {
+    const next = { ...docToReport(doc, reportRef.current), doc };
+    reportRef.current = next;
+    if (applying.current) setReport(next);
+    else edited(next);
   }
 
   function editLine(sectionId: string, lineId: string, text: string) {
@@ -354,6 +525,22 @@ export function ReportWorkspace({
             },
       ),
     });
+  }
+
+  /** Starts an empty line under another one, for "next line" while speaking into a line. Returns its key. */
+  function addLineAfter(sectionId: string, lineId: string) {
+    const id = `${sectionId}.${crypto.randomUUID().slice(0, 8)}`;
+    edited({
+      ...report,
+      sections: report.sections.map((section) => {
+        if (section.id !== sectionId) return section;
+        const lines = [...section.lines];
+        const at = lines.findIndex((line) => line.id === lineId);
+        lines.splice(at + 1, 0, { id, text: "", status: "edited", warnings: [] });
+        return { ...section, lines };
+      }),
+    });
+    return `${sectionId}/${id}`;
   }
 
   // The box that shows the spoken words. Its height can be dragged with the
@@ -381,6 +568,8 @@ export function ReportWorkspace({
     // While speaking, keep the newest words in view.
     const box = boxRef.current;
     if (box && dictation.recording) box.scrollTop = box.scrollHeight;
+    const message = messageRef.current;
+    if (message && dictation.recording) message.scrollTop = message.scrollHeight;
   }, [shownWords, dictation.recording]);
 
   useEffect(() => {
@@ -438,6 +627,551 @@ export function ReportWorkspace({
   const lineClass =
     "block w-full resize-none rounded-lg border border-transparent bg-transparent px-2.5 py-1 text-ink outline-none transition-colors [field-sizing:content] hover:border-ink/60 focus:border-teal focus:bg-surface";
 
+  const floatingPortal = floating.win && (
+      <FloatingBox
+        win={floating.win}
+        status={status}
+        words={shownWords}
+        note={copyState === "copied" ? "Report updated and copied. Press Ctrl+V in PACS." : ""}
+        problem={failed?.message || error || dictation.error}
+        onType={setDraft}
+        onMic={toggleMic}
+        onSend={() => send(Promise.resolve(draft))}
+      />
+  );
+
+  const dialogs = (
+    <>
+      <FinalizeDialog
+        open={showFinal}
+        onClose={() => setShowFinal(false)}
+        printHtml={showFinal ? printHtml() : ""}
+        finalizedAt={finalizedAt}
+        hasLetterhead={identity.letterheadEnabled && Boolean(identity.headerImage || identity.footerImage)}
+        hasSignature={Boolean(identity.signatureText.trim() || identity.signatureImage)}
+        flaggedLines={flaggedLines}
+        copied={copyState === "copied"}
+        onPrint={print}
+        onCopy={() => copy(report)}
+      />
+
+      <Dialog.Root open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="app-backdrop fixed inset-0 z-50 bg-[#06110f]/50" />
+          <Dialog.Popup className="app-layer fixed left-1/2 top-1/2 z-50 w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/20 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(6_17_15/0.55)] outline-none sm:p-8">
+            <Dialog.Title className="text-[1.4rem] font-semibold tracking-[-0.02em]">
+              Save this report?
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-[1.02rem] leading-relaxed text-ink-soft">
+              {savedId
+                ? "You changed this report after saving it. Save the changes before starting a new one?"
+                : "This report is not saved yet. Save it to Reports before starting a new one?"}
+            </Dialog.Description>
+            <div className="mt-6 flex flex-col gap-2.5">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={async () => {
+                  const next = pending;
+                  if (next && (await save())) startNew(next);
+                }}
+                className={`${buttonClass.primary} h-12`}
+              >
+                <FloppyDisk weight="bold" className="h-5 w-5" />
+                {saving && <Spinner />}
+                {saving ? "Saving" : "Save and start new report"}
+              </button>
+              <button
+                type="button"
+                onClick={() => pending && startNew(pending)}
+                className={`${buttonClass.danger} h-12`}
+              >
+                Do not save
+              </button>
+              <Dialog.Close className={`${buttonClass.quiet} h-12`}>Go back to this report</Dialog.Close>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </>
+  );
+
+  // The new design's message box sizes itself, so it has its own ref.
+  const messageRef = useRef<HTMLTextAreaElement>(null);
+  const remaining = credits.limit === null ? null : Math.max(0, credits.limit - credits.used);
+  const [panelOpen, setPanelOpen] = useState(true);
+  const timeOf = (iso: string) =>
+    new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
+  // Both halves are the same kind of object: a white card on the grey canvas.
+  const CARD =
+    "flex min-h-0 flex-col overflow-clip rounded-[28px] border border-line bg-surface shadow-[0_1px_2px_rgb(10_13_12/0.05),0_22px_60px_-34px_rgb(10_13_12/0.4)]";
+  const ICON_BUTTON =
+    "grid h-11 w-11 shrink-0 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.08] disabled:opacity-40";
+
+  if (future) {
+    return (
+      <main className="flex min-w-0 flex-1 flex-col gap-4 p-3 sm:p-4 lg:h-[100dvh] lg:flex-none lg:flex-row lg:overflow-clip">
+        {/* The report. */}
+        <section aria-label="Report" className={`${CARD} order-2 min-h-[70dvh] min-w-0 flex-1 lg:order-1 lg:min-h-0`}>
+          {/* One calm row: the case on the left, actions on the right, each group
+              in its own space. Labels give way to icons when the card is narrow. */}
+          <header className="@container shrink-0 border-b border-line px-4 py-2.5">
+            <div className="flex items-center gap-3">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <TemplatePicker
+                  templates={templates}
+                  value={template.id}
+                  onChange={(id) => newCase(templates.find((item) => item.id === id))}
+                  className="w-[11rem] @[60rem]:w-[15rem]"
+                />
+                <button
+                  type="button"
+                  onClick={() => newCase()}
+                  aria-label="New report"
+                  title="New report"
+                  className={ICON_BUTTON}
+                >
+                  <Plus weight="bold" className="h-5 w-5" />
+                </button>
+                <p aria-live="polite" className="t-meta hidden items-center gap-1.5 whitespace-nowrap @[52rem]:flex">
+                  {finalizedAt && !dirty ? (
+                    <>
+                      <SealCheck weight="fill" className="h-4 w-4 text-teal" />
+                      Finalized
+                    </>
+                  ) : finalizedAt ? (
+                    "Changed after finalizing"
+                  ) : savedId && !dirty ? (
+                    <>
+                      <CheckCircle weight="fill" className="h-4 w-4 text-teal" />
+                      Saved as draft
+                    </>
+                  ) : savedId ? (
+                    "Changes not saved"
+                  ) : (
+                    "Not saved yet"
+                  )}
+                </p>
+              </div>
+
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                {/* Speaking without the dictation panel, with its shortcut shown. */}
+                <button
+                  type="button"
+                  onClick={toggleMic}
+                  disabled={busy || dictation.starting}
+                  title={`${dictation.recording ? "Stop and write report" : "Start speaking"} (${shortcuts.dictate.replace(/\+/g, " + ")})`}
+                  aria-label={dictation.recording ? "Stop and write report" : "Start speaking"}
+                  aria-keyshortcuts={shortcuts.dictate}
+                  className={`inline-flex h-11 items-center gap-2 rounded-full pl-3 pr-2 text-[0.95rem] font-bold transition-colors disabled:cursor-progress ${
+                    dictation.recording ? "bg-flag text-white hover:bg-flag/90" : "bg-ink/[0.06] text-ink hover:bg-ink/[0.1]"
+                  }`}
+                >
+                  {dictation.recording ? (
+                    <Stop weight="fill" className="h-5 w-5" />
+                  ) : (
+                    <Microphone weight="fill" className="h-5 w-5" />
+                  )}
+                  <kbd
+                    className={`rounded-md px-1.5 py-0.5 font-[inherit] text-[0.78rem] font-bold ${
+                      dictation.recording ? "bg-white/20" : "bg-surface shadow-[inset_0_0_0_1px_rgb(6_17_15/0.18)]"
+                    }`}
+                  >
+                    {shortcuts.dictate.replace(/\+/g, " ")}
+                  </kbd>
+                </button>
+
+                {/* Small tools together: credits, save, print. */}
+                <div className="flex h-11 items-center rounded-full border border-ink/20 px-1">
+                  <span
+                    title={
+                      remaining === null
+                        ? "Pilot: no daily limit on report updates"
+                        : `${remaining} report updates left today`
+                    }
+                    className={`inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-[0.92rem] font-bold tabular-nums ${
+                      remaining !== null && remaining <= 10 ? "bg-amber/20 text-amber-deep" : "text-ink"
+                    }`}
+                  >
+                    <ChatCircle weight="bold" className="h-[1.1rem] w-[1.1rem]" />
+                    {remaining === null ? "∞" : remaining}
+                    <span className="sr-only">report updates left today</span>
+                  </span>
+                  <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-ink/15" />
+                  <button
+                    type="button"
+                    onClick={() => save()}
+                    disabled={saving || busy || (savedId !== null && !dirty)}
+                    aria-label="Save"
+                    title={`Save (${shortcuts.save.replace(/\+/g, " + ")})`}
+                    className="grid h-9 w-9 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.08] disabled:opacity-35"
+                  >
+                    {saving ? <Spinner /> : <FloppyDisk weight="bold" className="h-5 w-5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={print}
+                    disabled={busy}
+                    aria-label="Print or PDF"
+                    title={`Print or PDF (${shortcuts.print.replace(/\+/g, " + ")})`}
+                    className="grid h-9 w-9 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.08] disabled:opacity-35"
+                  >
+                    <Printer weight="bold" className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={finalize}
+                  disabled={saving || busy}
+                  aria-label="Finalize"
+                  title="Finalize: save as final and see it as it prints"
+                  className="inline-flex h-11 items-center gap-2 rounded-full border border-ink/25 px-3 text-[0.95rem] font-bold text-ink transition-colors hover:border-ink/50 hover:bg-ink/[0.04] disabled:opacity-50 @[56rem]:px-4"
+                >
+                  <SealCheck weight={finalizedAt && !dirty ? "fill" : "bold"} className="h-5 w-5" />
+                  <span className="hidden @[56rem]:inline">{finalizedAt && !dirty ? "Finalized" : "Finalize"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => copy(report)}
+                  disabled={busy}
+                  title={`Copy report (${shortcuts.copy.replace(/\+/g, " + ")})`}
+                  className="inline-flex h-11 items-center gap-2 rounded-full bg-teal px-5 text-[0.95rem] font-bold whitespace-nowrap text-white transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+                >
+                  {copyState === "copied" ? (
+                    <CheckCircle weight="fill" className="h-5 w-5" />
+                  ) : (
+                    <Copy weight="bold" className="h-5 w-5" />
+                  )}
+                  {copyState === "copied" ? "Copied" : "Copy report"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPanelOpen((open) => !open)}
+                  aria-pressed={panelOpen}
+                  aria-label={panelOpen ? "Hide dictation" : "Show dictation"}
+                  title={panelOpen ? "Hide dictation, for more room" : "Show dictation"}
+                  className={`${ICON_BUTTON} hidden lg:grid`}
+                >
+                  <SidebarSimple weight={panelOpen ? "fill" : "regular"} className="h-5 w-5 -scale-x-100" />
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {flaggedLines > 0 && (
+            <p
+              role="alert"
+              className="flex shrink-0 items-center gap-2 border-b border-flag/30 bg-flag/10 px-5 py-2 text-[0.95rem] font-semibold text-flag"
+            >
+              <WarningCircle weight="fill" className="h-5 w-5 shrink-0" />
+              {flaggedLines} {flaggedLines === 1 ? "line needs" : "lines need"} checking before you sign.
+            </p>
+          )}
+
+          {/* The report editor: every line can be edited and formatted. */}
+          <ReportEditor
+            key={editorSeed}
+            ref={editorRef}
+            variant="embedded"
+            initialDoc={initialDoc}
+            profile={profile}
+            onChange={editorChanged}
+            overlay={(editor) => editorVoice.render(editor, lineVoiceBlocked)}
+            footer={
+              // The sign-off travels with every copy and print. It is set in Settings.
+              (signature.image || signature.text) && (
+                <div className="mt-8" aria-label="Your signature">
+                  {signature.image && (
+                    // eslint-disable-next-line @next/next/no-img-element -- a stored data URL
+                    <img src={signature.image} alt="Your signature" className="h-14 w-auto rounded bg-[#fff]" />
+                  )}
+                  {signature.text.split("\n").map((line, index) => (
+                    <p key={index} className={index === 0 ? "font-bold" : ""}>
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              )
+            }
+          />
+        </section>
+
+        {/* Dictation: a conversation. The doctor's words on the right, what
+            LumenAI did with them on the left. */}
+        {/* Hidden, not removed, when folded away, so speaking keeps working. */}
+          <section
+            ref={panelRef}
+            aria-label="Dictation"
+            className={`${CARD} order-1 w-full shrink-0 lg:order-2 lg:max-w-[26rem] xl:max-w-[27rem] ${
+              panelOpen ? "" : "lg:hidden"
+            }`}
+          >
+            <header className="flex shrink-0 items-center justify-between border-b border-line px-5 py-3">
+              <h1 className="text-[1.25rem] font-bold tracking-[-0.02em]">Dictation</h1>
+              <p
+                role="status"
+                className={`inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-[0.9rem] font-bold ${
+                  status === "listening"
+                    ? "bg-flag text-white"
+                    : status === "ready"
+                      ? "bg-teal/[0.12] text-teal-deep"
+                      : "bg-amber/25 text-amber-deep"
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    status === "listening" ? "animate-pulse bg-white" : status === "ready" ? "bg-teal" : "animate-pulse bg-amber"
+                  }`}
+                />
+                {status === "listening" && "Listening"}
+                {status === "starting" && "Starting"}
+                {status === "writing" && "Writing report"}
+                {status === "ready" && "Ready"}
+              </p>
+            </header>
+
+            {floatingPortal}
+
+            <ol className="flex max-h-72 min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain bg-ink/[0.025] px-5 py-5 lg:max-h-none">
+              {log.length === 0 && !writing && !failed && (
+                <li className="m-auto flex max-w-[18rem] flex-col items-center gap-2 py-6 text-center">
+                  <span className="grid h-12 w-12 place-items-center rounded-full bg-teal/[0.12] text-teal-deep">
+                    <Microphone weight="fill" className="h-6 w-6" />
+                  </span>
+                  <p className="text-[1.02rem] font-semibold">Say only what is abnormal</p>
+                  <p className="text-[0.92rem] text-ink-soft">Everything you do not mention stays normal.</p>
+                </li>
+              )}
+
+              {log.map((entry) => {
+                const flagged = entry.changes.filter((change) => change.flagged).length;
+                const open = openEntry === entry.id;
+                return (
+                  <li key={entry.id} className="flex flex-col gap-2">
+                    <p className="t-meta text-center">{timeOf(entry.at)}</p>
+                    {/* What the doctor said. */}
+                    <p className="ml-9 self-end whitespace-pre-line rounded-[1.25rem] rounded-br-md bg-amber-tint px-4 py-3 text-[1.02rem] leading-snug text-ink shadow-[inset_0_0_0_1px_rgb(122_76_5/0.18)]">
+                      {entry.dictation}
+                    </p>
+                    {/* What happened to the report. */}
+                    <div className="mr-9 flex items-start gap-2.5 self-start">
+                      <span
+                        className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full text-white ${
+                          flagged ? "bg-flag" : entry.kind === "unchanged" ? "bg-ink/40" : "bg-teal"
+                        }`}
+                      >
+                        {flagged ? (
+                          <WarningCircle weight="fill" className="h-[1.1rem] w-[1.1rem]" />
+                        ) : (
+                          <CheckCircle weight="fill" className="h-[1.1rem] w-[1.1rem]" />
+                        )}
+                      </span>
+                      <div
+                        className={`rounded-[1.25rem] rounded-tl-md border px-4 py-2.5 leading-snug ${
+                          flagged ? "border-flag/50 bg-flag/[0.08]" : "border-line bg-surface"
+                        }`}
+                      >
+                        <p className={`text-[0.98rem] font-bold ${flagged ? "text-flag" : "text-ink"}`}>
+                          {flagged
+                            ? `${flagged} ${flagged === 1 ? "line" : "lines"} to check`
+                            : entry.kind === "created"
+                              ? "Report created"
+                              : entry.kind === "updated"
+                                ? "Report updated"
+                                : "Nothing to change"}
+                        </p>
+                        {entry.changes.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setOpenEntry(open ? null : entry.id)}
+                            aria-expanded={open}
+                            className="flex items-center gap-1 text-[0.92rem] text-ink-soft hover:text-ink"
+                          >
+                            {entry.changes.length} {entry.changes.length === 1 ? "line" : "lines"} changed
+                            <CaretDown weight="bold" className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+                          </button>
+                        )}
+                        {open && (
+                          <ul className="mt-2 flex flex-col gap-1.5 border-t border-line pt-2">
+                            {entry.changes.map((change, index) => (
+                              <li key={index} className="text-[0.9rem] leading-snug">
+                                <span className="font-bold">{tidyHeading(change.heading)}: </span>
+                                <span className={change.flagged ? "text-flag" : "text-ink-soft"}>{change.text}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+
+              {writing && (
+                <li className="flex flex-col gap-2">
+                  <p className="ml-9 self-end whitespace-pre-line rounded-[1.25rem] rounded-br-md bg-amber-tint px-4 py-3 text-[1.02rem] leading-snug text-ink">
+                    {writing}
+                  </p>
+                  <p className="mr-9 flex items-center gap-2 self-start rounded-[1.25rem] rounded-tl-md border border-line bg-surface px-4 py-2.5 font-semibold text-amber-deep">
+                    <CircleNotch weight="bold" className="h-5 w-5 animate-spin" />
+                    Writing into the report
+                  </p>
+                </li>
+              )}
+
+              {failed && (
+                <li role="alert" className="flex flex-col gap-2">
+                  <p className="ml-9 self-end whitespace-pre-line rounded-[1.25rem] rounded-br-md bg-amber-tint px-4 py-3 text-[1.02rem] leading-snug text-ink">
+                    {failed.text}
+                  </p>
+                  <div className="mr-9 self-start rounded-[1.25rem] rounded-tl-md border border-flag/50 bg-flag/[0.08] px-4 py-2.5">
+                    <p className="font-bold text-flag">Not added to the report</p>
+                    <p className="text-[0.92rem] text-flag">{failed.message}</p>
+                    <button
+                      type="button"
+                      onClick={() => send(Promise.resolve(failed.text))}
+                      disabled={busy || dictation.recording}
+                      className={`${buttonClass.secondary} mt-2 h-10`}
+                    >
+                      <ArrowsClockwise weight="bold" className="h-4 w-4" />
+                      Try again
+                    </button>
+                  </div>
+                </li>
+              )}
+              <div ref={logEnd} />
+            </ol>
+
+            <MacrosPanel
+              macros={macros}
+              onMacrosChange={setMacros}
+              onInsert={(text) => {
+                setDraft([draftRef.current.trim(), text].filter(Boolean).join(" "));
+                messageRef.current?.focus();
+              }}
+            />
+
+            {/* One box to speak or type into, like a message box. */}
+            <div className="flex shrink-0 flex-col gap-2.5 border-t border-line p-4">
+              {dictation.access === "blocked" && !error && !dictation.error && (
+                <p role="alert" className="flex items-start gap-2 rounded-2xl border border-flag/50 bg-flag/10 px-3.5 py-2.5 text-[0.92rem] font-semibold text-flag">
+                  <WarningCircle weight="fill" className="mt-0.5 h-4 w-4 shrink-0" />
+                  {MICROPHONE_MESSAGES.blocked}
+                </p>
+              )}
+              {(error || dictation.error) && (
+                <p role="alert" className="flex items-start gap-2 rounded-2xl border border-flag/50 bg-flag/10 px-3.5 py-2.5 text-[0.92rem] font-semibold text-flag">
+                  <WarningCircle weight="fill" className="mt-0.5 h-4 w-4 shrink-0" />
+                  {error || dictation.error}
+                </p>
+              )}
+              {dictation.access === "ask" && !dictation.error && !error && (
+                <p className="flex items-start gap-2 rounded-2xl bg-ink/[0.05] px-3.5 py-2.5 text-[0.92rem] leading-snug">
+                  <Info weight="fill" className="mt-0.5 h-4 w-4 shrink-0 text-teal" />
+                  {MICROPHONE_MESSAGES.ask}
+                </p>
+              )}
+
+              <div
+                className={`rounded-[1.5rem] border-2 bg-surface p-2 transition-colors ${
+                  dictation.recording ? "border-flag" : "border-ink/25 focus-within:border-teal"
+                }`}
+              >
+                <textarea
+                  ref={messageRef}
+                  value={shownWords}
+                  onChange={(event) => setDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      if (!busy && !dictation.recording && draft.trim()) send(Promise.resolve(draft));
+                    }
+                  }}
+                  readOnly={dictation.recording || dictation.starting}
+                  aria-label="What you said"
+                  placeholder="Speak your findings, or type them here"
+                  // The rounded box around it shows focus; the app-wide ring would draw a second box.
+                  style={{ outline: "none" }}
+                  // Grows with the words, up to a few lines, then scrolls.
+                  className="max-h-40 min-h-16 w-full resize-none bg-transparent px-3 pt-2 [field-sizing:content] text-[1.02rem] leading-relaxed text-ink outline-none placeholder:text-ink-quiet"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleMic}
+                    disabled={busy || dictation.starting}
+                    aria-label={dictation.recording ? "Stop and write report" : "Start speaking"}
+                    className={`relative inline-flex h-14 flex-1 items-center justify-center gap-3 overflow-hidden rounded-full text-[1.05rem] font-bold text-white transition-[background-color,transform] duration-150 active:scale-[0.98] disabled:cursor-progress ${
+                      status === "listening"
+                        ? "bg-flag hover:bg-flag/90"
+                        : status === "ready"
+                          ? "bg-btn text-btn-text hover:bg-teal-deep"
+                          : "bg-[#8a5a0c]"
+                    }`}
+                  >
+                    {status === "listening" && (
+                      <>
+                        <VoiceMeter readLevel={dictation.readLevel} onQuiet={setQuiet} />
+                        <span className="flex items-center gap-2">
+                          <Stop weight="fill" className="h-5 w-5" />
+                          Stop and write report
+                        </span>
+                      </>
+                    )}
+                    {status === "ready" && (
+                      <>
+                        <Microphone weight="fill" className="h-6 w-6" />
+                        Start speaking
+                      </>
+                    )}
+                    {(status === "starting" || status === "writing") && (
+                      <>
+                        <CircleNotch weight="bold" className="h-6 w-6 animate-spin" />
+                        {status === "starting" ? "Turning on the microphone" : "Writing the report"}
+                      </>
+                    )}
+                  </button>
+                  {/* Sends typed words. Speech is sent by the button beside it. */}
+                  {draft.trim() !== "" && !dictation.recording && (
+                    <button
+                      type="button"
+                      onClick={() => send(Promise.resolve(draft))}
+                      disabled={busy}
+                      aria-label="Update report from typed text"
+                      title="Update report from typed text"
+                      className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-teal text-white transition-[filter] hover:brightness-110 disabled:opacity-50"
+                    >
+                      <ArrowUp weight="bold" className="h-5 w-5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {heard ? (
+                <p role="status" className="flex items-center justify-center gap-2 text-center text-[0.95rem] font-bold text-teal-deep">
+                  <CheckCircle weight="fill" className="h-5 w-5" />
+                  {heard}
+                </p>
+              ) : status === "listening" ? (
+                <>
+                  <p role="status" className={`text-center text-[0.95rem] font-bold ${quiet ? "text-amber-deep" : "text-flag"}`}>
+                    {quiet ? "I cannot hear you. Speak closer to the microphone." : "Speak now. I am listening."}
+                  </p>
+                  <p className="t-meta -mt-1 text-center">
+                    Say “next line”, “full stop”, “comma”, “delete last macro” or “undo that”.
+                  </p>
+                </>
+              ) : null}
+            </div>
+          </section>
+
+        {dialogs}
+      </main>
+    );
+  }
+
   // On a laptop the workspace is exactly one screen tall: the report scrolls
   // inside its column and the dictation panel never moves.
   return (
@@ -484,11 +1218,18 @@ export function ReportWorkspace({
                 className="sticky top-0 z-10 -mx-5 -mt-7 mb-7 flex flex-wrap items-center gap-3 rounded-t-3xl border-b border-line bg-surface px-5 py-3 font-[family-name:var(--font-brand)] sm:-mx-9 sm:-mt-9 sm:mb-8 sm:px-6"
               >
                 <p className="mr-auto flex items-center gap-2 text-[0.95rem] font-semibold text-ink-soft">
-                  {savedId && !dirty ? (
+                  {finalizedAt && !dirty ? (
+                    <>
+                      <SealCheck weight="fill" className="h-5 w-5 text-teal" />
+                      Finalized {formatDateTime(finalizedAt)}
+                    </>
+                  ) : savedId && !dirty ? (
                     <>
                       <CheckCircle weight="fill" className="h-5 w-5 text-teal" />
-                      Saved in Reports
+                      Saved as draft
                     </>
+                  ) : finalizedAt ? (
+                    "Changed after finalizing"
                   ) : savedId ? (
                     "Changes not saved"
                   ) : (
@@ -501,18 +1242,19 @@ export function ReportWorkspace({
             </button>
             <button
               type="button"
-              onClick={save}
+              onClick={() => save()}
               disabled={saving || busy || (savedId !== null && !dirty)}
               className={buttonClass.secondary}
             >
               <FloppyDisk weight="bold" className="h-5 w-5" />
+              {saving && <Spinner />}
               {saving ? "Saving" : "Save"}
             </button>
             {copyState === "copied" ? (
               <button
                 type="button"
                 onClick={() => copy(report)}
-                className="inline-flex h-11 items-center gap-2 rounded-full bg-teal px-5 text-[0.95rem] font-bold text-white"
+                className={`${buttonClass.secondary} !border-teal !text-teal-deep`}
               >
                 <CheckCircle weight="fill" className="h-5 w-5" />
                 Copied. Press Ctrl+V
@@ -522,12 +1264,22 @@ export function ReportWorkspace({
                 type="button"
                 onClick={() => copy(report)}
                 disabled={busy}
-                className="inline-flex h-11 items-center gap-2 rounded-full bg-btn px-5 text-[0.95rem] font-bold text-btn-text transition-colors hover:bg-teal-deep disabled:opacity-50"
+                className={buttonClass.secondary}
               >
                 <Copy weight="bold" className="h-5 w-5" />
                 Copy report
               </button>
             )}
+            {/* The last step of every report: saves it as final and shows it as it prints. */}
+            <button
+              type="button"
+              onClick={finalize}
+              disabled={saving || busy}
+              className="inline-flex h-11 items-center gap-2 rounded-full bg-teal px-6 text-[0.95rem] font-bold text-white transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <SealCheck weight="fill" className="h-5 w-5" />
+              {saving ? "Saving" : finalizedAt && !dirty ? "Finalized" : "Finalize"}
+            </button>
           </div>
 
               <h1 className="text-center text-[1.05rem] font-bold">{report.title}</h1>
@@ -539,10 +1291,11 @@ export function ReportWorkspace({
                     {section.lines.map((line) => {
                       const changed = line.status !== "normal";
                       const flagged = line.warnings.length > 0;
+                      const voiceKey = `${section.id}/${line.id}`;
                       return (
                         <li
                           key={line.id}
-                          className={`rounded-xl ${
+                          className={`relative rounded-xl ${
                             flagged
                               ? "bg-flag/10 ring-1 ring-flag/50"
                               : changed
@@ -556,7 +1309,13 @@ export function ReportWorkspace({
                             rows={Math.max(1, Math.ceil(line.text.length / 88))}
                             aria-label={`${section.heading} line`}
                             className={`${lineClass} ${changed ? "font-bold" : ""}`}
+                            {...lineVoice.bind(
+                              voiceKey,
+                              (text) => editLine(section.id, line.id, text),
+                              () => addLineAfter(section.id, line.id),
+                            )}
                           />
+                          {lineVoice.button(voiceKey, lineVoiceBlocked)}
                           {(line.source || flagged) && (
                             <div className="px-2.5 pb-2 font-[family-name:var(--font-brand)] text-[0.85rem] leading-snug">
                               {line.warnings.map((warning) => (
@@ -579,15 +1338,19 @@ export function ReportWorkspace({
 
               <div className="mt-6">
                 <h2 className="px-2.5 font-bold">IMPRESSION:</h2>
-                <textarea
-                  value={report.impression.join("\n")}
-                  onChange={(event) =>
-                    edited({ ...report, impression: event.target.value.split("\n") })
-                  }
-                  rows={Math.max(1, report.impression.length)}
-                  aria-label="Impression"
-                  className={`${lineClass} mt-1.5 ${hasFindings ? "font-bold" : ""}`}
-                />
+                <div className="relative mt-1.5">
+                  <textarea
+                    value={report.impression.join("\n")}
+                    onChange={(event) =>
+                      edited({ ...report, impression: event.target.value.split("\n") })
+                    }
+                    rows={Math.max(1, report.impression.length)}
+                    aria-label="Impression"
+                    className={`${lineClass} ${hasFindings ? "font-bold" : ""}`}
+                    {...lineVoice.bind("impression", (text) => edited({ ...report, impression: text.split("\n") }))}
+                  />
+                  {lineVoice.button("impression", lineVoiceBlocked)}
+                </div>
               </div>
 
               {/* The sign-off travels with every copy and print. It is set in Settings. */}
@@ -608,7 +1371,7 @@ export function ReportWorkspace({
 
             <p className="flex items-center justify-center gap-2 pb-2 text-[0.92rem] font-semibold text-ink-soft">
               <PencilSimpleLine className="h-4 w-4" />
-              Click any line to change it by hand.
+              Click any line to change it by hand, or press Speak at the cursor to add words by voice.
             </p>
           </div>
         </div>
@@ -649,6 +1412,8 @@ export function ReportWorkspace({
           </p>
         </header>
 
+        {floatingPortal}
+
         <div className="flex max-h-56 min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4 lg:max-h-none">
           {log.length === 0 && !writing && !failed ? (
             <ol className="flex flex-col gap-4 text-[1rem] leading-snug">
@@ -671,60 +1436,77 @@ export function ReportWorkspace({
           ) : (
             <>
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-[1rem] font-semibold">Report log</h3>
-                <Badge>
+                <h3 className="t-label">Report log</h3>
+                <span className="t-meta">
                   {log.length} {log.length === 1 ? "dictation" : "dictations"}
-                </Badge>
+                </span>
               </div>
 
               <ol aria-live="polite" className="flex flex-col gap-3">
                 {log.map((entry) => {
                   const flagged = entry.changes.filter((change) => change.flagged).length;
                   const open = openEntry === entry.id;
+                  const unchanged = entry.kind === "unchanged";
                   return (
                     <li key={entry.id} className="rounded-2xl border border-ink/25 bg-surface">
+                      {/* Opens the list of changed lines. With nothing changed there is
+                          nothing to open, so it is plain text with no arrow. */}
                       <button
                         type="button"
                         onClick={() => setOpenEntry(open ? null : entry.id)}
-                        aria-expanded={open}
-                        className="flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left transition-colors hover:bg-ink/[0.04]"
+                        aria-expanded={entry.changes.length > 0 ? open : undefined}
+                        disabled={entry.changes.length === 0}
+                        className="flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left transition-colors enabled:hover:bg-ink/[0.05]"
                       >
-                        <IconTile tone={flagged > 0 ? "amber" : "teal"}>
-                          {entry.kind === "created" ? (
+                        {/* Colour says how it went: teal done, red needs a look, grey nothing happened. */}
+                        <span
+                          className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
+                            flagged > 0
+                              ? "bg-flag text-white"
+                              : unchanged
+                                ? "bg-ink/[0.08] text-ink-quiet"
+                                : "bg-teal text-white"
+                          }`}
+                        >
+                          {flagged > 0 ? (
+                            <WarningCircle weight="fill" className="h-5 w-5" />
+                          ) : unchanged ? (
+                            <Minus weight="bold" className="h-5 w-5" />
+                          ) : entry.kind === "created" ? (
                             <Sparkle weight="fill" className="h-5 w-5" />
                           ) : (
-                            <ArrowsClockwise weight="bold" className="h-5 w-5" />
+                            <Check weight="bold" className="h-5 w-5" />
                           )}
-                        </IconTile>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[1rem] font-semibold leading-snug">
-                            {entry.kind === "created" ? "Report created" : "Report updated"}
-                          </span>
-                          <span className="block text-[0.88rem] font-semibold text-ink-soft">
-                            {formatDateTime(entry.at)}
-                          </span>
                         </span>
-                        <CaretDown
-                          weight="bold"
-                          className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
-                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[1.05rem] font-bold leading-snug text-ink">
+                            {unchanged
+                              ? "Nothing changed"
+                              : entry.kind === "created"
+                                ? "Report created"
+                                : "Report updated"}
+                          </span>
+                          <span className="t-meta block">{formatDateTime(entry.at)}</span>
+                        </span>
+                        {entry.changes.length > 0 && (
+                          <span className="t-meta flex shrink-0 items-center gap-1.5">
+                            {open ? "Hide" : "Show"} changes
+                            <CaretDown
+                              weight="bold"
+                              className={`h-4 w-4 text-ink transition-transform ${open ? "rotate-180" : ""}`}
+                            />
+                          </span>
+                        )}
                       </button>
 
-                      <div className="border-t border-line px-3.5 py-3">
-                        <p className="text-[0.82rem] font-bold uppercase tracking-[0.04em] text-ink-soft">
-                          You said
-                        </p>
-                        <p className="mt-1 text-[0.98rem] leading-snug">{entry.dictation}</p>
-                      </div>
-
                       {open && entry.changes.length > 0 && (
-                        <ul className="flex flex-col gap-2.5 border-t border-line px-3.5 py-3">
+                        <ul className="mx-3.5 mb-3.5 flex flex-col gap-2.5 rounded-xl border border-line bg-ink/[0.03] px-3.5 py-3">
                           {entry.changes.map((change, index) => (
                             <li key={index} className="flex flex-col items-start gap-1.5">
-                              <Chip>{tidyHeading(change.heading)}</Chip>
+                              <span className="t-label">{tidyHeading(change.heading)}</span>
                               <p
-                                className={`flex items-start gap-1.5 text-[0.95rem] leading-snug ${
-                                  change.flagged ? "font-semibold text-flag" : ""
+                                className={`flex items-start gap-1.5 text-[0.98rem] leading-snug ${
+                                  change.flagged ? "font-semibold text-flag" : "text-ink"
                                 }`}
                               >
                                 {change.flagged && (
@@ -737,20 +1519,36 @@ export function ReportWorkspace({
                         </ul>
                       )}
 
-                      <p className="flex flex-wrap items-center gap-2 border-t border-line px-3.5 py-2.5">
-                        <Badge tone="teal">
-                          {entry.changes.length} {entry.changes.length === 1 ? "line" : "lines"} changed
-                        </Badge>
-                        {flagged > 0 ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-flag/50 bg-flag/10 px-2.5 py-0.5 text-[0.85rem] font-bold text-flag">
-                            <WarningCircle weight="fill" className="h-4 w-4" />
-                            {flagged} to check
+                      <div className="px-3.5 pb-3.5">
+                        <p className="t-label mb-1.5 flex items-center gap-1.5">
+                          <Microphone weight="fill" className="h-3.5 w-3.5 text-amber-deep" />
+                          You said
+                        </p>
+                        <p className="t-speech">{entry.dictation}</p>
+                      </div>
+
+                      <p className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line px-3.5 py-2.5">
+                        {unchanged ? (
+                          <span className="text-[0.92rem] text-ink-soft">
+                            The report was left as it was. Say the finding again if something should change.
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 text-[0.85rem] font-bold text-teal-deep">
-                            <ShieldCheck weight="fill" className="h-4 w-4" />
-                            Checked, no problems
-                          </span>
+                          <>
+                            <span className="text-[0.92rem] font-bold text-ink">
+                              {entry.changes.length} {entry.changes.length === 1 ? "line" : "lines"} changed
+                            </span>
+                            {flagged > 0 ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-flag px-2.5 py-0.5 text-[0.85rem] font-bold text-white">
+                                <WarningCircle weight="fill" className="h-4 w-4" />
+                                {flagged} to check
+                              </span>
+                            ) : (
+                              <span className="t-meta inline-flex items-center gap-1.5">
+                                <ShieldCheck weight="fill" className="h-4 w-4 text-teal" />
+                                Checked, no problems
+                              </span>
+                            )}
+                          </>
                         )}
                       </p>
                     </li>
@@ -763,7 +1561,7 @@ export function ReportWorkspace({
                       <CircleNotch weight="bold" className="h-5 w-5 animate-spin" />
                       Writing into the report
                     </p>
-                    <p className="mt-2 text-[0.98rem] leading-snug">{writing}</p>
+                    <p className="t-speech mt-2.5 !bg-surface">{writing}</p>
                   </li>
                 )}
 
@@ -774,7 +1572,7 @@ export function ReportWorkspace({
                       Not added to the report
                     </p>
                     <p className="mt-1 text-[0.92rem] font-semibold text-flag">{failed.message}</p>
-                    <p className="mt-2 text-[0.98rem] leading-snug">{failed.text}</p>
+                    <p className="t-speech mt-2.5 !bg-surface">{failed.text}</p>
                     <button
                       type="button"
                       onClick={() => send(Promise.resolve(failed.text))}
@@ -791,6 +1589,15 @@ export function ReportWorkspace({
             </>
           )}
         </div>
+
+        <MacrosPanel
+          macros={macros}
+          onMacrosChange={setMacros}
+          onInsert={(text) => {
+            setDraft([draftRef.current.trim(), text].filter(Boolean).join(" "));
+            boxRef.current?.focus();
+          }}
+        />
 
         {/* Drag up or down to give the dictation box more or less room. */}
         <div
@@ -842,12 +1649,6 @@ export function ReportWorkspace({
             </p>
           )}
 
-          {/* Always on: there is no switch, because a report should never skip its checks. */}
-          <p className="flex items-center gap-2 text-[0.9rem] font-semibold text-teal-deep">
-            <ShieldCheck weight="fill" className="h-5 w-5 shrink-0" />
-            Every update is checked for side, numbers and “no”.
-          </p>
-
           <textarea
             ref={boxRef}
             value={shownWords}
@@ -861,81 +1662,97 @@ export function ReportWorkspace({
             readOnly={dictation.recording || dictation.starting}
             style={{ height: BOX_MIN }}
             aria-label="What you said"
-            placeholder="Your words appear here. You can also type."
+            placeholder="Press Start speaking and say your findings. Your words appear here. You can also type."
             className={`w-full resize-none rounded-2xl border-2 bg-surface px-4 py-3 text-[1.02rem] leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-quiet ${
               dictation.recording ? "border-flag" : "border-ink/35 focus:border-teal"
             }`}
           />
 
+          {/* Says what is happening while something is. Nothing to say when idle:
+              the box above already tells a newcomer what to do. */}
+          {/* A spoken command is acted on, not written, so say that it was heard. */}
+          {heard && (
+            <p role="status" className="flex items-center justify-center gap-2 text-center text-[0.98rem] font-bold text-teal-deep">
+              <CheckCircle weight="fill" className="h-5 w-5" />
+              {heard}
+            </p>
+          )}
+          <p
+            role="status"
+            hidden={status === "ready" || Boolean(heard)}
+            className={`flex min-h-6 items-center justify-center gap-2 text-center text-[0.98rem] font-bold ${
+              status === "listening"
+                ? quiet
+                  ? "text-amber-deep"
+                  : "text-flag"
+                : status === "ready"
+                  ? "text-ink-quiet"
+                  : "text-amber-deep"
+            }`}
+          >
+            {status === "starting" && "Please wait. Turning on the microphone."}
+            {status === "listening" && !quiet && "Speak now. I am listening."}
+            {status === "listening" && quiet && "I cannot hear you. Speak closer to the microphone."}
+            {status === "writing" && "Please wait. Writing your report."}
+          </p>
+          {status === "listening" && !heard && (
+            <p className="t-meta -mt-1 text-center">
+              Say “next line”, “full stop”, “comma”, “delete last macro” or “undo that”.
+            </p>
+          )}
+
           <button
             type="button"
             onClick={toggleMic}
             disabled={busy || dictation.starting}
-            className={`flex h-14 items-center justify-center gap-3 rounded-full text-[1.05rem] font-bold text-white transition-[background-color,transform] duration-150 active:scale-[0.98] disabled:opacity-60 ${
-              dictation.recording ? "bg-flag hover:bg-flag/90" : "bg-teal hover:bg-teal-deep"
+            aria-label={dictation.recording ? "Stop and write report" : "Start speaking"}
+            className={`relative flex h-16 items-center justify-center gap-3.5 overflow-hidden rounded-full text-[1.1rem] font-bold text-white transition-[background-color,transform,box-shadow] duration-200 active:scale-[0.97] disabled:cursor-progress ${
+              status === "listening"
+                ? "bg-flag shadow-[0_0_0_6px_color-mix(in_srgb,var(--c-flag)_22%,transparent)] hover:bg-flag/90"
+                : status === "ready"
+                  ? "bg-teal hover:brightness-110"
+                  : "bg-[#8a5a0c]"
             }`}
           >
-            {dictation.recording ? (
+            {status === "listening" && (
               <>
-                <Stop weight="fill" className="h-5 w-5" />
-                Stop and write report
+                <VoiceMeter readLevel={dictation.readLevel} onQuiet={setQuiet} />
+                <span className="flex items-center gap-2">
+                  <Stop weight="fill" className="h-5 w-5" />
+                  Stop and write report
+                </span>
               </>
-            ) : (
+            )}
+            {status === "ready" && (
               <>
                 <Microphone weight="fill" className="h-6 w-6" />
-                {busy ? "Writing report" : dictation.starting ? "Starting" : "Start speaking"}
+                Start speaking
+              </>
+            )}
+            {(status === "starting" || status === "writing") && (
+              <>
+                <CircleNotch weight="bold" className="h-6 w-6 animate-spin" />
+                {status === "starting" ? "Turning on the microphone" : "Writing the report"}
               </>
             )}
           </button>
 
-          <button
-            type="button"
-            onClick={() => send(Promise.resolve(draft))}
-            disabled={busy || dictation.recording || !draft.trim()}
-            className="h-11 rounded-full border border-ink/35 text-[0.95rem] font-bold text-ink transition-colors hover:border-ink/60 hover:bg-ink/[0.06] disabled:opacity-60"
-          >
-            Update report from typed text
-          </button>
+          {/* Only for typed words. Speech is sent by the button above, so this
+              stays out of the way until there is something typed to send. */}
+          {draft.trim() !== "" && !dictation.recording && (
+            <button
+              type="button"
+              onClick={() => send(Promise.resolve(draft))}
+              disabled={busy}
+              className="h-11 rounded-full border border-ink/35 text-[0.95rem] font-bold text-ink transition-colors hover:border-ink/60 hover:bg-ink/[0.06] disabled:opacity-60"
+            >
+              Update report from typed text
+            </button>
+          )}
         </div>
       </aside>
 
-      <Dialog.Root open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
-        <Dialog.Portal>
-          <Dialog.Backdrop className="app-backdrop fixed inset-0 z-50 bg-[#06110f]/50" />
-          <Dialog.Popup className="app-layer fixed left-1/2 top-1/2 z-50 w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/20 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(6_17_15/0.55)] outline-none sm:p-8">
-            <Dialog.Title className="text-[1.4rem] font-semibold tracking-[-0.02em]">
-              Save this report?
-            </Dialog.Title>
-            <Dialog.Description className="mt-2 text-[1.02rem] leading-relaxed text-ink-soft">
-              {savedId
-                ? "You changed this report after saving it. Save the changes before starting a new one?"
-                : "This report is not saved yet. Save it to Reports before starting a new one?"}
-            </Dialog.Description>
-            <div className="mt-6 flex flex-col gap-2.5">
-              <button
-                type="button"
-                disabled={saving}
-                onClick={async () => {
-                  const next = pending;
-                  if (next && (await save())) startNew(next);
-                }}
-                className={`${buttonClass.primary} h-12`}
-              >
-                <FloppyDisk weight="bold" className="h-5 w-5" />
-                {saving ? "Saving" : "Save and start new report"}
-              </button>
-              <button
-                type="button"
-                onClick={() => pending && startNew(pending)}
-                className={`${buttonClass.danger} h-12`}
-              >
-                Do not save
-              </button>
-              <Dialog.Close className={`${buttonClass.quiet} h-12`}>Go back to this report</Dialog.Close>
-            </div>
-          </Dialog.Popup>
-        </Dialog.Portal>
-      </Dialog.Root>
+      {dialogs}
     </main>
   );
 }

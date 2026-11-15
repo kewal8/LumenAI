@@ -66,7 +66,7 @@ export function LoginForm({ next }: { next: string | null }) {
         autoComplete="current-password"
       />
       <FormError message={error} />
-      <SubmitButton busy={busy} disabled={!email || !password}>
+      <SubmitButton busy={busy} busyLabel="Signing in" disabled={!email || !password}>
         Sign in
       </SubmitButton>
       <Link href="/forgot-password" className={`${authLinkClass} self-start text-[0.95rem]`}>
@@ -125,7 +125,7 @@ export function AcceptInviteForm({ token, email }: { token: string; email: strin
         hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
       />
       <FormError message={error} />
-      <SubmitButton busy={busy} disabled={!name.trim() || !password}>
+      <SubmitButton busy={busy} busyLabel="Creating your account" disabled={!name.trim() || !password}>
         Create account
       </SubmitButton>
     </form>
@@ -163,7 +163,7 @@ export function ForgotPasswordForm() {
         autoFocus
       />
       <FormError message={error} />
-      <SubmitButton busy={busy} disabled={!email}>
+      <SubmitButton busy={busy} busyLabel="Sending" disabled={!email}>
         Send reset link
       </SubmitButton>
     </form>
@@ -198,7 +198,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         hint={`At least ${MIN_PASSWORD_LENGTH} characters. You will be signed out on other devices.`}
       />
       <FormError message={error} />
-      <SubmitButton busy={busy} disabled={!password}>
+      <SubmitButton busy={busy} busyLabel="Saving" disabled={!password}>
         Save password
       </SubmitButton>
     </form>

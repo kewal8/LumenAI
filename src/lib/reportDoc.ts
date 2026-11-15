@@ -114,7 +114,7 @@ export function docToReport(doc: DocNode, fallback: Report): Report {
   for (const block of blocks(doc)) {
     const attrs = block.attrs ?? {};
     const text = nodeText(block);
-    if (block.type === "heading") {
+    if (block.type === "heading" || attrs.role) {
       if (attrs.role === "title") title = text.trim() || fallback.title;
       if (attrs.role === "section" && typeof attrs.sectionId === "string") {
         sectionFor(attrs.sectionId).heading = text.trim().replace(/:$/, "");
@@ -195,11 +195,12 @@ function blockHtml(node: DocNode, base: string, heading: string): string {
   const inner = () => (node.content ?? []).map(inlineHtml).join("");
   switch (node.type) {
     case "heading": {
-      const margin = node.attrs?.role === "title" ? "0 0 8pt 0" : "8pt 0 2pt 0";
+      const margin = node.attrs?.role === "title" ? "0 0 8pt 0" : "8pt 0 0 0";
       return `<p style="${heading}${align(node)}margin:${margin};">${inner()}</p>`;
     }
     case "paragraph":
-      return `<p style="${base}${align(node)}margin:0 0 4pt 0;">${inner() || "&nbsp;"}</p>`;
+      // No space between lines: a blank line in the document is the gap, as written.
+      return `<p style="${base}${align(node)}margin:0;">${inner() || "&nbsp;"}</p>`;
     case "bulletList":
     case "orderedList": {
       const tag = node.type === "bulletList" ? "ul" : "ol";
@@ -214,7 +215,7 @@ function blockHtml(node: DocNode, base: string, heading: string): string {
           return `<li style="${base}${first ? align(first) : ""}">${parts.join("<br>")}</li>`;
         })
         .join("");
-      return `<${tag} style="margin:0 0 8pt 0;">${items}</${tag}>`;
+      return `<${tag} style="margin:0;">${items}</${tag}>`;
     }
     default:
       return (node.content ?? []).map((child) => blockHtml(child, base, heading)).join("");

@@ -229,31 +229,43 @@ html[data-landing-theme="dark"] {
 .app-layer {
   --c-canvas: #eceff0;
   --c-surface: #ffffff;
-  --c-ink: #06110f;
-  --c-ink-soft: #24322f;
-  --c-ink-quiet: #3f4f4c;
-  --c-line: #d3dad9;
-  --c-teal: #0a5f58;
-  --c-teal-deep: #06433e;
-  --c-teal-tint: #cdebe6;
-  --c-amber-deep: #6e4605;
-  --c-flag: #9c2a17;
-  --c-btn: #06110f;
+  /* Text has three levels, far enough apart to tell at a glance and all
+     readable on a weak laptop panel:
+       ink        what the person wrote, said or must read (black)
+       ink-soft   explanations under it (dark grey, 7.9:1 on white)
+       ink-quiet  labels, column headings, dates (grey, 5.5:1, always bold)
+     Teal means "press this" or "this went right", nothing else. Amber marks
+     the person's own spoken words and things that are waiting. */
+  --c-ink: #0a0d0c;
+  --c-ink-soft: #49524f;
+  --c-ink-quiet: #606a67;
+  --c-line: #d6dbda;
+  --c-teal: #0a7c70;
+  --c-teal-deep: #07594f;
+  --c-teal-tint: #d5f0eb;
+  --c-amber-deep: #7a4c05;
+  --c-amber-tint: #fdf0d3;
+  --c-flag: #a32a16;
+  --c-btn: #0a0d0c;
 }
 
 html[data-landing-theme="dark"] :is(.app, .app-layer) {
   --c-canvas: #061412;
   --c-surface: #0e2421;
-  --c-ink: #f4faf9;
-  --c-ink-soft: #d3e5e1;
-  --c-ink-quiet: #b3cbc6;
+  --c-ink: #f6faf9;
+  --c-ink-soft: #b9c7c4;
+  --c-ink-quiet: #93a5a1;
   --c-line: #24443f;
-  --c-teal: #7fe3d4;
-  --c-teal-deep: #b4efe6;
-  --c-teal-tint: #153f3f;
-  --c-amber-deep: #f8d79b;
+  /* Deep teal, not mint: white text on it is 4.9:1, and as an icon on the
+     dark panels it is 3.4:1. teal-deep stays light because it is used for
+     teal text on dark backgrounds. */
+  --c-teal: #0f7f73;
+  --c-teal-deep: #8fdccf;
+  --c-teal-tint: #12302d;
+  --c-amber-deep: #f6d28f;
+  --c-amber-tint: #3a2c0c;
   --c-flag: #ffb3a1;
-  --c-btn: #f4faf9;
+  --c-btn: #f6faf9;
 }
 
 .app {
@@ -274,6 +286,68 @@ html[data-landing-theme="dark"] :is(.app, .app-layer) {
 :is(.app, .app-layer) :focus-visible {
   outline: 2px solid var(--c-teal);
   outline-offset: 2px;
+}
+
+/* Strokes in dark mode. Borders are drawn as a share of the text colour,
+   which is near-white in dark mode, so the light-mode shares glare. Each one
+   is roughly halved here, keeping their order: inputs stay stronger than
+   cards, and hover still strengthens a line. */
+html[data-landing-theme="dark"] :is(.app, .app-layer) {
+  --stroke: var(--c-ink);
+}
+html[data-landing-theme="dark"] :is(.app, .app-layer) :is(.border-ink\/\[0\.12\]) {
+  border-color: color-mix(in oklab, var(--stroke) 8%, transparent);
+}
+html[data-landing-theme="dark"] :is(.app, .app-layer) :is(.border-ink\/20, .border-ink\/25) {
+  border-color: color-mix(in oklab, var(--stroke) 12%, transparent);
+}
+html[data-landing-theme="dark"] :is(.app, .app-layer) :is(.border-ink\/30, .border-ink\/35) {
+  border-color: color-mix(in oklab, var(--stroke) 17%, transparent);
+}
+html[data-landing-theme="dark"] :is(.app, .app-layer) :is(.border-ink\/40, .border-ink\/45) {
+  border-color: color-mix(in oklab, var(--stroke) 21%, transparent);
+}
+html[data-landing-theme="dark"] :is(.app, .app-layer) .border-ink\/60 {
+  border-color: color-mix(in oklab, var(--stroke) 30%, transparent);
+}
+html[data-landing-theme="dark"] :is(.app, .app-layer) :is(.hover\:border-ink\/45, .hover\:border-ink\/60):hover {
+  border-color: color-mix(in oklab, var(--stroke) 32%, transparent);
+}
+html[data-landing-theme="dark"] :is(.app, .app-layer) .hover\:border-ink\/70:hover {
+  border-color: color-mix(in oklab, var(--stroke) 38%, transparent);
+}
+/* Focus and active outlines keep full strength: they must stand out. */
+html[data-landing-theme="dark"] :is(.app, .app-layer) :is(.focus\:border-teal:focus, .border-teal, .border-flag) {
+  border-color: revert-layer;
+}
+
+/* Text roles for app screens. Use these instead of picking sizes and greys
+   by hand, so the same kind of text looks the same everywhere. */
+:is(.app, .app-layer) .t-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--c-ink-quiet);
+}
+
+:is(.app, .app-layer) .t-meta {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--c-ink-quiet);
+}
+
+/* The doctor's own spoken or typed words, shown back to them. */
+:is(.app, .app-layer) .t-speech {
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--c-ink);
+  background: var(--c-amber-tint);
+  border-radius: 1.1rem 1.1rem 1.1rem 0.3rem;
+  padding: 0.7rem 0.95rem;
 }
 
 /* Menus and dialogs fade and settle in; Base UI sets these data attributes. */
@@ -307,4 +381,63 @@ html[data-landing-theme="dark"] :is(.app, .app-layer) {
   .app-backdrop {
     transition: none;
   }
+}
+
+/* Working, not unavailable: a button that is busy keeps its full colour and
+   shows a turning ring. Fading is kept for buttons that cannot be used. */
+@keyframes spinner-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  animation: spinner-turn 700ms linear infinite;
+}
+
+button:disabled:has(.spinner) {
+  opacity: 1;
+  cursor: progress;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1.6s;
+  }
+}
+
+/* Anything that can be clicked shows the hand, everywhere. Browsers give
+   links the hand but leave buttons with the arrow. In the base layer, so a
+   cursor utility on one element (grab, progress, not-allowed) still wins. */
+@layer base {
+  button:not(:disabled),
+  select:not(:disabled),
+  summary,
+  label[for],
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="file"]:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([aria-disabled="true"]),
+  [role="menuitemradio"]:not([aria-disabled="true"]),
+  [role="menuitemcheckbox"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="switch"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}
+
+/* Template editor: a hint on the empty page, gone with the first letter. */
+.template-canvas[data-empty] .report-doc > p:first-child::before {
+  content: var(--placeholder);
+  float: left;
+  height: 0;
+  color: var(--c-ink-quiet);
+  pointer-events: none;
+}
+
+/* An open page to write on, not a one-line box. */
+.template-canvas .report-doc {
+  min-height: 58vh;
 }

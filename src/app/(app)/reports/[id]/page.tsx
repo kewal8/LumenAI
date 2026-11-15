@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ReportWorkspace } from "@/components/report/ReportWorkspace";
 import { requireUser } from "@/lib/auth/session";
+import { editorLocked } from "@/lib/subscription";
 import { findReport } from "@/lib/reportStore";
 import { loadWorkspace } from "@/lib/workspace";
 
@@ -9,25 +10,27 @@ export const instant = false;
 
 export const metadata = { title: "Report · LumenAI" };
 
-export default async function SavedReportPage({ params }: PageProps<"/reports/[id]">) {
+export default async function SavedReportPage({ params, searchParams }: PageProps<"/reports/[id]">) {
   const user = await requireUser();
-  const [saved, { profile, shortcuts, templates, identity }] = await Promise.all([
+  if (await editorLocked(user)) redirect("/plans");
+  const [saved, workspace, { design }] = await Promise.all([
     findReport(user, (await params).id),
     loadWorkspace(user),
+    searchParams,
   ]);
   if (!saved) notFound();
 
   // The report keeps the template it was written with, even if that template
   // has since been changed or deleted.
-  const others = templates.filter((template) => template.id !== saved.template.id);
+  const others = workspace.templates.filter((template) => template.id !== saved.template.id);
   return (
     <ReportWorkspace
       key={saved.id}
-      profile={profile}
-      identity={identity}
-      shortcuts={shortcuts}
+      {...workspace}
       templates={[saved.template, ...others]}
       saved={saved}
+      // ?design=classic reopens it in version one of the report screen.
+      design={design === "classic" ? "classic" : "future"}
     />
   );
 }

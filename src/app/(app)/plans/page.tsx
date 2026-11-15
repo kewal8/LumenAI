@@ -8,7 +8,7 @@ export const instant = false;
 
 export const metadata = { title: "Plans · LumenAI" };
 
-const PILOT: Subscription = { plan: null, cycle: null, periodEnd: null, requested: null };
+const PILOT: Subscription = { plan: null, cycle: null, periodEnd: null, requested: null, locked: false };
 
 export default async function PlansPage() {
   const user = await requireUser();

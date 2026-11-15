@@ -12,9 +12,17 @@ export type SavedReportSummary = {
   findings: number;
   createdAt: string;
   updatedAt: string;
+  /** When the doctor finalized it; null for a draft. */
+  finalizedAt: string | null;
 };
 
-export type SavedReport = { id: string; template: Template; report: Report; updatedAt: string };
+export type SavedReport = {
+  id: string;
+  template: Template;
+  report: Report;
+  updatedAt: string;
+  finalizedAt: string | null;
+};
 
 const MAX_BYTES = 300_000;
 
@@ -39,7 +47,7 @@ export function parseReportInput(body: unknown): { template: Template; report: R
 /** A person's own saved reports, newest first. */
 export async function listReports(user: CurrentUser): Promise<SavedReportSummary[]> {
   const rows = await db()`
-    select id, template_name, title, content, created_at, updated_at
+    select id, template_name, title, content, created_at, updated_at, finalized_at
     from reports where user_id = ${user.id}
     order by updated_at desc limit 500
   `;
@@ -55,16 +63,23 @@ export async function listReports(user: CurrentUser): Promise<SavedReportSummary
         .filter((line) => line.status !== "normal").length,
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString(),
+      finalizedAt: row.finalized_at ? row.finalized_at.toISOString() : null,
     };
   });
 }
 
 export async function findReport(user: CurrentUser, id: string): Promise<SavedReport | null> {
   const [row] = await db()`
-    select id, template, content, updated_at from reports
+    select id, template, content, updated_at, finalized_at from reports
     where id::text = ${id} and user_id = ${user.id}
   `;
   return row
-    ? { id: row.id, template: row.template, report: row.content, updatedAt: row.updated_at.toISOString() }
+    ? {
+        id: row.id,
+        template: row.template,
+        report: row.content,
+        updatedAt: row.updated_at.toISOString(),
+        finalizedAt: row.finalized_at ? row.finalized_at.toISOString() : null,
+      }
     : null;
 }

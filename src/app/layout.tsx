@@ -24,7 +24,7 @@ const hanken = Hanken_Grotesk({
 export const metadata: Metadata = {
   title: "LumenAI",
   description:
-    "Dictate only the abnormal findings. LumenAI writes the radiology report in your template, ready to paste into PACS.",
+    "Dictate only the abnormal findings. LumenAI writes the radiology report in your template. Paste it into PACS, or finalise, sign and print it in LumenAI.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

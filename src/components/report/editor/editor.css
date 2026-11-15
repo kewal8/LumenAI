@@ -1,8 +1,10 @@
 /* The report sheet. Shown as the PACS editor will show it, so the doctor sees
    what will be pasted. Colours use the app's tokens for contrast. */
+/* Spacing follows the text: lines sit close like in a word processor, and a
+   blank line in the template is the only gap. The PACS copy uses the same. */
 .report-doc {
   outline: none;
-  line-height: 1.5;
+  line-height: 1.35;
   letter-spacing: normal;
   color: var(--c-ink);
   caret-color: var(--c-teal);
@@ -17,23 +19,23 @@
 
 .report-doc h1 {
   font-size: 1.1em;
-  margin: 0 0 0.9em;
+  margin: 0 0 0.75em;
 }
 
 .report-doc h2 {
-  margin: 1.2em 0 0.3em;
+  margin: 0.9em 0 0.1em;
 }
 
 .report-doc p {
-  margin: 0 0 0.25em;
-  padding: 0.2em 0.6em;
-  border-radius: 0.6em;
-  min-height: 1.5em;
+  margin: 0;
+  padding: 0 0.6em;
+  border-radius: 0.4em;
+  min-height: 1.35em;
 }
 
 .report-doc ul,
 .report-doc ol {
-  margin: 0 0 0.5em;
+  margin: 0;
   padding-left: 2em;
 }
 
@@ -53,12 +55,14 @@
 .report-doc p[data-status="spoken"],
 .report-doc p[data-status="edited"] {
   background: color-mix(in srgb, var(--c-teal) 10%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c-teal) 45%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-teal) 10%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--c-teal) 40%, transparent);
 }
 
 .report-doc p.report-line-flagged {
   background: color-mix(in srgb, var(--c-flag) 11%, transparent);
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c-flag) 65%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-flag) 11%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--c-flag) 65%, transparent);
 }
 
 .report-doc ::selection {

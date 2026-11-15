@@ -1,11 +1,14 @@
 import { getCurrentUser } from "@/lib/auth/session";
+import { LOCKED_MESSAGE, editorLocked } from "@/lib/subscription";
 
 // Issues a short-lived Deepgram token so the browser can stream audio
 // straight to the STT service without the API key or audio touching our server.
 export async function POST() {
-  if (!(await getCurrentUser())) {
+  const user = await getCurrentUser();
+  if (!user) {
     return Response.json({ error: "Signed out. Sign in again." }, { status: 401 });
   }
+  if (await editorLocked(user)) return Response.json({ error: LOCKED_MESSAGE }, { status: 402 });
 
   const key = process.env.DEEPGRAM_API_KEY;
   if (!key) {

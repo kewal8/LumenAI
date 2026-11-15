@@ -4,6 +4,7 @@ import {
   EnvelopeSimple,
 } from "@phosphor-icons/react/dist/ssr";
 import { AccountInviteButton } from "@/components/admin/AccountInvite";
+import { PlanControl } from "@/components/admin/PlanControl";
 import { minutes } from "@/components/admin/parts";
 import { FilterList } from "@/components/app/Search";
 import { ConfirmAction } from "@/components/app/TeamClient";
@@ -22,6 +23,7 @@ import {
 } from "@/components/app/ui";
 import { listAccounts, listPendingInvites } from "@/lib/admin";
 import { requireStaff } from "@/lib/auth/session";
+import { listPlanStatus } from "@/lib/subscription";
 import type { Role } from "@/lib/auth/session";
 import { ROLE_LABELS } from "@/lib/team";
 
@@ -32,7 +34,7 @@ export const metadata = { title: "Accounts · LumenAI Admin" };
 
 // Every row, and the headings above them, share these columns so values line up.
 const COLUMNS =
-  "lg:grid lg:grid-cols-[minmax(0,1fr)_7.5rem_8.5rem_8.5rem_7rem_6.5rem] lg:items-center lg:gap-x-6";
+  "lg:grid lg:grid-cols-[minmax(0,1fr)_7.5rem_10rem_8.5rem_8.5rem_7rem_6.5rem] lg:items-center lg:gap-x-6";
 const ROW = "flex flex-wrap items-center gap-x-8 gap-y-3 px-6 py-4";
 
 /** One value in a row. Below the table layout it carries its own label. */
@@ -51,7 +53,7 @@ function Cell({ label, number, children }: { label: string; number?: boolean; ch
 
 export default async function AdminAccountsPage() {
   const user = await requireStaff();
-  const [accounts, invites] = await Promise.all([listAccounts(), listPendingInvites()]);
+  const [accounts, invites, plans] = await Promise.all([listAccounts(), listPendingInvites(), listPlanStatus()]);
   const people = accounts.reduce((sum, account) => sum + account.members.length, 0);
 
   return (
@@ -108,6 +110,7 @@ export default async function AdminAccountsPage() {
             >
               <span>Account</span>
               <span>Type</span>
+              <span>Plan</span>
               <span>Last sign-in</span>
               <span className="text-right">Report updates</span>
               <span className="text-right">Dictated</span>
@@ -143,6 +146,9 @@ export default async function AdminAccountsPage() {
                       <Cell label="Type">
                         <Chip>{account.kind === "centre" ? "Centre" : "Personal"}</Chip>
                       </Cell>
+                      <Cell label="Plan">
+                        <PlanControl orgId={account.id} name={account.name} status={plans.get(account.id) ?? null} />
+                      </Cell>
                       <span className="hidden lg:block" />
                       <Cell label="Report updates" number>
                         {account.updates30}
@@ -166,12 +172,23 @@ export default async function AdminAccountsPage() {
                             {member.staff && <Badge tone="teal">LumenAI staff</Badge>}
                             {member.disabled && <Badge tone="amber">Turned off</Badge>}
                           </span>
-                          <span className="block truncate text-[0.9rem] text-ink-soft">{member.email}</span>
+                          <span className="block truncate text-[0.9rem] text-ink-soft">
+                            {member.email}
+                            {member.phone && <> · {member.phone}</>}
+                          </span>
                         </span>
                       </div>
                       <Cell label="Type">
                         {solo ? <Chip>Personal</Chip> : <Badge>{ROLE_LABELS[member.role as Role]}</Badge>}
                       </Cell>
+                      {/* A centre's plan sits on its own row; a personal account's on its one person. */}
+                      {solo ? (
+                        <Cell label="Plan">
+                          <PlanControl orgId={account.id} name={member.name} status={plans.get(account.id) ?? null} />
+                        </Cell>
+                      ) : (
+                        <span className="hidden lg:block" />
+                      )}
                       <Cell label="Last sign-in">{member.lastLogin ? formatDate(member.lastLogin) : "Never"}</Cell>
                       <Cell label="Report updates" number>
                         {member.updates30}

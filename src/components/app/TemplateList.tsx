@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { StoredTemplate } from "@/lib/templateStore";
 import { SearchBar, matchesSearch } from "./Search";
+import { ConfirmAction } from "./TeamClient";
 import {
   Badge,
   Chip,
@@ -20,6 +21,7 @@ import {
 function searchText(template: StoredTemplate) {
   return [
     template.name,
+    template.modality ?? "",
     template.title,
     template.ownerName,
     ...template.sections.map((section) => section.heading),
@@ -62,8 +64,15 @@ export function TemplateList({ templates }: { templates: StoredTemplate[] }) {
                       {template.name}
                     </h2>
                     {/* Shown only when the printed title differs from the name. */}
-                    <p className="mt-1 truncate text-[0.9rem] text-ink-soft">
-                      {sameTitle ? "Report template" : `Prints as “${template.title}”`}
+                    <p className="mt-1 flex items-center gap-2 text-[0.9rem] text-ink-soft">
+                      {template.modality && (
+                        <span className="shrink-0 rounded-md bg-teal/[0.12] px-1.5 py-0.5 text-[0.78rem] font-bold uppercase tracking-wide text-teal-deep">
+                          {template.modality}
+                        </span>
+                      )}
+                      <span className="truncate">
+                        {sameTitle ? "Report template" : `Prints as “${template.title}”`}
+                      </span>
                     </p>
                   </div>
                   {template.shared ? (
@@ -88,6 +97,19 @@ export function TemplateList({ templates }: { templates: StoredTemplate[] }) {
                     {template.mine ? `Updated ${formatDate(template.updatedAt)}` : `By ${template.ownerName}`}
                   </Meta>
                   <div className="ml-auto flex items-center gap-2">
+                    {template.canEdit && (
+                      <ConfirmAction
+                        label="Delete"
+                        title={`Delete ${template.name}?`}
+                        body={
+                          template.shared
+                            ? "It is removed for everyone in your organisation. Reports already written are not affected."
+                            : "Reports already written with it are not affected."
+                        }
+                        confirmLabel="Delete template"
+                        path={`/api/templates/${template.id}`}
+                      />
+                    )}
                     {template.canEdit && (
                       <Link href={`/templates/${template.id}`} className={buttonClass.secondary}>
                         Edit

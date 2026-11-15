@@ -5,6 +5,9 @@ import type { TemplateDraft } from "./templateInput";
 
 export type StoredTemplate = TemplateDraft & {
   id: string;
+  modality: string | null;
+  /** The document as written in the template editor; null for older templates. */
+  doc: unknown;
   shared: boolean;
   mine: boolean;
   ownerName: string;
@@ -19,6 +22,8 @@ function fromRow(row: Row, user: CurrentUser): StoredTemplate {
   return {
     id: row.id as string,
     name: row.name as string,
+    modality: (row.modality as string | null) ?? null,
+    doc: row.doc ?? null,
     title: row.title as string,
     sections: row.sections as TemplateDraft["sections"],
     normalImpression: row.normal_impression as string[],

@@ -1,5 +1,7 @@
 import { ReportWorkspace } from "@/components/report/ReportWorkspace";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
+import { editorLocked } from "@/lib/subscription";
 import { loadWorkspace } from "@/lib/workspace";
 
 // Reads the signed-in user's data on every request, so it is rendered on demand.
@@ -9,9 +11,11 @@ export const metadata = { title: "New report · LumenAI" };
 
 export default async function NewReportPage({ searchParams }: PageProps<"/report">) {
   const user = await requireUser();
+  // No active plan: the Plans page explains why and opens the way in.
+  if (await editorLocked(user)) redirect("/plans");
   const { template } = await searchParams;
-  const { profile, shortcuts, templates, identity } = await loadWorkspace(user, typeof template === "string" ? template : null);
+  const workspace = await loadWorkspace(user, typeof template === "string" ? template : null);
 
   // Keyed by the starting template so choosing another one starts a clean report.
-  return <ReportWorkspace key={templates[0].id} profile={profile} identity={identity} shortcuts={shortcuts} templates={templates} />;
+  return <ReportWorkspace key={workspace.templates[0].id} {...workspace} design="future" />;
 }

@@ -12,6 +12,8 @@ export type Template = {
   title: string;
   sections: TemplateSection[];
   normalImpression: string[];
+  /** The template's own page, tagged with these line ids. A new report starts from it. */
+  doc?: unknown;
 };
 
 export type ReportLine = {
@@ -35,7 +37,8 @@ export type LogEntry = {
   id: string;
   /** ISO time the report was updated. */
   at: string;
-  kind: "created" | "updated";
+  /** "unchanged": the words were heard but nothing in the report needed to change. */
+  kind: "created" | "updated" | "unchanged";
   dictation: string;
   changes: { heading: string; text: string; flagged: boolean }[];
 };
@@ -46,6 +49,8 @@ export type Report = {
   impression: string[];
   /** Saved with the report so its history is still there when it is reopened. */
   log?: LogEntry[];
+  /** The formatted document from the report editor, so bold, colour and layout survive a reopen. */
+  doc?: unknown;
 };
 
 /** Describes what one dictation changed, for the report log. */
@@ -58,7 +63,7 @@ export function logEntryFor(
   return {
     id: crypto.randomUUID(),
     at: new Date().toISOString(),
-    kind: first ? "created" : "updated",
+    kind: ops.length === 0 ? "unchanged" : first ? "created" : "updated",
     dictation,
     changes: ops.map((op) => ({
       heading: report.sections.find((section) => section.id === op.sectionId)?.heading ?? "",
