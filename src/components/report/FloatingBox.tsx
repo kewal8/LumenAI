@@ -21,7 +21,7 @@ const nothing = () => () => {};
  * provides it (Chrome and Edge on a computer); it shares this page's styles
  * and state, and closes with the page.
  */
-export function useFloatingWindow() {
+export function useFloatingWindow(whenAway = false) {
   const [win, setWin] = useState<Window | null>(null);
   // Set when the browser refuses to open the window.
   const [refused, setRefused] = useState(false);
@@ -57,6 +57,33 @@ export function useFloatingWindow() {
   }, []);
 
   const close = useCallback(() => win?.close(), [win]);
+
+  // A browser opens a window only from a click, with one exception: Chrome
+  // and Edge ask the page for one when the person switches away from a tab
+  // that is using the microphone. That is the moment it is wanted.
+  useEffect(() => {
+    const session = navigator.mediaSession as MediaSession | undefined;
+    if (!whenAway || !supported || !session) return;
+    const action = "enterpictureinpicture" as MediaSessionAction;
+    try {
+      session.setActionHandler(action, () => void open());
+    } catch {
+      return; // This browser cannot open it by itself.
+    }
+    return () => {
+      try {
+        session.setActionHandler(action, null);
+      } catch {}
+    };
+  }, [whenAway, supported, open]);
+
+  // Back on the tab, the report itself is in view, so the window is not needed.
+  useEffect(() => {
+    if (!win) return;
+    const back = () => document.visibilityState === "visible" && win.close();
+    document.addEventListener("visibilitychange", back);
+    return () => document.removeEventListener("visibilitychange", back);
+  }, [win]);
   // Never leave the little window behind when the report screen goes away.
   useEffect(() => () => win?.close(), [win]);
 

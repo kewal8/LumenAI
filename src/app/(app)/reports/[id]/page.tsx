@@ -22,12 +22,11 @@ export default async function SavedReportPage({ params, searchParams }: PageProp
 
   // The report keeps the template it was written with, even if that template
   // has since been changed or deleted.
-  const others = workspace.templates.filter((template) => template.id !== saved.template.id);
   return (
     <ReportWorkspace
       key={saved.id}
       {...workspace}
-      templates={[saved.template, ...others]}
+      template={saved.template}
       saved={saved}
       // ?design=classic reopens it in version one of the report screen.
       design={design === "classic" ? "classic" : "future"}

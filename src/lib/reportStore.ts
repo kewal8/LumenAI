@@ -1,5 +1,6 @@
 import type { CurrentUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import { likePattern, offsetOf, type ListParams, type Paged } from "@/lib/listQuery";
 import type { Report, Template } from "./report";
 
 export type SavedReportSummary = {
@@ -44,28 +45,56 @@ export function parseReportInput(body: unknown): { template: Template; report: R
   return { template, report };
 }
 
-/** A person's own saved reports, newest first. */
-export async function listReports(user: CurrentUser): Promise<SavedReportSummary[]> {
+export const REPORT_SORTS = ["updated", "name"];
+
+/**
+ * One page of a person's saved reports, searched, filtered and sorted in the
+ * database. The summary is worked out there too, so the reports themselves are
+ * not read.
+ */
+export async function pageReports(user: CurrentUser, params: ListParams): Promise<Paged<SavedReportSummary>> {
+  const like = likePattern(params.q);
+  const status = params.filter.status ?? "";
   const rows = await db()`
-    select id, template_name, title, content, created_at, updated_at, finalized_at
-    from reports where user_id = ${user.id}
-    order by updated_at desc limit 500
+    select id, template_name, title, created_at, updated_at, finalized_at,
+           coalesce(content->'impression'->>0, '') as impression,
+           (select count(*)::int
+              from jsonb_array_elements(content->'sections') as section,
+                   jsonb_array_elements(section->'lines') as line
+             where line->>'status' <> 'normal') as findings,
+           count(*) over () as total
+    from reports
+    where user_id = ${user.id}
+      and (${params.q} = '' or template_name ilike ${like} or title ilike ${like}
+           or content->'impression'->>0 ilike ${like})
+      and (${status} = '' or (${status} = 'final') = (finalized_at is not null))
+    order by
+      case when ${params.sort} = 'name' and ${params.dir} = 'asc' then lower(template_name) end asc,
+      case when ${params.sort} = 'name' and ${params.dir} = 'desc' then lower(template_name) end desc,
+      case when ${params.sort} = 'updated' and ${params.dir} = 'asc' then updated_at end asc,
+      case when ${params.sort} = 'updated' and ${params.dir} = 'desc' then updated_at end desc,
+      id
+    limit ${params.size} offset ${offsetOf(params)}
   `;
-  return rows.map((row) => {
-    const report = row.content as Report;
-    return {
+  return {
+    total: Number(rows[0]?.total ?? 0),
+    rows: rows.map((row) => ({
       id: row.id,
       templateName: row.template_name,
       title: row.title,
-      impression: report.impression[0] ?? "",
-      findings: report.sections
-        .flatMap((section) => section.lines)
-        .filter((line) => line.status !== "normal").length,
+      impression: row.impression,
+      findings: row.findings,
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString(),
       finalizedAt: row.finalized_at ? row.finalized_at.toISOString() : null,
-    };
-  });
+    })),
+  };
+}
+
+/** Whether this person has saved any report, for the empty screen. */
+export async function hasReports(user: CurrentUser) {
+  const [row] = await db()`select exists (select 1 from reports where user_id = ${user.id}) as any`;
+  return Boolean(row?.any);
 }
 
 export async function findReport(user: CurrentUser, id: string): Promise<SavedReport | null> {

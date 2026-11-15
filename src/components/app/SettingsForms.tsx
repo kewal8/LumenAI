@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@/components/Toast";
 import { Spinner } from "@/components/Spinner";
 import { CheckCircle } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
@@ -30,9 +31,11 @@ function useSave() {
     setBusy(false);
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return false;
     }
     setSaved(true);
+    toast.success("Saved");
     router.refresh();
     return true;
   }

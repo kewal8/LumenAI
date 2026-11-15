@@ -17,5 +17,5 @@ export default async function ClassicReportPage({ searchParams }: PageProps<"/re
   const { template } = await searchParams;
   const workspace = await loadWorkspace(user, typeof template === "string" ? template : null);
 
-  return <ReportWorkspace key={workspace.templates[0].id} {...workspace} design="classic" />;
+  return <ReportWorkspace key={workspace.template.id} {...workspace} design="classic" />;
 }

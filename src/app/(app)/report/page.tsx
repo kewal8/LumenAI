@@ -17,5 +17,5 @@ export default async function NewReportPage({ searchParams }: PageProps<"/report
   const workspace = await loadWorkspace(user, typeof template === "string" ? template : null);
 
   // Keyed by the starting template so choosing another one starts a clean report.
-  return <ReportWorkspace key={workspace.templates[0].id} {...workspace} design="future" />;
+  return <ReportWorkspace key={workspace.template.id} {...workspace} design="future" />;
 }

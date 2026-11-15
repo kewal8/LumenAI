@@ -21,6 +21,7 @@
   --color-amber-deep: var(--c-amber-deep);
   --color-amber-tint: var(--c-amber-tint);
   --color-flag: var(--c-flag);
+  --color-go: var(--c-go);
   --color-btn: var(--c-btn);
   --color-btn-text: var(--c-btn-text);
   --color-night: var(--c-night);
@@ -50,6 +51,8 @@ body {
   --c-amber-deep: #8a5a0c;
   --c-amber-tint: #fbf1dd;
   --c-flag: #b23a26;
+  /* Green for "go": the microphone ready and listening. White on it is 5:1. */
+  --c-go: #15803d;
   --c-btn: #0f2624;
   --c-btn-text: #fefefe;
   --c-night: #07534e;
@@ -433,6 +436,8 @@ button:disabled:has(.spinner) {
   content: var(--placeholder);
   float: left;
   height: 0;
+  width: 100%;
+  white-space: pre-wrap;
   color: var(--c-ink-quiet);
   pointer-events: none;
 }
@@ -440,4 +445,56 @@ button:disabled:has(.spinner) {
 /* An open page to write on, not a one-line box. */
 .template-canvas .report-doc {
   min-height: 58vh;
+}
+
+/* Toasts slide up into place. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+.toast-in {
+  animation: toast-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-in {
+    animation: none;
+  }
+}
+
+/* Search boxes use their own clear button; the browser's differs per browser
+   and sits on top of the text. */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* The report screen's full screen: the app menu steps aside. */
+html[data-report-focus] [data-app-nav] {
+  display: none;
+}
+
+/* The message box's edge while listening: a colour line turning slowly round it. */
+@property --voice-spin {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+.voice-ring {
+  background: conic-gradient(from var(--voice-spin), #0f766e, #22c55e, #67e8f9, #a7f3d0, #0f766e);
+  animation: voice-spin 5s linear infinite;
+}
+@keyframes voice-spin {
+  to {
+    --voice-spin: 360deg;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-ring {
+    animation: none;
+  }
 }

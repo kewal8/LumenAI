@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@/components/Toast";
 import { Spinner } from "@/components/Spinner";
 import { Dialog } from "@base-ui/react/dialog";
 import { Check, Copy, Plus } from "@phosphor-icons/react";
@@ -43,8 +44,10 @@ export function AccountInviteButton() {
     setBusy(false);
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
+    toast.success("Invitation created. Copy the link and send it.");
     setLink(result.data?.link ?? "");
     router.refresh();
   }

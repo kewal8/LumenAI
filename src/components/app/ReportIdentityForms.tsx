@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@/components/Toast";
 import { Spinner } from "@/components/Spinner";
 import { Switch } from "@base-ui/react/switch";
 import { CheckCircle, Trash, UploadSimple } from "@phosphor-icons/react";
@@ -35,9 +36,11 @@ function useSave() {
     setBusy(false);
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
     setSaved(true);
+    toast.success("Saved");
     router.refresh();
   }
 
@@ -382,8 +385,9 @@ export function FloatingBoxSetting({ enabled: initial }: { enabled: boolean }) {
         <span>
           <span className="block font-semibold">Floating box</span>
           <span className="block text-[0.92rem] text-ink-soft">
-            When you start speaking, a small dictation window opens and stays on top of PACS. Works in
-            Chrome and Edge on a computer.
+            While the microphone is on, switching to another tab opens a small dictation window
+            that stays on top of PACS. It closes when you come back. Works in Chrome and Edge on a
+            computer.
           </span>
         </span>
         <Switch.Root

@@ -98,9 +98,11 @@ export async function endPlan(orgId: string) {
 }
 
 /** Plan status of every organisation, for the admin panel. Organisations with no row are on the pilot. */
-export async function listPlanStatus() {
+/** Plan details for the given organisations only. */
+export async function listPlanStatus(orgIds: string[]) {
   const rows = await db()`
     select org_id, plan, cycle, status, period_end, requested_plan, requested_cycle from subscriptions
+    where org_id = any(${orgIds})
   `;
   return new Map(
     rows.map((row) => [

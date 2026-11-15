@@ -12,7 +12,10 @@ export default async function NewTemplatePage() {
   const user = await requireUser();
   return (
     <Page>
-      <TemplateCanvas canShare={canManageTeam(user.org?.role)} />
+      <TemplateCanvas
+        canShare={canManageTeam(user.org?.role)}
+        orgName={user.org?.name ?? "your organisation"}
+      />
     </Page>
   );
 }

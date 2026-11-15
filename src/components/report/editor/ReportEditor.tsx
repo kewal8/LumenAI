@@ -4,14 +4,13 @@ import { Popover } from "@base-ui/react/popover";
 import {
   ArrowClockwise,
   ArrowCounterClockwise,
+  DotsThree,
   Eraser,
-  Highlighter,
   ListBullets,
   ListNumbers,
   MagnifyingGlassMinus,
   MagnifyingGlassPlus,
   Minus,
-  Palette,
   Plus,
   TextAlignCenter,
   TextAlignJustify,
@@ -95,11 +94,14 @@ function ToolButton({
   label,
   active = false,
   disabled = false,
+  small = false,
   onClick,
   children,
 }: {
   label: string;
   active?: boolean;
+  /** Smaller, for use inside a joined control such as the text size. */
+  small?: boolean;
   disabled?: boolean;
   onClick: () => void;
   children: React.ReactNode;
@@ -114,8 +116,11 @@ function ToolButton({
       // Keeps the selection in the report while the button is pressed.
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
-      className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors disabled:opacity-35 [&>svg]:h-5 [&>svg]:w-5 ${
-        active ? "bg-ink text-surface" : "text-ink hover:bg-ink/[0.1]"
+      // Quiet by design: the report is what the eye should go to, not the tools.
+      className={`grid shrink-0 place-items-center rounded-full transition-colors disabled:opacity-35 ${
+        small ? "h-8 w-8 [&>svg]:h-3.5 [&>svg]:w-3.5" : "h-9 w-9 [&>svg]:h-[1.1rem] [&>svg]:w-[1.1rem]"
+      } ${
+        active ? "bg-teal/[0.12] text-teal-deep" : "text-ink-soft hover:bg-ink/[0.06] hover:text-ink"
       }`}
     >
       {children}
@@ -124,53 +129,110 @@ function ToolButton({
 }
 
 function Divider() {
-  return <span aria-hidden="true" className="mx-0.5 h-6 w-px shrink-0 bg-ink/30" />;
+  // Clear room either side, so each group reads as its own set of tools.
+  return <span aria-hidden="true" className="mx-2.5 h-5 w-px shrink-0 bg-ink/15" />;
 }
 
-function SwatchMenu({
+function Swatches({
   label,
-  icon,
   options,
   current,
   onPick,
 }: {
   label: string;
-  icon: React.ReactNode;
   options: { name: string; value: string | null; swatch: string }[];
   current: string | null;
   onPick: (value: string | null) => void;
 }) {
   return (
+    <div className="flex flex-col gap-1.5">
+      <p className="text-[0.85rem] font-semibold text-ink-soft">{label}</p>
+      <div className="flex gap-1.5">
+        {options.map((option) => (
+          <button
+            type="button"
+            key={option.name}
+            title={option.name}
+            aria-label={`${label}: ${option.name}`}
+            aria-pressed={(current ?? null) === option.value}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => onPick(option.value)}
+            className={`h-8 w-8 rounded-full border-2 transition-transform hover:scale-110 ${
+              (current ?? null) === option.value ? "border-ink" : "border-ink/25"
+            }`}
+            style={{ backgroundColor: option.swatch }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Tools used now and then: text colour, highlight and zoom, kept out of the main row. */
+function MoreTools({
+  editor,
+  colour,
+  highlight,
+  zoom,
+  onZoom,
+}: {
+  editor: Editor;
+  colour: string | null;
+  highlight: string | null;
+  zoom: number;
+  onZoom: (direction: 1 | -1) => void;
+}) {
+  return (
     <Popover.Root>
       <Popover.Trigger
-        title={label}
-        aria-label={label}
+        title="More tools"
+        aria-label="More tools: colour, highlight, zoom"
         onMouseDown={(event) => event.preventDefault()}
-        className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.1] data-[popup-open]:bg-ink/[0.1] [&>svg]:h-5 [&>svg]:w-5"
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-soft transition-colors hover:bg-ink/[0.06] hover:text-ink data-[popup-open]:bg-ink/[0.08] data-[popup-open]:text-ink"
       >
-        {icon}
-        <span
-          aria-hidden="true"
-          className="absolute bottom-1.5 left-1/2 h-1 w-5 -translate-x-1/2 rounded-full border border-ink/40"
-          style={{ backgroundColor: current ?? options[0].swatch }}
-        />
+        <DotsThree weight="bold" className="h-5 w-5" />
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Positioner sideOffset={8} className="z-50">
-          <Popover.Popup className="app-layer rounded-2xl border border-ink/25 bg-surface p-2.5 shadow-[0_18px_50px_-18px_rgb(6_17_15/0.55)] outline-none">
-            <div className="flex gap-1.5">
-              {options.map((option) => (
-                <Popover.Close
-                  key={option.name}
-                  title={option.name}
-                  aria-label={option.name}
-                  onClick={() => onPick(option.value)}
-                  className={`h-9 w-9 rounded-full border-2 transition-transform hover:scale-110 ${
-                    (current ?? null) === option.value ? "border-ink" : "border-ink/30"
-                  }`}
-                  style={{ backgroundColor: option.swatch }}
-                />
-              ))}
+        <Popover.Positioner side="bottom" align="end" sideOffset={8} className="z-50">
+          <Popover.Popup className="app-layer flex flex-col gap-4 rounded-3xl border border-ink/20 bg-surface p-4 shadow-[0_18px_50px_-18px_rgb(6_17_15/0.45)] outline-none">
+            <Swatches
+              label="Text colour"
+              options={TEXT_COLOURS}
+              current={colour}
+              onPick={(value) =>
+                value ? editor.chain().focus().setColor(value).run() : editor.chain().focus().unsetColor().run()
+              }
+            />
+            <Swatches
+              label="Highlight"
+              options={HIGHLIGHTS}
+              current={highlight}
+              onPick={(value) =>
+                value
+                  ? editor.chain().focus().setHighlight({ color: value }).run()
+                  : editor.chain().focus().unsetHighlight().run()
+              }
+            />
+            <div className="flex flex-col gap-1.5">
+              <p className="text-[0.85rem] font-semibold text-ink-soft">Zoom</p>
+              <div className="flex items-center gap-1">
+                <ToolButton label="Zoom out" disabled={zoom <= ZOOM_STEPS[0]} onClick={() => onZoom(-1)}>
+                  <MagnifyingGlassMinus weight="bold" />
+                </ToolButton>
+                <span
+                  aria-label={`Zoom ${zoom} percent`}
+                  className="grid h-9 min-w-12 place-items-center text-[0.95rem] font-semibold tabular-nums"
+                >
+                  {zoom}%
+                </span>
+                <ToolButton
+                  label="Zoom in"
+                  disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]}
+                  onClick={() => onZoom(1)}
+                >
+                  <MagnifyingGlassPlus weight="bold" />
+                </ToolButton>
+              </div>
             </div>
           </Popover.Popup>
         </Popover.Positioner>
@@ -247,24 +309,28 @@ function Toolbar({ editor, profile, flat = false }: { editor: Editor; profile: P
         aria-label="Font"
         value={state.font}
         onChange={(event) => onSelectionOrAll(editor, (chain) => chain.setFontFamily(event.target.value))}
-        className="!h-10 min-w-[8rem]"
+        // A soft filled pill, matching the size control beside it.
+        className="!h-9 !w-[9.25rem] !border-transparent !bg-ink/[0.045] !pl-3.5 !pr-9 !text-[0.92rem] !text-ink hover:!bg-ink/[0.08]"
       >
         {PASTE_FONTS.map((font) => (
           <option key={font}>{font}</option>
         ))}
       </Select>
-      <ToolButton label="Smaller text" disabled={state.size <= SIZES[0]} onClick={() => step(-1)}>
-        <Minus weight="bold" />
-      </ToolButton>
-      <span
-        aria-label={`Text size ${state.size} points`}
-        className="grid h-10 min-w-9 place-items-center text-[0.98rem] font-bold tabular-nums"
-      >
-        {state.size}
+      {/* Text size: one joined pill, so minus, size and plus read as a single control. */}
+      <span className="ml-2 flex h-9 shrink-0 items-center rounded-full bg-ink/[0.045] px-0.5">
+        <ToolButton label="Smaller text" small disabled={state.size <= SIZES[0]} onClick={() => step(-1)}>
+          <Minus weight="bold" />
+        </ToolButton>
+        <span
+          aria-label={`Text size ${state.size} points`}
+          className="grid min-w-7 place-items-center text-[0.92rem] font-semibold tabular-nums text-ink"
+        >
+          {state.size}
+        </span>
+        <ToolButton label="Larger text" small disabled={state.size >= SIZES[SIZES.length - 1]} onClick={() => step(1)}>
+          <Plus weight="bold" />
+        </ToolButton>
       </span>
-      <ToolButton label="Larger text" disabled={state.size >= SIZES[SIZES.length - 1]} onClick={() => step(1)}>
-        <Plus weight="bold" />
-      </ToolButton>
       <Divider />
 
       <ToolButton label="Bold" active={state.bold} onClick={() => editor.chain().focus().toggleBold().run()}>
@@ -280,26 +346,6 @@ function Toolbar({ editor, profile, flat = false }: { editor: Editor; profile: P
       >
         <TextUnderline weight="bold" />
       </ToolButton>
-      <SwatchMenu
-        label="Text colour"
-        icon={<Palette weight="bold" />}
-        options={TEXT_COLOURS}
-        current={state.colour}
-        onPick={(value) =>
-          value ? editor.chain().focus().setColor(value).run() : editor.chain().focus().unsetColor().run()
-        }
-      />
-      <SwatchMenu
-        label="Highlight"
-        icon={<Highlighter weight="bold" />}
-        options={HIGHLIGHTS}
-        current={state.highlight}
-        onPick={(value) =>
-          value
-            ? editor.chain().focus().setHighlight({ color: value }).run()
-            : editor.chain().focus().unsetHighlight().run()
-        }
-      />
       <Divider />
 
       {(
@@ -343,22 +389,13 @@ function Toolbar({ editor, profile, flat = false }: { editor: Editor; profile: P
       </ToolButton>
       <Divider />
 
-      <ToolButton label="Zoom out" disabled={zoom <= ZOOM_STEPS[0]} onClick={() => zoomStep(-1)}>
-        <MagnifyingGlassMinus weight="bold" />
-      </ToolButton>
-      <span
-        aria-label={`Zoom ${zoom} percent`}
-        className="grid h-10 min-w-12 place-items-center text-[0.95rem] font-bold tabular-nums"
-      >
-        {zoom}%
-      </span>
-      <ToolButton
-        label="Zoom in"
-        disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]}
-        onClick={() => zoomStep(1)}
-      >
-        <MagnifyingGlassPlus weight="bold" />
-      </ToolButton>
+      <MoreTools
+        editor={editor}
+        colour={state.colour}
+        highlight={state.highlight}
+        zoom={zoom}
+        onZoom={zoomStep}
+      />
     </div>
   );
 }

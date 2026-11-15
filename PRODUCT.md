@@ -55,3 +55,12 @@ Landing page direction pinned by the owner (2026-11-14), replacing an earlier co
 3. Stay out of the way. The tool lives beside the images and asks for as little attention as possible.
 4. Fit the workflow that exists: any PACS, the radiologist's own templates, paste and sign.
 5. Say plainly what the tool does not do.
+
+## Interface rules
+
+These apply to every screen and every new feature, for every kind of user.
+
+1. **Big actions ask first.** Anything with a large effect (sign out, delete, turn off, end a plan, change a role, leave with unsaved work) opens a confirmation pop-up before it happens.
+2. **Deletable tables select from a ⋯ menu.** Lists whose rows can be deleted have a quiet ⋯ menu with "Select"; tick boxes, a "N selected" bar, Delete (with confirmation) and a ✕ appear only then.
+3. **Every outcome shows a toast.** Saved, created, updated, deleted or copied: green. Caution or a partial result: orange. Failure: red. One shared toast system, never a silent change.
+4. **Lists load one page at a time.** Search, filters, sort and paging run on the server; only the rows shown are read.

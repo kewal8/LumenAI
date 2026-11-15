@@ -6,7 +6,8 @@ import {
 import { AccountInviteButton } from "@/components/admin/AccountInvite";
 import { PlanControl } from "@/components/admin/PlanControl";
 import { minutes } from "@/components/admin/parts";
-import { FilterList } from "@/components/app/Search";
+import { ListFilter } from "@/components/app/ListControls";
+import { PagedList } from "@/components/app/PagedList";
 import { ConfirmAction } from "@/components/app/TeamClient";
 import {
   Avatar,
@@ -21,8 +22,9 @@ import {
   PageHeader,
   formatDate,
 } from "@/components/app/ui";
-import { listAccounts, listPendingInvites } from "@/lib/admin";
+import { accountTotals, listPendingInvites, pageAccounts } from "@/lib/admin";
 import { requireStaff } from "@/lib/auth/session";
+import { readListParams } from "@/lib/listQuery";
 import { listPlanStatus } from "@/lib/subscription";
 import type { Role } from "@/lib/auth/session";
 import { ROLE_LABELS } from "@/lib/team";
@@ -38,29 +40,55 @@ const COLUMNS =
 const ROW = "flex flex-wrap items-center gap-x-8 gap-y-3 px-6 py-4";
 
 /** One value in a row. Below the table layout it carries its own label. */
-function Cell({ label, number, children }: { label: string; number?: boolean; children: React.ReactNode }) {
+function Cell({
+  label,
+  number,
+  children,
+}: {
+  label: string;
+  number?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <span
       className={`flex flex-col gap-0.5 text-[0.95rem] font-semibold ${
-        number ? "tabular-nums lg:items-end lg:text-[1.05rem] lg:font-bold" : "items-start"
+        number
+          ? "tabular-nums lg:items-end lg:text-[1.05rem] lg:font-bold"
+          : "items-start"
       }`}
     >
-      <span className="text-[0.8rem] font-semibold text-ink-soft lg:hidden">{label}</span>
+      <span className="text-[0.8rem] font-semibold text-ink-soft lg:hidden">
+        {label}
+      </span>
       {children}
     </span>
   );
 }
 
-export default async function AdminAccountsPage() {
+export default async function AdminAccountsPage({
+  searchParams,
+}: PageProps<"/admin/accounts">) {
   const user = await requireStaff();
-  const [accounts, invites, plans] = await Promise.all([listAccounts(), listPendingInvites(), listPlanStatus()]);
-  const people = accounts.reduce((sum, account) => sum + account.members.length, 0);
+  const params = readListParams(await searchParams, {
+    sorts: ["created", "name"],
+    sort: "created",
+    dir: "desc",
+    filters: ["kind"],
+  });
+  // Only the page of accounts asked for is read, with their people and plans.
+  const [{ rows: accounts, total }, invites, totals] = await Promise.all([
+    pageAccounts(params),
+    listPendingInvites(),
+    accountTotals(),
+  ]);
+  const plans = await listPlanStatus(accounts.map((account) => account.id));
+  const people = totals.people;
 
   return (
     <Page>
       <PageHeader
         title="Accounts"
-        description={`${accounts.length} ${accounts.length === 1 ? "account" : "accounts"}, ${people} ${
+        description={`${totals.accounts} ${totals.accounts === 1 ? "account" : "accounts"}, ${people} ${
           people === 1 ? "person" : "people"
         }. Usage covers the last 30 days.`}
         action={<AccountInviteButton />}
@@ -82,32 +110,50 @@ export default async function AdminAccountsPage() {
                   <EnvelopeSimple weight="fill" className="h-5 w-5" />
                 </IconTile>
                 <span className="min-w-0 flex-1 basis-56">
-                  <span className="block truncate font-semibold">{invite.email}</span>
-                  <span className="block truncate text-[0.9rem] text-ink-soft">{invite.target}</span>
+                  <span className="block truncate font-semibold">
+                    {invite.email}
+                  </span>
+                  <span className="block truncate text-[0.9rem] text-ink-soft">
+                    {invite.target}
+                  </span>
                 </span>
-                <Meta icon={<CalendarBlank weight="bold" />}>Expires {formatDate(invite.expiresAt)}</Meta>
+                <Meta icon={<CalendarBlank weight="bold" />}>
+                  Expires {formatDate(invite.expiresAt)}
+                </Meta>
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      {accounts.length === 0 ? (
+      {totals.accounts === 0 ? (
         <EmptyState
           icon={<Buildings weight="fill" className="h-5 w-5" />}
           title="No accounts yet"
           body="Open the first one with New account."
         />
       ) : (
-        <FilterList
-          placeholder="Search by account, name or email"
+        <PagedList
+          path="/admin/accounts"
+          params={params}
+          total={total}
+          placeholder="Search by account, name, email or phone"
           noun="accounts"
-          listClassName={`${PANEL} overflow-hidden`}
+          filters={
+            <ListFilter
+              path="/admin/accounts"
+              params={params}
+              name="kind"
+              label="Account type"
+              options={[
+                { value: "", text: "All accounts" },
+                { value: "centre", text: "Centres" },
+                { value: "solo", text: "Personal" },
+              ]}
+            />
+          }
           head={
-            <div
-              aria-hidden="true"
-              className={`${COLUMNS} ${LIST_HEAD}`}
-            >
+            <div aria-hidden="true" className={`${COLUMNS} ${LIST_HEAD}`}>
               <span>Account</span>
               <span>Type</span>
               <span>Plan</span>
@@ -117,118 +163,147 @@ export default async function AdminAccountsPage() {
               <span />
             </div>
           }
-          items={accounts.map((account) => {
+        >
+          {accounts.map((account) => {
             // A personal account is its one person: one row, not a card around a row.
-            const solo = account.kind !== "centre" && account.members.length === 1;
-            return {
-              key: account.id,
-              text: [
-                account.name,
-                account.kind === "centre" ? "centre" : "personal",
-                ...account.members.flatMap((member) => [member.name, member.email, member.role]),
-              ].join(" "),
-              node: (
-                <li key={account.id} className="border-t-2 border-line first:border-t-0">
-                  {!solo && (
-                    <div className={`${COLUMNS} ${ROW}`}>
-                      <div className="flex min-w-0 items-center gap-4">
-                        <IconTile tone="teal">
-                          <Buildings weight="fill" className="h-5 w-5" />
-                        </IconTile>
-                        <span className="min-w-0">
-                          <span className="block truncate text-[1.05rem] font-bold">{account.name}</span>
-                          <span className="block truncate text-[0.9rem] text-ink-soft">
-                            {account.members.length} {account.members.length === 1 ? "person" : "people"}, opened{" "}
-                            {formatDate(account.createdAt)}
-                          </span>
+            const solo =
+              account.kind !== "centre" && account.members.length === 1;
+            return (
+              <li
+                key={account.id}
+                className="border-t-2 border-line first:border-t-0"
+              >
+                {!solo && (
+                  <div className={`${COLUMNS} ${ROW}`}>
+                    <div className="flex min-w-0 items-center gap-4">
+                      <IconTile tone="teal">
+                        <Buildings weight="fill" className="h-5 w-5" />
+                      </IconTile>
+                      <span className="min-w-0">
+                        <span className="block truncate text-[1.05rem] font-bold">
+                          {account.name}
                         </span>
-                      </div>
-                      <Cell label="Type">
-                        <Chip>{account.kind === "centre" ? "Centre" : "Personal"}</Chip>
-                      </Cell>
-                      <Cell label="Plan">
-                        <PlanControl orgId={account.id} name={account.name} status={plans.get(account.id) ?? null} />
-                      </Cell>
-                      <span className="hidden lg:block" />
-                      <Cell label="Report updates" number>
-                        {account.updates30}
-                      </Cell>
-                      <Cell label="Dictated" number>
-                        {minutes(account.seconds30)}
-                      </Cell>
-                      <span className="hidden lg:block" />
-                    </div>
-                  )}
-                  {account.members.map((member) => (
-                    <div
-                      key={member.id}
-                      className={`${COLUMNS} ${ROW} ${solo ? "" : "border-t border-line bg-ink/[0.025]"}`}
-                    >
-                      <div className={`flex min-w-0 items-center gap-4 ${solo ? "" : "lg:pl-8"}`}>
-                        <Avatar name={member.name} />
-                        <span className="min-w-0">
-                          <span className="flex flex-wrap items-center gap-2 font-semibold">
-                            <span className="truncate">{member.name}</span>
-                            {member.staff && <Badge tone="teal">LumenAI staff</Badge>}
-                            {member.disabled && <Badge tone="amber">Turned off</Badge>}
-                          </span>
-                          <span className="block truncate text-[0.9rem] text-ink-soft">
-                            {member.email}
-                            {member.phone && <> · {member.phone}</>}
-                          </span>
+                        <span className="block truncate text-[0.9rem] text-ink-soft">
+                          {account.members.length}{" "}
+                          {account.members.length === 1 ? "person" : "people"},
+                          opened {formatDate(account.createdAt)}
                         </span>
-                      </div>
-                      <Cell label="Type">
-                        {solo ? <Chip>Personal</Chip> : <Badge>{ROLE_LABELS[member.role as Role]}</Badge>}
-                      </Cell>
-                      {/* A centre's plan sits on its own row; a personal account's on its one person. */}
-                      {solo ? (
-                        <Cell label="Plan">
-                          <PlanControl orgId={account.id} name={member.name} status={plans.get(account.id) ?? null} />
-                        </Cell>
-                      ) : (
-                        <span className="hidden lg:block" />
-                      )}
-                      <Cell label="Last sign-in">{member.lastLogin ? formatDate(member.lastLogin) : "Never"}</Cell>
-                      <Cell label="Report updates" number>
-                        {member.updates30}
-                      </Cell>
-                      <Cell label="Dictated" number>
-                        {minutes(member.seconds30)}
-                      </Cell>
-                      <span className="flex justify-end">
-                        {member.id === user.id ? (
-                          <span className="px-3 text-[0.9rem] font-semibold text-ink-soft">You</span>
-                        ) : member.disabled ? (
-                          <ConfirmAction
-                            label="Turn on"
-                            title={`Turn on ${member.name}?`}
-                            body="They can sign in again with their existing password. Their reports and templates are untouched."
-                            confirmLabel="Turn on"
-                            tone="primary"
-                            method="PATCH"
-                            payload={{ disabled: false }}
-                            path={`/api/admin/users/${member.id}`}
-                          />
-                        ) : (
-                          <ConfirmAction
-                            label="Turn off"
-                            title={`Turn off ${member.name}?`}
-                            body="They are signed out now and cannot sign in until you turn the account on again. Nothing is deleted."
-                            confirmLabel="Turn off"
-                            method="PATCH"
-                            payload={{ disabled: true }}
-                            path={`/api/admin/users/${member.id}`}
-                          />
-                        )}
                       </span>
                     </div>
-                  ))}
-                </li>
-              ),
-            };
+                    <Cell label="Type">
+                      <Chip>
+                        {account.kind === "centre" ? "Centre" : "Personal"}
+                      </Chip>
+                    </Cell>
+                    <Cell label="Plan">
+                      <PlanControl
+                        orgId={account.id}
+                        name={account.name}
+                        status={plans.get(account.id) ?? null}
+                      />
+                    </Cell>
+                    <span className="hidden lg:block" />
+                    <Cell label="Report updates" number>
+                      {account.updates30}
+                    </Cell>
+                    <Cell label="Dictated" number>
+                      {minutes(account.seconds30)}
+                    </Cell>
+                    <span className="hidden lg:block" />
+                  </div>
+                )}
+                {account.members.map((member) => (
+                  <div
+                    key={member.id}
+                    className={`${COLUMNS} ${ROW} ${solo ? "" : "border-t border-line bg-ink/[0.025]"}`}
+                  >
+                    <div
+                      className={`flex min-w-0 items-center gap-4 ${solo ? "" : "lg:pl-8"}`}
+                    >
+                      <Avatar name={member.name} />
+                      <span className="min-w-0">
+                        <span className="flex flex-wrap items-center gap-2 font-semibold">
+                          <span className="truncate">{member.name}</span>
+                          {member.staff && (
+                            <Badge tone="teal">LumenAI staff</Badge>
+                          )}
+                          {member.disabled && (
+                            <Badge tone="amber">Turned off</Badge>
+                          )}
+                        </span>
+                        <span className="block truncate text-[0.9rem] text-ink-soft">
+                          {member.email}
+                          {member.phone && <> · {member.phone}</>}
+                        </span>
+                      </span>
+                    </div>
+                    <Cell label="Type">
+                      {solo ? (
+                        <Chip>Personal</Chip>
+                      ) : (
+                        <Badge>{ROLE_LABELS[member.role as Role]}</Badge>
+                      )}
+                    </Cell>
+                    {/* A centre's plan sits on its own row; a personal account's on its one person. */}
+                    {solo ? (
+                      <Cell label="Plan">
+                        <PlanControl
+                          orgId={account.id}
+                          name={member.name}
+                          status={plans.get(account.id) ?? null}
+                        />
+                      </Cell>
+                    ) : (
+                      <span className="hidden lg:block" />
+                    )}
+                    <Cell label="Last sign-in">
+                      {member.lastLogin
+                        ? formatDate(member.lastLogin)
+                        : "Never"}
+                    </Cell>
+                    <Cell label="Report updates" number>
+                      {member.updates30}
+                    </Cell>
+                    <Cell label="Dictated" number>
+                      {minutes(member.seconds30)}
+                    </Cell>
+                    <span className="flex justify-end">
+                      {member.id === user.id ? (
+                        <span className="px-3 text-[0.9rem] font-semibold text-ink-soft">
+                          You
+                        </span>
+                      ) : member.disabled ? (
+                        <ConfirmAction
+                          label="Turn on"
+                          title={`Turn on ${member.name}?`}
+                          body="They can sign in again with their existing password. Their reports and templates are untouched."
+                          confirmLabel="Turn on"
+                          doneMessage={`${member.name} can sign in again`}
+                          tone="primary"
+                          method="PATCH"
+                          payload={{ disabled: false }}
+                          path={`/api/admin/users/${member.id}`}
+                        />
+                      ) : (
+                        <ConfirmAction
+                          label="Turn off"
+                          title={`Turn off ${member.name}?`}
+                          body="They are signed out now and cannot sign in until you turn the account on again. Nothing is deleted."
+                          confirmLabel="Turn off"
+                          doneMessage={`${member.name} turned off and signed out`}
+                          doneTone="warning"
+                          method="PATCH"
+                          payload={{ disabled: true }}
+                          path={`/api/admin/users/${member.id}`}
+                        />
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </li>
+            );
           })}
-        />
+        </PagedList>
       )}
     </Page>
   );

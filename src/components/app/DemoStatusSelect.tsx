@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@/components/Toast";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { send } from "@/components/auth/fields";
@@ -15,7 +16,11 @@ export function DemoStatusSelect({ id, status }: { id: string; status: DemoStatu
     setBusy(true);
     const result = await send("PATCH", `/api/demo-requests/${id}`, { status: next });
     setBusy(false);
-    if (!result.error) setValue(next);
+    if (result.error) toast.error(result.error);
+    else {
+      setValue(next);
+      toast.success(`Marked as ${DEMO_STATUS_LABELS[next].toLowerCase()}`);
+    }
     router.refresh();
   }
 

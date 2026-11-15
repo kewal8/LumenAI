@@ -23,11 +23,16 @@ import {
   UsersThree,
   X,
   type Icon,
+  Sparkle,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
+import { Spinner } from "@/components/Spinner";
+import { Toaster } from "@/components/Toast";
 import { useTheme } from "@/components/landing/ThemeToggle";
+import { useUpdatesLeft } from "@/lib/updatesLeft";
+import { buttonClass } from "./ui";
 
 export type ShellUser = {
   name: string;
@@ -36,6 +41,8 @@ export type ShellUser = {
   isPlatformAdmin: boolean;
   /** No active plan yet: the report editor is closed. */
   locked?: boolean;
+  /** AI report updates left today (doctors only); null when the plan has no limit. */
+  updatesLeft?: number | null;
 };
 
 export type Area = "doctor" | "admin";
@@ -173,17 +180,61 @@ function NavLinks({
 const MENU_ITEM =
   "flex h-10 cursor-pointer select-none items-center gap-3 rounded-full px-3 text-[0.95rem] font-semibold text-ink outline-none data-[highlighted]:bg-ink/10";
 
+/** AI report updates left today, kept quiet under the doctor's name. */
+function UpdatesLeft({ fromServer }: { fromServer: number | null }) {
+  const left = useUpdatesLeft(fromServer);
+  // The pilot has no daily limit yet, so a stand-in number shows.
+  const shown = left ?? 999;
+  return (
+    <span
+      title={`${shown} AI report updates left today`}
+      className={`flex items-center gap-1 truncate text-[0.82rem] font-semibold tabular-nums ${
+        left !== null && left <= 10 ? "text-amber-deep" : "text-ink-soft"
+      }`}
+    >
+      <Sparkle weight="fill" className="h-3.5 w-3.5 shrink-0 text-teal" />
+      {shown}
+    </span>
+  );
+}
+
 function UserMenu({ user, area, compact = false }: { user: ShellUser; area: Area; compact?: boolean }) {
   const router = useRouter();
   const { theme, toggle } = useTheme();
 
+  // Signing out ends the session on this device, so it asks first.
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
   async function signOut() {
+    setSigningOut(true);
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
     router.replace("/login");
     router.refresh();
   }
 
   return (
+    <>
+    <Dialog.Root open={confirmSignOut} onOpenChange={(open) => !signingOut && setConfirmSignOut(open)}>
+      <Dialog.Portal>
+        <Dialog.Backdrop className="app-backdrop fixed inset-0 z-50 bg-[#0f2624]/40" />
+        <Dialog.Popup className="app-layer fixed left-1/2 top-1/2 z-50 w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/20 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(15_38_36/0.5)] outline-none sm:p-8">
+          <Dialog.Title className="text-[1.3rem] font-semibold tracking-[-0.02em]">Sign out?</Dialog.Title>
+          <Dialog.Description className="mt-2 text-ink-soft">
+            You will need your email and password to sign in again. A report that is not saved will be lost.
+          </Dialog.Description>
+          <div className="mt-6 flex gap-2">
+            <button type="button" onClick={signOut} disabled={signingOut} className={buttonClass.primary}>
+              {signingOut && <Spinner />}
+              {signingOut ? "Signing out" : "Sign out"}
+            </button>
+            <Dialog.Close className={buttonClass.secondary} disabled={signingOut}>
+              Cancel
+            </Dialog.Close>
+          </div>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
     <Menu.Root>
       <Menu.Trigger
         title={compact ? user.name : undefined}
@@ -198,7 +249,11 @@ function UserMenu({ user, area, compact = false }: { user: ShellUser; area: Area
           <>
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block truncate text-[0.95rem] font-bold text-ink">{user.name}</span>
-              <span className="t-meta block truncate">{user.organisation ?? user.email}</span>
+              {area === "doctor" ? (
+                <UpdatesLeft fromServer={user.updatesLeft ?? null} />
+              ) : (
+                <span className="t-meta block truncate">{user.organisation ?? user.email}</span>
+              )}
             </span>
             <CaretUpDown weight="bold" className="h-4 w-4 shrink-0 text-ink-quiet" />
           </>
@@ -229,7 +284,7 @@ function UserMenu({ user, area, compact = false }: { user: ShellUser; area: Area
               {theme === "dark" ? "Light mode" : "Dark mode"}
             </Menu.Item>
             <Menu.Separator className="mx-2 my-1.5 h-px bg-line" />
-            <Menu.Item className={MENU_ITEM} onClick={signOut}>
+            <Menu.Item className={MENU_ITEM} onClick={() => setConfirmSignOut(true)}>
               <SignOut className="h-5 w-5" />
               Sign out
             </Menu.Item>
@@ -237,6 +292,7 @@ function UserMenu({ user, area, compact = false }: { user: ShellUser; area: Area
         </Menu.Positioner>
       </Menu.Portal>
     </Menu.Root>
+    </>
   );
 }
 
@@ -254,9 +310,11 @@ export function AppShell({
 
   return (
     <div className="app flex min-h-[100dvh] flex-1">
+      <Toaster />
       <aside
+        data-app-nav=""
         className={`sticky top-0 hidden h-[100dvh] shrink-0 flex-col justify-between border-r border-line bg-surface transition-[width] duration-200 lg:flex ${
-          compact ? "w-[4.25rem] items-center px-0 py-4" : "w-[13.5rem] p-3"
+          compact ? "w-[4.25rem] items-center px-0 py-4" : "w-[12rem] p-2.5"
         }`}
       >
         <div className={compact ? "flex flex-col items-center" : undefined}>

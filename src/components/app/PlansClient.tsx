@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@/components/Toast";
 import { Spinner } from "@/components/Spinner";
 import {
   ArrowRight,
@@ -84,8 +85,13 @@ export function PlansClient({
     setError("");
     const result = await send("POST", "/api/billing/request", { plan: plan.id, cycle });
     setSending(null);
-    if (result.error) setError(result.error);
-    else router.refresh();
+    if (result.error) {
+      setError(result.error);
+      toast.error(result.error);
+    } else {
+      toast.success(`Request for ${plan.name} sent. We will call you to take payment.`);
+      router.refresh();
+    }
   }
 
   const { locked, requested } = subscription;

@@ -2,6 +2,7 @@ import { apiUser, fail, handle } from "@/lib/auth/respond";
 import { db } from "@/lib/db";
 import { canManageTeam } from "@/lib/team";
 import { parseTemplateBody } from "@/lib/templateInput";
+import { nameTaken } from "@/lib/templateStore";
 
 export const POST = handle(async (request) => {
   const user = await apiUser();
@@ -12,6 +13,9 @@ export const POST = handle(async (request) => {
   const input = parseTemplateBody(body);
   if (typeof input === "string") return fail(400, input);
   const { draft, modality, doc } = input;
+  if (await nameTaken(user, draft.name)) {
+    return fail(409, `You already have a template called “${draft.name}”. Choose another name.`);
+  }
   const shared = body.shared === true && canManageTeam(user.org.role);
 
   const [row] = await db()`

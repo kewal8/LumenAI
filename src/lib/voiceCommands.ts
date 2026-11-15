@@ -186,3 +186,106 @@ export function appendSpoken(existing: string, words: string) {
   if (!existing || /\s$/.test(existing) || /^[,.;!?]/.test(words)) return existing + words;
   return `${existing} ${words}`;
 }
+
+// Words a doctor says when correcting what they just said.
+const CORRECTION_CUE = /[,;]?\s*\b(?:no,? sorry|sorry|i mean|i meant|no wait|no,? no|correction|make (?:it|that))\b[,:.]?\s*/i;
+const SIDE_WORDS = ["left", "right"];
+
+/** True when the words hold a spoken self-correction, such as "sorry, 15 cm". */
+export function hasCorrection(text: string) {
+  return CORRECTION_CUE.test(text);
+}
+
+function words(text: string): string[] {
+  return text.toLowerCase().match(/[\p{L}\p{N}.]+/gu) ?? [];
+}
+
+/** Replaces the last match of `pattern` in `text` with `replacement`. */
+function replaceLast(text: string, pattern: RegExp, replacement: (match: RegExpExecArray) => string) {
+  let last: RegExpExecArray | null = null;
+  const global = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
+  for (let match = global.exec(text); match; match = global.exec(text)) last = match;
+  if (!last) return null;
+  return text.slice(0, last.index) + replacement(last) + text.slice(last.index + last[0].length);
+}
+
+/**
+ * Applies spoken self-corrections in word-for-word text: "18 cm stone in the
+ * gallbladder. Sorry, 15 cm." becomes "15 cm stone in the gallbladder." Only
+ * corrections that can be placed with certainty are applied (a size with its
+ * unit, a side, or the sentence said again). Anything else is left as said
+ * and counted in `unclear`, for the doctor to check.
+ */
+export function resolveCorrections(text: string) {
+  let result = text;
+  const changes: string[] = [];
+  let unclear = 0;
+  // Where to look for the next correction: past any that could not be placed.
+  let from = 0;
+  for (let cue = CORRECTION_CUE.exec(result.slice(from)); cue; cue = CORRECTION_CUE.exec(result.slice(from))) {
+    const at = from + cue.index;
+    const before = result.slice(0, at);
+    const after = result.slice(at + cue[0].length);
+    // The correction runs to the end of its sentence; a decimal point does not end one.
+    const end = after.search(/[.!?](?=\s|$)/);
+    const phrase = (end >= 0 ? after.slice(0, end) : after).trim();
+    const rest = end >= 0 ? after.slice(end + 1) : "";
+    if (!phrase) {
+      unclear += 1;
+      from = at + cue[0].length;
+      continue;
+    }
+
+    let fixed: string | null = null;
+    const phraseWords = words(phrase);
+    const lastSentence = before.replace(/[.!?]\s*$/, "").split(/[.!?]\s+/).pop() ?? "";
+    const sentenceWords = words(lastSentence);
+    const shared = phraseWords.filter((word) => sentenceWords.includes(word)).length;
+    const leadingSize = phrase.match(new RegExp(`^(${NUMBER})\\s*(mm|cm|ml|HU)\\b`, "i"));
+    const side = SIDE_WORDS.find((word) => word === phraseWords[0]);
+
+    if (side) {
+      // A side, maybe with the part it belongs to ("right lobe"), maybe followed by
+      // new words ("right lobe, measuring 2 cm"): the side replaces the last
+      // opposite side, and the new words carry on after the sentence.
+      const other = side === "left" ? "right" : "left";
+      const tokens = phrase.split(/\s+/);
+      let repeated = 1;
+      while (repeated < tokens.length && sentenceWords.includes(words(tokens[repeated])[0] ?? "")) repeated += 1;
+      const carryOn = tokens.slice(repeated).join(" ");
+      const replaced = replaceLast(before.replace(/[.!?]\s*$/, ""), new RegExp(`\\b${other}\\b`, "i"), (match) =>
+        match[0][0] === match[0][0].toUpperCase() ? side[0].toUpperCase() + side.slice(1) : side,
+      );
+      fixed =
+        replaced === null
+          ? null
+          : carryOn
+            ? `${replaced}${/,$/.test(tokens[repeated - 1]) ? "," : ""} ${carryOn}`
+            : replaced;
+      if (fixed) changes.push(`${other} → ${side}`);
+    } else if (phraseWords.length >= 3 && shared / phraseWords.length >= 0.5) {
+      // The sentence said again, corrected: it replaces the one before.
+      const start = before.lastIndexOf(lastSentence);
+      fixed = `${before.slice(0, start)}${phrase[0].toUpperCase()}${phrase.slice(1)}`;
+      changes.push(`“${lastSentence.trim()}” → “${phrase}”`);
+    } else if (leadingSize) {
+      // A size, maybe with words that carry on after it: it replaces the last size in the same unit.
+      const [said, value, unit] = leadingSize;
+      const sameUnit = new RegExp(`${NUMBER}\\s*${unit}\\b`, "i");
+      const old = before.match(new RegExp(sameUnit.source, "gi"))?.pop();
+      const replaced = replaceLast(before.replace(/[.!?]\s*$/, ""), sameUnit, () => `${value} ${unit}`);
+      fixed = replaced === null ? null : replaced + phrase.slice(said.length);
+      if (fixed && old) changes.push(`${old} → ${value} ${unit}`);
+    }
+    // The correction ended its sentence, so the corrected sentence ends too.
+    if (fixed !== null && end >= 0 && !/[.!?]\s*$/.test(fixed)) fixed = `${fixed.trimEnd()}.`;
+    if (fixed === null) {
+      unclear += 1;
+      from = at + cue[0].length;
+      continue;
+    }
+    result = (fixed.trimEnd() + (rest.trim() ? ` ${rest.trim()}` : "")).trim();
+    from = fixed.trimEnd().length;
+  }
+  return { text: result, changes, unclear };
+}

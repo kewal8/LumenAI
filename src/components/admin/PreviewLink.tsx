@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@/components/Toast";
 import { Spinner } from "@/components/Spinner";
 import { Dialog } from "@base-ui/react/dialog";
 import { Check, Copy, Plus } from "@phosphor-icons/react";
@@ -40,8 +41,10 @@ export function PreviewLinkButton() {
     setBusy(false);
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
+    toast.success(`Preview link for ${label.trim()} created`);
     setLink(result.data?.link ?? "");
     router.refresh();
   }

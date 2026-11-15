@@ -1,5 +1,6 @@
 import { DemoStatusSelect } from "@/components/app/DemoStatusSelect";
-import { FilterList } from "@/components/app/Search";
+import { ListFilter } from "@/components/app/ListControls";
+import { PagedList } from "@/components/app/PagedList";
 import {
   CalendarBlank,
   CalendarCheck,
@@ -12,31 +13,56 @@ import {
   EmptyState,
   Meta,
   LIST_HEAD,
-  PANEL,
   Page,
   PageHeader,
   formatDate,
 } from "@/components/app/ui";
 import { requireStaff } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import type { DemoStatus } from "@/lib/demo";
+import { DEMO_STATUSES, DEMO_STATUS_LABELS, type DemoStatus } from "@/lib/demo";
+import { likePattern, offsetOf, readListParams } from "@/lib/listQuery";
 
 // Reads the signed-in user's data on every request, so it is rendered on demand.
 export const instant = false;
 
 export const metadata = { title: "Demo requests · LumenAI Admin" };
 
-export default async function DemoRequestsPage() {
+export default async function DemoRequestsPage({
+  searchParams,
+}: PageProps<"/admin/demo-requests">) {
   await requireStaff();
+  const params = readListParams(await searchParams, {
+    sorts: ["created"],
+    sort: "created",
+    dir: "desc",
+    filters: ["status"],
+  });
+  const like = likePattern(params.q);
+  const status =
+    DEMO_STATUSES.find((value) => value === params.filter.status) ?? "";
 
-  const requests = await db()`
-    select id, created_at, status, name, email, phone, designation, organisation,
-           organisation_type, location, message
-    from demo_requests
-    order by (status = 'new') desc, created_at desc
-    limit 200
-  `;
-  const waiting = requests.filter((request) => request.status === "new").length;
+  // Only the page asked for is read; the waiting count is its own small query.
+  const [requests, [counts]] = await Promise.all([
+    db()`
+      select id, created_at, status, name, email, phone, designation, organisation,
+             organisation_type, location, message, count(*) over () as total
+      from demo_requests
+      where (${status} = '' or status = ${status})
+        and (${params.q} = '' or name ilike ${like} or email ilike ${like} or phone ilike ${like}
+             or coalesce(organisation, '') ilike ${like} or coalesce(location, '') ilike ${like}
+             or coalesce(message, '') ilike ${like})
+      order by (status = 'new') desc,
+        case when ${params.dir} = 'asc' then created_at end asc,
+        case when ${params.dir} = 'desc' then created_at end desc,
+        id
+      limit ${params.size} offset ${offsetOf(params)}
+    `,
+    db()`
+      select count(*) filter (where status = 'new')::int as waiting, count(*)::int as all
+      from demo_requests
+    `,
+  ]);
+  const waiting = counts?.waiting ?? 0;
 
   return (
     <Page>
@@ -49,17 +75,34 @@ export default async function DemoRequestsPage() {
         }
       />
 
-      {requests.length === 0 ? (
+      {(counts?.all ?? 0) === 0 ? (
         <EmptyState
           icon={<CalendarCheck weight="fill" className="h-5 w-5" />}
           title="No requests yet"
           body="When someone fills in the Book a demo form, their details appear here."
         />
       ) : (
-        <FilterList
+        <PagedList
+          path="/admin/demo-requests"
+          params={params}
+          total={Number(requests[0]?.total ?? 0)}
           placeholder="Search by name, organisation or contact"
           noun="requests"
-          listClassName={`${PANEL} overflow-hidden`}
+          filters={
+            <ListFilter
+              path="/admin/demo-requests"
+              params={params}
+              name="status"
+              label="Status"
+              options={[
+                { value: "", text: "All requests" },
+                ...DEMO_STATUSES.map((value) => ({
+                  value,
+                  text: DEMO_STATUS_LABELS[value],
+                })),
+              ]}
+            />
+          }
           head={
             <div aria-hidden="true" className={`${LIST_HEAD} gap-x-6 lg:flex`}>
               <span className="flex-1">Request</span>
@@ -67,79 +110,62 @@ export default async function DemoRequestsPage() {
               <span className="w-40">Status</span>
             </div>
           }
-          items={requests.map((request) => ({
-            key: request.id as string,
-            text: [
-              request.name,
-              request.email,
-              request.phone,
-              request.designation,
-              request.organisation,
-              request.organisation_type,
-              request.location,
-              request.message,
-              request.status,
-            ]
-              .filter(Boolean)
-              .join(" "),
-            node: (
-              <li
-                key={request.id}
-                className="flex flex-wrap items-start gap-x-6 gap-y-3 border-t border-line px-6 py-5 first:border-t-0"
-              >
-                <Avatar name={request.name as string} />
-                <div className="min-w-0 flex-1 basis-72">
-                  <p className="flex flex-wrap items-center gap-2 text-[1.05rem] font-semibold">
-                    {request.name}
-                    {request.status === "new" && (
-                      <Badge tone="amber">New</Badge>
-                    )}
+        >
+          {requests.map((request) => (
+            <li
+              key={request.id}
+              className="flex flex-wrap items-start gap-x-6 gap-y-3 border-t border-line px-6 py-5 first:border-t-0"
+            >
+              <Avatar name={request.name as string} />
+              <div className="min-w-0 flex-1 basis-72">
+                <p className="flex flex-wrap items-center gap-2 text-[1.05rem] font-semibold">
+                  {request.name}
+                  {request.status === "new" && <Badge tone="amber">New</Badge>}
+                </p>
+                <p className="text-[0.9rem] text-ink-soft">
+                  {[
+                    request.designation,
+                    request.organisation,
+                    request.organisation_type,
+                    request.location,
+                  ]
+                    .filter(Boolean)
+                    .join(", ") || "No organisation given"}
+                </p>
+                {request.message && (
+                  <p className="mt-2 max-w-[70ch] whitespace-pre-line text-[0.95rem]">
+                    {request.message}
                   </p>
-                  <p className="text-[0.9rem] text-ink-soft">
-                    {[
-                      request.designation,
-                      request.organisation,
-                      request.organisation_type,
-                      request.location,
-                    ]
-                      .filter(Boolean)
-                      .join(", ") || "No organisation given"}
-                  </p>
-                  {request.message && (
-                    <p className="mt-2 max-w-[70ch] whitespace-pre-line text-[0.95rem]">
-                      {request.message}
-                    </p>
-                  )}
-                </div>
-                <div className="flex w-64 flex-col gap-1.5">
-                  <a
-                    href={`mailto:${request.email}`}
-                    className="truncate hover:underline"
-                  >
-                    <Meta icon={<EnvelopeSimple weight="bold" />}>
-                      {request.email}
-                    </Meta>
-                  </a>
-                  <a
-                    href={`tel:${request.phone.replace(/[^+\d]/g, "")}`}
-                    className="hover:underline"
-                  >
-                    <Meta icon={<Phone weight="bold" />}>{request.phone}</Meta>
-                  </a>
-                  <Meta icon={<CalendarBlank weight="bold" />}>
-                    {formatDate(request.created_at)}
+                )}
+              </div>
+              <div className="flex w-64 flex-col gap-1.5">
+                <a
+                  href={`mailto:${request.email}`}
+                  className="truncate hover:underline"
+                >
+                  <Meta icon={<EnvelopeSimple weight="bold" />}>
+                    {request.email}
                   </Meta>
-                </div>
-                <span className="w-40">
-                  <DemoStatusSelect
-                    id={request.id}
-                    status={request.status as DemoStatus}
-                  />
-                </span>
-              </li>
-            ),
-          }))}
-        />
+                </a>
+                <a
+                  href={`tel:${request.phone.replace(/[^+\d]/g, "")}`}
+                  className="hover:underline"
+                >
+                  <Meta icon={<Phone weight="bold" />}>{request.phone}</Meta>
+                </a>
+                <Meta icon={<CalendarBlank weight="bold" />}>
+                  {formatDate(request.created_at)}
+                </Meta>
+              </div>
+              <span className="w-40">
+                <DemoStatusSelect
+                  id={request.id}
+                  status={request.status as DemoStatus}
+                />
+              </span>
+            </li>
+          ))}
+        </PagedList>
       )}
     </Page>
   );

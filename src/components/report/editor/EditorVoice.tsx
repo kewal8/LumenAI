@@ -7,7 +7,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { expandMacros, type Macro } from "@/lib/macros";
 import { useDictation, type Word } from "@/lib/useDictation";
-import { COMMAND_LABELS, spokenStream, type SpokenPiece } from "@/lib/voiceCommands";
+import { COMMAND_LABELS, hasCorrection, resolveCorrections, spokenStream, type SpokenPiece } from "@/lib/voiceCommands";
 import { SpeakPill, shapeWords } from "../LineVoice";
 
 const BUTTON_HEIGHT = 32;
@@ -92,7 +92,29 @@ export function useEditorVoice({ macros }: { macros: Macro[] }) {
     const { before, after } = around(editor);
     const shaped = shapeWords(before, after, text);
     if (!shaped) return;
-    const { from, to } = editor.state.selection;
+    const { from, to, $from } = editor.state.selection;
+
+    if (hasCorrection(spoken)) {
+      // "18 cm… sorry, 15 cm": the correction replaces what it corrects in this
+      // line. Only the part that changed is rewritten, so formatting elsewhere stays.
+      const corrected = resolveCorrections(before + shaped.lead + shaped.words);
+      let same = 0;
+      while (same < before.length && before[same] === corrected.text[same]) same += 1;
+      const lineStart = $from.start();
+      step(editor, (chain) =>
+        chain
+          .insertContentAt(
+            { from: lineStart + same, to },
+            { type: "text", text: corrected.text.slice(same) + shaped.trail },
+          )
+          .setTextSelection(lineStart + corrected.text.length),
+      );
+      tell(
+        corrected.changes.length ? `Corrected: ${corrected.changes.join(", ")}` : "Correction heard. Check this line.",
+      );
+      return;
+    }
+
     step(editor, (chain) =>
       chain
         .insertContentAt({ from, to }, { type: "text", text: shaped.lead + shaped.words + shaped.trail })

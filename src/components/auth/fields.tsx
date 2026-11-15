@@ -158,7 +158,7 @@ export async function postAuth(path: string, body: Record<string, string>) {
 
 /** Sends JSON to an API route. `error` is "" on success. */
 export async function send<Data = unknown>(
-  method: "POST" | "PATCH" | "DELETE",
+  method: "GET" | "POST" | "PATCH" | "DELETE",
   path: string,
   body?: unknown,
 ): Promise<{ error: string; data?: Data }> {

@@ -1,6 +1,7 @@
 "use client";
 
 import { Spinner } from "@/components/Spinner";
+import { toast } from "@/components/Toast";
 import { Dialog } from "@base-ui/react/dialog";
 import {
   ArrowsClockwise,
@@ -18,13 +19,14 @@ import {
   Plus,
   ShieldCheck,
   Sparkle,
-  Stop,
   WarningCircle,
   Printer,
   SealCheck,
   ArrowUp,
-  ChatCircle,
-  SidebarSimple,
+  ArrowsInSimple,
+  ArrowsOutSimple,
+  CornersIn,
+  CornersOut,
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -54,12 +56,13 @@ import { FinalizeDialog } from "./FinalizeDialog";
 import { FloatingBox, useFloatingWindow } from "./FloatingBox";
 import { useLineVoice } from "./LineVoice";
 import { useEditorVoice } from "./editor/EditorVoice";
-import { MacrosPanel } from "./MacrosPanel";
 import { TemplatePicker } from "./TemplatePicker";
 import { ReportEditor, type ReportEditorHandle } from "./editor/ReportEditor";
 import { docToHtml, docToReport, docToText, reportToDoc, type DocNode } from "@/lib/reportDoc";
 import type { Credits } from "@/lib/workspace";
-import { VoiceMeter } from "./VoiceMeter";
+import { setUpdatesLeft } from "@/lib/updatesLeft";
+import { AssistantMenu } from "./AssistantMenu";
+import { VoiceButton } from "./VoiceButton";
 import { MICROPHONE_MESSAGES, useDictation, type Word } from "@/lib/useDictation";
 import { COMMAND_LABELS, appendSpoken, spokenStream, type SpokenPiece } from "@/lib/voiceCommands";
 
@@ -96,7 +99,7 @@ export function ReportWorkspace({
   macros: initialMacros,
   credits: initialCredits,
   design = "classic",
-  templates,
+  template: startTemplate,
   saved,
 }: {
   profile: PasteProfile;
@@ -112,14 +115,15 @@ export function ReportWorkspace({
   credits: Credits;
   /** "future" is the current report screen; "classic" is version one, kept as a backup. */
   design?: "future" | "classic";
-  templates: Template[];
+  /** The template a new report starts from. Others are fetched when picked. */
+  template: Template;
   /** A saved report being reopened. Left out for a new report. */
   saved?: { id: string; template: Template; report: Report; finalizedAt?: string | null };
 }) {
   const router = useRouter();
   const signature = { text: identity.signatureText, image: identity.signatureImage };
-  const [template, setTemplate] = useState(saved?.template ?? templates[0]);
-  const [report, setReport] = useState(() => saved?.report ?? reportFromTemplate(templates[0]));
+  const [template, setTemplate] = useState(saved?.template ?? startTemplate);
+  const [report, setReport] = useState(() => saved?.report ?? reportFromTemplate(startTemplate));
   const [savedId, setSavedId] = useState(saved?.id ?? null);
   // When the report was last finalized, and whether the finalized preview is open.
   const [finalizedAt, setFinalizedAt] = useState<string | null>(saved?.finalizedAt ?? null);
@@ -136,6 +140,8 @@ export function ReportWorkspace({
   const [failed, setFailed] = useState<FailedDictation | null>(null);
   // Which log entry has its list of changes open.
   const [openEntry, setOpenEntry] = useState<string | null>(null);
+  // The conversation entry whose exact words are shown instead of the tidied ones.
+  const [exactWords, setExactWords] = useState<string | null>(null);
   const [draft, setDraftState] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -149,7 +155,7 @@ export function ReportWorkspace({
   const docFor = (value: Report) => (value.doc as DocNode | undefined) ?? reportToDoc(value, profile);
   // A new report starts from the template's own page when it has one.
   const startDoc = (from: Template) => (from.doc as DocNode | undefined) ?? docFor(reportFromTemplate(from));
-  const [initialDoc, setInitialDoc] = useState(() => (saved ? docFor(saved.report) : startDoc(templates[0])));
+  const [initialDoc, setInitialDoc] = useState(() => (saved ? docFor(saved.report) : startDoc(startTemplate)));
   // Changed to start the editor afresh with `initialDoc`, on a new report.
   const [editorSeed, setEditorSeed] = useState(0);
   // True while a dictation is being written into the editor, so it is not taken for typing.
@@ -229,7 +235,8 @@ export function ReportWorkspace({
     }
   }
 
-  const [macros, setMacros] = useState(initialMacros);
+  // Short forms are managed in Settings; here they are only expanded as the doctor speaks.
+  const [macros] = useState(initialMacros);
   const macrosRef = useRef(macros);
   macrosRef.current = macros;
 
@@ -262,8 +269,10 @@ export function ReportWorkspace({
     setSaving(false);
     if (result.error || !result.data) {
       setError(result.error);
+      toast.error(result.error || "The report could not be saved.");
       return false;
     }
+    toast.success(finalize ? "Report finalized and saved" : savedId ? "Changes saved" : "Report saved to Reports");
     setSavedId(result.data.id);
     setFinalizedAt(result.data.finalizedAt ?? null);
     setDirty(false);
@@ -292,6 +301,17 @@ export function ReportWorkspace({
     if (doc) return { html: docToHtml(doc, profile, signature), text: docToText(doc, signature) };
     const output = formatted(value);
     return { html: buildReportHtml(output, profile, signature), text: buildReportText(output, profile, signature) };
+  }
+
+  // A template picked from the list is fetched then, not loaded with the page.
+  async function pickTemplate(id: string) {
+    const result = await sendJson<{ template: Template }>("GET", `/api/templates/${id}`);
+    if (result.error || !result.data) {
+      setError(result.error || "That template could not be opened.");
+      toast.error(result.error || "That template could not be opened.");
+      return;
+    }
+    newCase(result.data.template);
   }
 
   // Asks first when there is work that has not been saved.
@@ -341,9 +361,11 @@ export function ReportWorkspace({
     try {
       await copyReport(html, text);
       setCopyState("copied");
+      toast.success("Report copied. Press Ctrl+V in PACS");
     } catch {
       setCopyState("stale");
       setError(COPY_BLOCKED);
+      toast.warning("The browser did not let the report copy. Press Copy report again.");
     }
   }
 
@@ -356,6 +378,8 @@ export function ReportWorkspace({
         template: { ...template, doc: undefined },
         report: reportRef.current,
         dictation: text,
+        // So a correction of something said earlier can rewrite that message too.
+        earlier: logRef.current.map((entry) => ({ id: entry.id, said: entry.dictation })),
       }),
     });
     const body = await response.json();
@@ -382,7 +406,24 @@ export function ReportWorkspace({
       text,
       logRef.current.every((previous) => previous.kind === "unchanged"),
     );
-    setLog((previous) => [...previous, entry]);
+    // The conversation shows what was meant, with the exact words a click away.
+    const said = typeof body.said === "string" ? body.said : "";
+    if (said && said !== text.trim()) {
+      entry.heard = text;
+      entry.dictation = said;
+    }
+    // Earlier messages this one corrected are rewritten; their exact words are kept.
+    const revised = new Map<string, string>(
+      (Array.isArray(body.revised) ? body.revised : []).map((item: { id: string; said: string }) => [item.id, item.said]),
+    );
+    setLog((previous) => [
+      ...previous.map((earlier) => {
+        const said = revised.get(earlier.id);
+        if (!said || said === earlier.dictation) return earlier;
+        return { ...earlier, dictation: said, heard: earlier.heard ?? earlier.dictation, correctedLater: true };
+      }),
+      entry,
+    ]);
     setOpenEntry(entry.id);
     return next;
   }
@@ -421,12 +462,17 @@ export function ReportWorkspace({
       await nextReport;
       const done = await copied;
       setCopyState(done ? "copied" : "stale");
-      if (!done) setError(COPY_BLOCKED);
+      if (done) toast.success("Report updated and copied");
+      else {
+        setError(COPY_BLOCKED);
+        toast.warning("Report updated, but not copied. Press Copy report.");
+      }
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Could not update the report.";
       // A dictation that did not reach the report stays in the log, with a way to retry.
       if (dictated) setFailed({ text: dictated, message });
       else setError(message);
+      toast.error(dictated ? "Not added to the report. Try again." : message);
     } finally {
       setWriting(null);
       setBusy(false);
@@ -436,7 +482,9 @@ export function ReportWorkspace({
   // True when the microphone is on but no voice has been heard for a few seconds.
   const [quiet, setQuiet] = useState(false);
 
-  const floating = useFloatingWindow();
+  // The floating window comes up only when the doctor leaves this tab while
+  // the microphone is on, and goes away when they come back.
+  const floating = useFloatingWindow(floatingBox && dictation.recording);
 
   function toggleMic() {
     setQuiet(false);
@@ -444,10 +492,6 @@ export function ReportWorkspace({
       if (lineVoice.live) lineVoice.stop();
       if (editorVoice.live) editorVoice.stop();
       listener.current = spokenStream();
-      // The floating window comes up by itself with the first words, so the
-      // doctor can go straight to PACS. A browser only allows a window to be
-      // opened from a click or key press, and this is one.
-      if (floatingBox && floating.supported && !floating.win) floating.open();
       dictation.start();
       return;
     }
@@ -459,6 +503,26 @@ export function ReportWorkspace({
         return draftRef.current;
       }),
     );
+  }
+
+  // After 5 seconds with no voice the microphone switches off by itself and
+  // goes back to Start. What was said stays in the box as a draft: nothing is
+  // sent to the report until the doctor presses Enter or the send button.
+  function pauseMic() {
+    if (!dictation.recording) return;
+    dictation
+      .stop()
+      .then(() => {
+        apply(listener.current.flush());
+        if (draftRef.current.trim()) {
+          toast.warning("Paused after 5 seconds of silence. Press Enter or Send when ready.");
+        }
+      })
+      .catch(() => {});
+  }
+  function onSilence(silent: boolean) {
+    setQuiet(silent);
+    if (silent) pauseMic();
   }
 
   // Keyboard shortcuts. The handlers are read through a ref so the listener
@@ -699,30 +763,61 @@ export function ReportWorkspace({
   // The new design's message box sizes itself, so it has its own ref.
   const messageRef = useRef<HTMLTextAreaElement>(null);
   const remaining = credits.limit === null ? null : Math.max(0, credits.limit - credits.used);
-  const [panelOpen, setPanelOpen] = useState(true);
+  // The account menu shows this count; keep it in step as updates are used.
+  useEffect(() => setUpdatesLeft(remaining), [remaining]);
+  // Full screen: the report alone in the middle, the menu hidden, and the AI
+  // Assistant shrunk to a floating box that can be made bigger.
+  const [fullScreen, setFullScreen] = useState(false);
+  const [assistantBig, setAssistantBig] = useState(false);
+  function toggleFullScreen() {
+    const next = !fullScreen;
+    setFullScreen(next);
+    setAssistantBig(false);
+    // The browser's own full screen too, where it is allowed; the layout works without it.
+    if (next && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+    if (!next && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  }
+  useEffect(() => {
+    const root = document.documentElement;
+    if (fullScreen) root.dataset.reportFocus = "";
+    else delete root.dataset.reportFocus;
+    // Leaving the browser's full screen with Escape leaves this one too.
+    const left = () => !document.fullscreenElement && setFullScreen(false);
+    document.addEventListener("fullscreenchange", left);
+    return () => {
+      document.removeEventListener("fullscreenchange", left);
+      delete root.dataset.reportFocus;
+    };
+  }, [fullScreen]);
   const timeOf = (iso: string) =>
     new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
   // Both halves are the same kind of object: a white card on the grey canvas.
   const CARD =
     "flex min-h-0 flex-col overflow-clip rounded-[28px] border border-line bg-surface shadow-[0_1px_2px_rgb(10_13_12/0.05),0_22px_60px_-34px_rgb(10_13_12/0.4)]";
+  // Round icon tools with no outline; a soft grey circle shows on hover.
+  const TOOL =
+    "grid h-11 w-11 shrink-0 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.07] disabled:opacity-40";
   const ICON_BUTTON =
-    "grid h-11 w-11 shrink-0 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.08] disabled:opacity-40";
+    "grid h-10 w-10 shrink-0 place-items-center rounded-full text-ink-soft transition-colors hover:bg-ink/[0.06] hover:text-ink disabled:opacity-40";
 
   if (future) {
     return (
       <main className="flex min-w-0 flex-1 flex-col gap-4 p-3 sm:p-4 lg:h-[100dvh] lg:flex-none lg:flex-row lg:overflow-clip">
         {/* The report. */}
-        <section aria-label="Report" className={`${CARD} order-2 min-h-[70dvh] min-w-0 flex-1 lg:order-1 lg:min-h-0`}>
+        <section
+          aria-label="Report"
+          className={`${CARD} order-2 min-h-[70dvh] min-w-0 flex-1 lg:order-1 lg:min-h-0 ${fullScreen ? "lg:mx-auto lg:max-w-[72rem]" : ""}`}
+        >
           {/* One calm row: the case on the left, actions on the right, each group
               in its own space. Labels give way to icons when the card is narrow. */}
           <header className="@container shrink-0 border-b border-line px-4 py-2.5">
             <div className="flex items-center gap-3">
               <div className="flex min-w-0 items-center gap-1.5">
                 <TemplatePicker
-                  templates={templates}
-                  value={template.id}
-                  onChange={(id) => newCase(templates.find((item) => item.id === id))}
-                  className="w-[11rem] @[60rem]:w-[15rem]"
+                  current={template}
+                  onPick={pickTemplate}
+                  // Reads as the report's title: a quiet dropdown, not a boxed field.
+                  className="w-auto max-w-[13rem] !border-transparent !pl-3 !text-[1.02rem] !font-bold hover:!bg-ink/[0.05] data-[popup-open]:!bg-ink/[0.06] @[60rem]:max-w-[18rem]"
                 />
                 <button
                   type="button"
@@ -755,105 +850,61 @@ export function ReportWorkspace({
               </div>
 
               <div className="ml-auto flex shrink-0 items-center gap-2">
-                {/* Speaking without the dictation panel, with its shortcut shown. */}
+                {/* Speaking is in the AI Assistant; its shortcut works from anywhere. */}
+
+                {/* Round icon tools in groups, laid out like the template editor's header:
+                    file (save, print) · sign-off (finalize, copy) · view (full screen). */}
                 <button
                   type="button"
-                  onClick={toggleMic}
-                  disabled={busy || dictation.starting}
-                  title={`${dictation.recording ? "Stop and write report" : "Start speaking"} (${shortcuts.dictate.replace(/\+/g, " + ")})`}
-                  aria-label={dictation.recording ? "Stop and write report" : "Start speaking"}
-                  aria-keyshortcuts={shortcuts.dictate}
-                  className={`inline-flex h-11 items-center gap-2 rounded-full pl-3 pr-2 text-[0.95rem] font-bold transition-colors disabled:cursor-progress ${
-                    dictation.recording ? "bg-flag text-white hover:bg-flag/90" : "bg-ink/[0.06] text-ink hover:bg-ink/[0.1]"
-                  }`}
+                  onClick={() => save()}
+                  disabled={saving || busy || (savedId !== null && !dirty)}
+                  aria-label="Save"
+                  title={`Save (${shortcuts.save.replace(/\+/g, " + ")})`}
+                  className={TOOL}
                 >
-                  {dictation.recording ? (
-                    <Stop weight="fill" className="h-5 w-5" />
-                  ) : (
-                    <Microphone weight="fill" className="h-5 w-5" />
-                  )}
-                  <kbd
-                    className={`rounded-md px-1.5 py-0.5 font-[inherit] text-[0.78rem] font-bold ${
-                      dictation.recording ? "bg-white/20" : "bg-surface shadow-[inset_0_0_0_1px_rgb(6_17_15/0.18)]"
-                    }`}
-                  >
-                    {shortcuts.dictate.replace(/\+/g, " ")}
-                  </kbd>
+                  {saving ? <Spinner /> : <FloppyDisk weight="bold" className="h-5 w-5" />}
                 </button>
-
-                {/* Small tools together: credits, save, print. */}
-                <div className="flex h-11 items-center rounded-full border border-ink/20 px-1">
-                  <span
-                    title={
-                      remaining === null
-                        ? "Pilot: no daily limit on report updates"
-                        : `${remaining} report updates left today`
-                    }
-                    className={`inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-[0.92rem] font-bold tabular-nums ${
-                      remaining !== null && remaining <= 10 ? "bg-amber/20 text-amber-deep" : "text-ink"
-                    }`}
-                  >
-                    <ChatCircle weight="bold" className="h-[1.1rem] w-[1.1rem]" />
-                    {remaining === null ? "∞" : remaining}
-                    <span className="sr-only">report updates left today</span>
-                  </span>
-                  <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-ink/15" />
-                  <button
-                    type="button"
-                    onClick={() => save()}
-                    disabled={saving || busy || (savedId !== null && !dirty)}
-                    aria-label="Save"
-                    title={`Save (${shortcuts.save.replace(/\+/g, " + ")})`}
-                    className="grid h-9 w-9 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.08] disabled:opacity-35"
-                  >
-                    {saving ? <Spinner /> : <FloppyDisk weight="bold" className="h-5 w-5" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={print}
-                    disabled={busy}
-                    aria-label="Print or PDF"
-                    title={`Print or PDF (${shortcuts.print.replace(/\+/g, " + ")})`}
-                    className="grid h-9 w-9 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.08] disabled:opacity-35"
-                  >
-                    <Printer weight="bold" className="h-5 w-5" />
-                  </button>
-                </div>
-
+                <button
+                  type="button"
+                  onClick={print}
+                  disabled={busy}
+                  aria-label="Print or PDF"
+                  title={`Print or PDF (${shortcuts.print.replace(/\+/g, " + ")})`}
+                  className={TOOL}
+                >
+                  <Printer weight="bold" className="h-5 w-5" />
+                </button>
+                <span aria-hidden="true" className="mx-1 h-7 w-px bg-ink/20" />
                 <button
                   type="button"
                   onClick={finalize}
                   disabled={saving || busy}
-                  aria-label="Finalize"
+                  aria-label={finalizedAt && !dirty ? "Finalized" : "Finalize"}
                   title="Finalize: save as final and see it as it prints"
-                  className="inline-flex h-11 items-center gap-2 rounded-full border border-ink/25 px-3 text-[0.95rem] font-bold text-ink transition-colors hover:border-ink/50 hover:bg-ink/[0.04] disabled:opacity-50 @[56rem]:px-4"
+                  className={TOOL}
                 >
                   <SealCheck weight={finalizedAt && !dirty ? "fill" : "bold"} className="h-5 w-5" />
-                  <span className="hidden @[56rem]:inline">{finalizedAt && !dirty ? "Finalized" : "Finalize"}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => copy(report)}
                   disabled={busy}
+                  aria-label="Copy report"
                   title={`Copy report (${shortcuts.copy.replace(/\+/g, " + ")})`}
-                  className="inline-flex h-11 items-center gap-2 rounded-full bg-teal px-5 text-[0.95rem] font-bold whitespace-nowrap text-white transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+                  className={TOOL}
                 >
-                  {copyState === "copied" ? (
-                    <CheckCircle weight="fill" className="h-5 w-5" />
-                  ) : (
-                    <Copy weight="bold" className="h-5 w-5" />
-                  )}
-                  {copyState === "copied" ? "Copied" : "Copy report"}
+                  <Copy weight="bold" className="h-5 w-5" />
                 </button>
+                <span aria-hidden="true" className="mx-1 hidden h-7 w-px bg-ink/20 lg:block" />
                 <button
                   type="button"
-                  onClick={() => setPanelOpen((open) => !open)}
-                  aria-pressed={panelOpen}
-                  aria-label={panelOpen ? "Hide dictation" : "Show dictation"}
-                  title={panelOpen ? "Hide dictation, for more room" : "Show dictation"}
-                  className={`${ICON_BUTTON} hidden lg:grid`}
+                  onClick={toggleFullScreen}
+                  aria-pressed={fullScreen}
+                  aria-label={fullScreen ? "Exit full screen" : "Full screen"}
+                  title={fullScreen ? "Exit full screen" : "Full screen: only the report, with the AI Assistant floating"}
+                  className={`${TOOL} hidden lg:grid`}
                 >
-                  <SidebarSimple weight={panelOpen ? "fill" : "regular"} className="h-5 w-5 -scale-x-100" />
+                  {fullScreen ? <CornersIn weight="bold" className="h-5 w-5" /> : <CornersOut weight="bold" className="h-5 w-5" />}
                 </button>
               </div>
             </div>
@@ -899,42 +950,54 @@ export function ReportWorkspace({
 
         {/* Dictation: a conversation. The doctor's words on the right, what
             LumenAI did with them on the left. */}
-        {/* Hidden, not removed, when folded away, so speaking keeps working. */}
+        {/* In full screen it floats in the corner, small until made bigger. */}
           <section
             ref={panelRef}
-            aria-label="Dictation"
-            className={`${CARD} order-1 w-full shrink-0 lg:order-2 lg:max-w-[26rem] xl:max-w-[27rem] ${
-              panelOpen ? "" : "lg:hidden"
+            aria-label="AI Assistant"
+            className={`${CARD} order-1 w-full shrink-0 lg:order-2 lg:max-w-[24.75rem] xl:max-w-[25.75rem] ${
+              fullScreen
+                ? `lg:fixed lg:bottom-5 lg:right-5 lg:z-40 lg:!shadow-[0_30px_80px_-24px_rgb(10_13_12/0.55)] ${
+                    assistantBig ? "lg:h-[min(46rem,calc(100dvh-6.75rem))]" : ""
+                  }`
+                : ""
             }`}
           >
             <header className="flex shrink-0 items-center justify-between border-b border-line px-5 py-3">
-              <h1 className="text-[1.25rem] font-bold tracking-[-0.02em]">Dictation</h1>
-              <p
-                role="status"
-                className={`inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-[0.9rem] font-bold ${
-                  status === "listening"
-                    ? "bg-flag text-white"
-                    : status === "ready"
-                      ? "bg-teal/[0.12] text-teal-deep"
-                      : "bg-amber/25 text-amber-deep"
-                }`}
-              >
-                <span
-                  aria-hidden="true"
-                  className={`h-2.5 w-2.5 rounded-full ${
-                    status === "listening" ? "animate-pulse bg-white" : status === "ready" ? "bg-teal" : "animate-pulse bg-amber"
-                  }`}
+              <h1 className="text-[1.25rem] font-bold tracking-[-0.02em]">AI Assistant</h1>
+              {/* The microphone button says what is happening, so this corner holds the panel's own actions. */}
+              <div className="flex items-center gap-1">
+                {fullScreen && (
+                  <button
+                    type="button"
+                    onClick={() => setAssistantBig((big) => !big)}
+                    aria-pressed={assistantBig}
+                    aria-label={assistantBig ? "Make smaller" : "Make bigger"}
+                    title={assistantBig ? "Make smaller" : "Make bigger"}
+                    className="hidden h-10 w-10 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.08] lg:grid"
+                  >
+                    {assistantBig ? (
+                      <ArrowsInSimple weight="bold" className="h-5 w-5" />
+                    ) : (
+                      <ArrowsOutSimple weight="bold" className="h-5 w-5" />
+                    )}
+                  </button>
+                )}
+                <AssistantMenu
+                  getDoc={() => editorRef.current?.getDoc()}
+                  suggestedName={`${template.name} copy`}
+                  canClear={log.length > 0}
+                  onClear={() => setLog([])}
                 />
-                {status === "listening" && "Listening"}
-                {status === "starting" && "Starting"}
-                {status === "writing" && "Writing report"}
-                {status === "ready" && "Ready"}
-              </p>
+              </div>
             </header>
 
             {floatingPortal}
 
-            <ol className="flex max-h-72 min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain bg-ink/[0.025] px-5 py-5 lg:max-h-none">
+            <ol
+              className={`flex max-h-72 min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain bg-ink/[0.025] px-5 py-5 lg:max-h-none ${
+                fullScreen && !assistantBig ? "lg:hidden" : ""
+              }`}
+            >
               {log.length === 0 && !writing && !failed && (
                 <li className="m-auto flex max-w-[18rem] flex-col items-center gap-2 py-6 text-center">
                   <span className="grid h-12 w-12 place-items-center rounded-full bg-teal/[0.12] text-teal-deep">
@@ -952,28 +1015,38 @@ export function ReportWorkspace({
                   <li key={entry.id} className="flex flex-col gap-2">
                     <p className="t-meta text-center">{timeOf(entry.at)}</p>
                     {/* What the doctor said. */}
-                    <p className="ml-9 self-end whitespace-pre-line rounded-[1.25rem] rounded-br-md bg-amber-tint px-4 py-3 text-[1.02rem] leading-snug text-ink shadow-[inset_0_0_0_1px_rgb(122_76_5/0.18)]">
-                      {entry.dictation}
+                    <p className="ml-9 self-end whitespace-pre-line rounded-[1.1rem] rounded-br-md bg-amber-tint px-3.5 py-2 text-[0.94rem] leading-snug text-ink shadow-[inset_0_0_0_1px_rgb(122_76_5/0.18)]">
+                      {exactWords === entry.id && entry.heard ? entry.heard : entry.dictation}
                     </p>
+                    {/* Tidied by the AI: corrections applied, false starts dropped. */}
+                    {entry.heard && (
+                      <button
+                        type="button"
+                        onClick={() => setExactWords((shown) => (shown === entry.id ? null : entry.id))}
+                        className="-mt-1 mr-1 self-end text-[0.82rem] font-semibold text-ink-soft underline decoration-ink/30 underline-offset-2 hover:text-ink"
+                      >
+                        {exactWords === entry.id
+                          ? "Show as meant"
+                          : `${entry.correctedLater ? "Corrected later" : "Tidied"} · Show exact words`}
+                      </button>
+                    )}
                     {/* What happened to the report. */}
-                    <div className="mr-9 flex items-start gap-2.5 self-start">
+                    {/* The AI's reply, marked with the assistant's sparkle. */}
+                    <div className="mr-9 flex items-start gap-2 self-start">
                       <span
-                        className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full text-white ${
-                          flagged ? "bg-flag" : entry.kind === "unchanged" ? "bg-ink/40" : "bg-teal"
+                        aria-hidden="true"
+                        className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full ${
+                          flagged ? "bg-flag/10 text-flag" : "bg-teal/[0.12] text-teal-deep"
                         }`}
                       >
-                        {flagged ? (
-                          <WarningCircle weight="fill" className="h-[1.1rem] w-[1.1rem]" />
-                        ) : (
-                          <CheckCircle weight="fill" className="h-[1.1rem] w-[1.1rem]" />
-                        )}
+                        <Sparkle weight="fill" className="h-4 w-4" />
                       </span>
                       <div
-                        className={`rounded-[1.25rem] rounded-tl-md border px-4 py-2.5 leading-snug ${
+                        className={`rounded-[1.1rem] rounded-tl-md border px-3.5 py-2 leading-snug ${
                           flagged ? "border-flag/50 bg-flag/[0.08]" : "border-line bg-surface"
                         }`}
                       >
-                        <p className={`text-[0.98rem] font-bold ${flagged ? "text-flag" : "text-ink"}`}>
+                        <p className={`text-[0.9rem] font-semibold ${flagged ? "text-flag" : "text-ink"}`}>
                           {flagged
                             ? `${flagged} ${flagged === 1 ? "line" : "lines"} to check`
                             : entry.kind === "created"
@@ -987,16 +1060,16 @@ export function ReportWorkspace({
                             type="button"
                             onClick={() => setOpenEntry(open ? null : entry.id)}
                             aria-expanded={open}
-                            className="flex items-center gap-1 text-[0.92rem] text-ink-soft hover:text-ink"
+                            className="flex items-center gap-1 text-[0.85rem] text-ink-soft hover:text-ink"
                           >
                             {entry.changes.length} {entry.changes.length === 1 ? "line" : "lines"} changed
                             <CaretDown weight="bold" className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
                           </button>
                         )}
-                        {open && (
-                          <ul className="mt-2 flex flex-col gap-1.5 border-t border-line pt-2">
+                        {open && entry.changes.length > 0 && (
+                          <ul className="mt-1.5 flex flex-col gap-1">
                             {entry.changes.map((change, index) => (
-                              <li key={index} className="text-[0.9rem] leading-snug">
+                              <li key={index} className="text-[0.85rem] leading-snug">
                                 <span className="font-bold">{tidyHeading(change.heading)}: </span>
                                 <span className={change.flagged ? "text-flag" : "text-ink-soft"}>{change.text}</span>
                               </li>
@@ -1011,24 +1084,29 @@ export function ReportWorkspace({
 
               {writing && (
                 <li className="flex flex-col gap-2">
-                  <p className="ml-9 self-end whitespace-pre-line rounded-[1.25rem] rounded-br-md bg-amber-tint px-4 py-3 text-[1.02rem] leading-snug text-ink">
+                  <p className="ml-9 self-end whitespace-pre-line rounded-[1.1rem] rounded-br-md bg-amber-tint px-3.5 py-2 text-[0.94rem] leading-snug text-ink">
                     {writing}
                   </p>
-                  <p className="mr-9 flex items-center gap-2 self-start rounded-[1.25rem] rounded-tl-md border border-line bg-surface px-4 py-2.5 font-semibold text-amber-deep">
-                    <CircleNotch weight="bold" className="h-5 w-5 animate-spin" />
-                    Writing into the report
-                  </p>
+                  <div className="mr-9 flex items-start gap-2 self-start">
+                    <span aria-hidden="true" className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-teal/[0.12] text-teal-deep">
+                      <Sparkle weight="fill" className="h-4 w-4 animate-pulse" />
+                    </span>
+                    <p className="flex items-center gap-2 rounded-[1.1rem] rounded-tl-md border border-line bg-surface px-3.5 py-2 text-[0.9rem] font-semibold text-ink-soft">
+                      <CircleNotch weight="bold" className="h-4 w-4 animate-spin" />
+                      Writing into the report
+                    </p>
+                  </div>
                 </li>
               )}
 
               {failed && (
                 <li role="alert" className="flex flex-col gap-2">
-                  <p className="ml-9 self-end whitespace-pre-line rounded-[1.25rem] rounded-br-md bg-amber-tint px-4 py-3 text-[1.02rem] leading-snug text-ink">
+                  <p className="ml-9 self-end whitespace-pre-line rounded-[1.1rem] rounded-br-md bg-amber-tint px-3.5 py-2 text-[0.94rem] leading-snug text-ink">
                     {failed.text}
                   </p>
-                  <div className="mr-9 self-start rounded-[1.25rem] rounded-tl-md border border-flag/50 bg-flag/[0.08] px-4 py-2.5">
-                    <p className="font-bold text-flag">Not added to the report</p>
-                    <p className="text-[0.92rem] text-flag">{failed.message}</p>
+                  <div className="mr-9 self-start rounded-[1.1rem] rounded-tl-md border border-flag/50 bg-flag/[0.08] px-3.5 py-2">
+                    <p className="text-[0.9rem] font-semibold text-flag">Not added to the report</p>
+                    <p className="text-[0.85rem] text-flag">{failed.message}</p>
                     <button
                       type="button"
                       onClick={() => send(Promise.resolve(failed.text))}
@@ -1044,14 +1122,6 @@ export function ReportWorkspace({
               <div ref={logEnd} />
             </ol>
 
-            <MacrosPanel
-              macros={macros}
-              onMacrosChange={setMacros}
-              onInsert={(text) => {
-                setDraft([draftRef.current.trim(), text].filter(Boolean).join(" "));
-                messageRef.current?.focus();
-              }}
-            />
 
             {/* One box to speak or type into, like a message box. */}
             <div className="flex shrink-0 flex-col gap-2.5 border-t border-line p-4">
@@ -1074,79 +1144,62 @@ export function ReportWorkspace({
                 </p>
               )}
 
+              {/* The message box. While listening its edge becomes a slowly turning colour line. */}
               <div
-                className={`rounded-[1.5rem] border-2 bg-surface p-2 transition-colors ${
-                  dictation.recording ? "border-flag" : "border-ink/25 focus-within:border-teal"
+                className={`rounded-[1.5rem] p-[2px] transition-colors ${
+                  status === "listening" ? "voice-ring" : "bg-ink/25 focus-within:bg-teal"
                 }`}
               >
-                <textarea
-                  ref={messageRef}
-                  value={shownWords}
-                  onChange={(event) => setDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      if (!busy && !dictation.recording && draft.trim()) send(Promise.resolve(draft));
-                    }
-                  }}
-                  readOnly={dictation.recording || dictation.starting}
-                  aria-label="What you said"
-                  placeholder="Speak your findings, or type them here"
-                  // The rounded box around it shows focus; the app-wide ring would draw a second box.
-                  style={{ outline: "none" }}
-                  // Grows with the words, up to a few lines, then scrolls.
-                  className="max-h-40 min-h-16 w-full resize-none bg-transparent px-3 pt-2 [field-sizing:content] text-[1.02rem] leading-relaxed text-ink outline-none placeholder:text-ink-quiet"
-                />
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={toggleMic}
-                    disabled={busy || dictation.starting}
-                    aria-label={dictation.recording ? "Stop and write report" : "Start speaking"}
-                    className={`relative inline-flex h-14 flex-1 items-center justify-center gap-3 overflow-hidden rounded-full text-[1.05rem] font-bold text-white transition-[background-color,transform] duration-150 active:scale-[0.98] disabled:cursor-progress ${
-                      status === "listening"
-                        ? "bg-flag hover:bg-flag/90"
-                        : status === "ready"
-                          ? "bg-btn text-btn-text hover:bg-teal-deep"
-                          : "bg-[#8a5a0c]"
-                    }`}
-                  >
-                    {status === "listening" && (
-                      <>
-                        <VoiceMeter readLevel={dictation.readLevel} onQuiet={setQuiet} />
-                        <span className="flex items-center gap-2">
-                          <Stop weight="fill" className="h-5 w-5" />
-                          Stop and write report
-                        </span>
-                      </>
-                    )}
-                    {status === "ready" && (
-                      <>
-                        <Microphone weight="fill" className="h-6 w-6" />
-                        Start speaking
-                      </>
-                    )}
-                    {(status === "starting" || status === "writing") && (
-                      <>
-                        <CircleNotch weight="bold" className="h-6 w-6 animate-spin" />
-                        {status === "starting" ? "Turning on the microphone" : "Writing the report"}
-                      </>
-                    )}
-                  </button>
-                  {/* Sends typed words. Speech is sent by the button beside it. */}
-                  {draft.trim() !== "" && !dictation.recording && (
-                    <button
-                      type="button"
-                      onClick={() => send(Promise.resolve(draft))}
-                      disabled={busy}
-                      aria-label="Update report from typed text"
-                      title="Update report from typed text"
-                      className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-teal text-white transition-[filter] hover:brightness-110 disabled:opacity-50"
-                    >
-                      <ArrowUp weight="bold" className="h-5 w-5" />
-                    </button>
-                  )}
+                <div className="rounded-[calc(1.5rem-2px)] bg-surface p-2">
+                  <textarea
+                    ref={messageRef}
+                    value={shownWords}
+                    onChange={(event) => setDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        if (!busy && !dictation.recording && draft.trim()) send(Promise.resolve(draft));
+                      }
+                    }}
+                    readOnly={dictation.recording || dictation.starting}
+                    aria-label="What you said"
+                    placeholder={
+                        status === "starting"
+                          ? "Please wait…"
+                          : status === "listening"
+                            ? "Talk now. Your words appear here."
+                            : "Speak your findings, or type them here"
+                      }
+                    // The rounded box around it shows focus; the app-wide ring would draw a second box.
+                    style={{ outline: "none" }}
+                    // Grows with the words, up to a few lines, then scrolls.
+                    className="max-h-40 min-h-16 w-full resize-none bg-transparent px-3 pt-2 [field-sizing:content] text-[1.02rem] leading-relaxed text-ink outline-none placeholder:text-ink-quiet"
+                  />
                 </div>
+              </div>
+
+              {/* Below the box, apart from its edge: speak on the left, send typed words on the right. */}
+              <div className="flex items-center gap-3">
+                <VoiceButton
+                  status={status}
+                  readLevel={dictation.readLevel}
+                  onQuiet={onSilence}
+                  onClick={toggleMic}
+                  disabled={busy || dictation.starting}
+                  keyShortcut={shortcuts.dictate}
+                  className="min-w-0 flex-1"
+                />
+                {/* Faded until something is typed. */}
+                <button
+                  type="button"
+                  onClick={() => send(Promise.resolve(draft))}
+                  disabled={busy || dictation.recording || dictation.starting || draft.trim() === ""}
+                  aria-label="Update report from typed text"
+                  title="Update report from typed text"
+                  className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-teal text-white transition-[opacity,filter] hover:brightness-110 disabled:cursor-default disabled:opacity-25 disabled:hover:brightness-100"
+                >
+                  <ArrowUp weight="bold" className="h-5 w-5" />
+                </button>
               </div>
 
               {heard ? (
@@ -1156,9 +1209,6 @@ export function ReportWorkspace({
                 </p>
               ) : status === "listening" ? (
                 <>
-                  <p role="status" className={`text-center text-[0.95rem] font-bold ${quiet ? "text-amber-deep" : "text-flag"}`}>
-                    {quiet ? "I cannot hear you. Speak closer to the microphone." : "Speak now. I am listening."}
-                  </p>
                   <p className="t-meta -mt-1 text-center">
                     Say “next line”, “full stop”, “comma”, “delete last macro” or “undo that”.
                   </p>
@@ -1181,11 +1231,7 @@ export function ReportWorkspace({
         <header className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-5 py-3 sm:px-8">
           <div className="flex items-center gap-2.5 text-[0.95rem] font-semibold">
             <span aria-hidden="true">Template</span>
-            <TemplatePicker
-              templates={templates}
-              value={template.id}
-              onChange={(id) => newCase(templates.find((item) => item.id === id))}
-            />
+            <TemplatePicker current={template} onPick={pickTemplate} />
           </div>
           <button
             type="button"
@@ -1250,26 +1296,10 @@ export function ReportWorkspace({
               {saving && <Spinner />}
               {saving ? "Saving" : "Save"}
             </button>
-            {copyState === "copied" ? (
-              <button
-                type="button"
-                onClick={() => copy(report)}
-                className={`${buttonClass.secondary} !border-teal !text-teal-deep`}
-              >
-                <CheckCircle weight="fill" className="h-5 w-5" />
-                Copied. Press Ctrl+V
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => copy(report)}
-                disabled={busy}
-                className={buttonClass.secondary}
-              >
-                <Copy weight="bold" className="h-5 w-5" />
-                Copy report
-              </button>
-            )}
+            <button type="button" onClick={() => copy(report)} disabled={busy} className={buttonClass.secondary}>
+              <Copy weight="bold" className="h-5 w-5" />
+              Copy report
+            </button>
             {/* The last step of every report: saves it as final and shows it as it prints. */}
             <button
               type="button"
@@ -1380,11 +1410,11 @@ export function ReportWorkspace({
       {/* Dictation: always in view on a laptop screen, beside the report. */}
       <aside
         ref={panelRef}
-        aria-label="Dictation"
+        aria-label="AI Assistant"
         className="order-1 flex shrink-0 flex-col border-b border-line bg-surface lg:order-2 lg:h-full lg:w-[25rem] lg:border-b-0 lg:border-l xl:w-[27rem]"
       >
         <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-3 lg:h-[4.25rem]">
-          <h2 className="text-[1.2rem] font-semibold tracking-[-0.02em]">Dictation</h2>
+          <h2 className="text-[1.2rem] font-semibold tracking-[-0.02em]">AI Assistant</h2>
           <p
             role="status"
             className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[0.9rem] font-bold ${
@@ -1590,14 +1620,6 @@ export function ReportWorkspace({
           )}
         </div>
 
-        <MacrosPanel
-          macros={macros}
-          onMacrosChange={setMacros}
-          onInsert={(text) => {
-            setDraft([draftRef.current.trim(), text].filter(Boolean).join(" "));
-            boxRef.current?.focus();
-          }}
-        />
 
         {/* Drag up or down to give the dictation box more or less room. */}
         <div
@@ -1701,41 +1723,15 @@ export function ReportWorkspace({
             </p>
           )}
 
-          <button
-            type="button"
+          <VoiceButton
+            status={status}
+            readLevel={dictation.readLevel}
+            onQuiet={onSilence}
             onClick={toggleMic}
             disabled={busy || dictation.starting}
-            aria-label={dictation.recording ? "Stop and write report" : "Start speaking"}
-            className={`relative flex h-16 items-center justify-center gap-3.5 overflow-hidden rounded-full text-[1.1rem] font-bold text-white transition-[background-color,transform,box-shadow] duration-200 active:scale-[0.97] disabled:cursor-progress ${
-              status === "listening"
-                ? "bg-flag shadow-[0_0_0_6px_color-mix(in_srgb,var(--c-flag)_22%,transparent)] hover:bg-flag/90"
-                : status === "ready"
-                  ? "bg-teal hover:brightness-110"
-                  : "bg-[#8a5a0c]"
-            }`}
-          >
-            {status === "listening" && (
-              <>
-                <VoiceMeter readLevel={dictation.readLevel} onQuiet={setQuiet} />
-                <span className="flex items-center gap-2">
-                  <Stop weight="fill" className="h-5 w-5" />
-                  Stop and write report
-                </span>
-              </>
-            )}
-            {status === "ready" && (
-              <>
-                <Microphone weight="fill" className="h-6 w-6" />
-                Start speaking
-              </>
-            )}
-            {(status === "starting" || status === "writing") && (
-              <>
-                <CircleNotch weight="bold" className="h-6 w-6 animate-spin" />
-                {status === "starting" ? "Turning on the microphone" : "Writing the report"}
-              </>
-            )}
-          </button>
+            keyShortcut={shortcuts.dictate}
+            className="w-full"
+          />
 
           {/* Only for typed words. Speech is sent by the button above, so this
               stays out of the way until there is something typed to send. */}

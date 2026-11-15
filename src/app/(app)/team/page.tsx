@@ -1,4 +1,11 @@
-import { FilterList } from "@/components/app/Search";
+import { PagedList } from "@/components/app/PagedList";
+import {
+  HeadTick,
+  ListMenu,
+  RowTick,
+  Selectable,
+  SelectionBar,
+} from "@/components/app/Selection";
 import {
   ConfirmAction,
   InviteButton,
@@ -23,6 +30,7 @@ import {
 } from "@/components/app/ui";
 import { requireUser, type Role } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import { likePattern, offsetOf, readListParams } from "@/lib/listQuery";
 import {
   ROLE_LABELS,
   assignableRoles,
@@ -35,7 +43,7 @@ export const instant = false;
 
 export const metadata = { title: "Team · LumenAI" };
 
-export default async function TeamPage() {
+export default async function TeamPage({ searchParams }: PageProps<"/team">) {
   const user = await requireUser();
   if (!user.org) {
     return (
@@ -50,24 +58,43 @@ export default async function TeamPage() {
     );
   }
 
+  const params = readListParams(await searchParams, {
+    sorts: ["role"],
+    sort: "role",
+    dir: "asc",
+  });
+  const like = likePattern(params.q);
   const sql = db();
+  // Only the page of people asked for is read.
   const [members, invites] = await Promise.all([
     sql`
-      select u.id, u.name, u.email, u.last_login_at, m.role
+      select u.id, u.name, u.email, u.last_login_at, m.role, count(*) over () as total
       from memberships m join users u on u.id = m.user_id
       where m.org_id = ${user.org.id}
-      order by array_position(array['owner', 'admin', 'radiologist'], m.role), u.name
+        and (${params.q} = '' or u.name ilike ${like} or u.email ilike ${like} or m.role ilike ${like})
+      order by array_position(array['owner', 'admin', 'radiologist'], m.role), u.name, u.id
+      limit ${params.size} offset ${offsetOf(params)}
     `,
     sql`
       select id, email, role, expires_at from invites
       where org_id = ${user.org.id} and accepted_at is null and expires_at > now()
       order by created_at desc
+      limit 20
     `,
   ]);
 
   const actor = { id: user.id, role: user.org.role };
   const roles = assignableRoles(user.org.role);
   const manages = canManageTeam(user.org.role);
+  // People on this page whom the signed-in person may remove.
+  const removable = members
+    .filter((member) =>
+      canManageMember(actor, {
+        id: member.id as string,
+        role: member.role as Role,
+      }),
+    )
+    .map((member) => member.id as string);
 
   return (
     <Page>
@@ -78,32 +105,48 @@ export default async function TeamPage() {
       />
 
       <section aria-label="Members">
-        <FilterList
-          placeholder="Search people"
-          noun="people"
-          single="person"
-          listClassName={`${PANEL} overflow-hidden`}
-          head={
-            <div aria-hidden="true" className={`${LIST_HEAD} gap-x-4 lg:flex`}>
-              <span className="flex-1">Person</span>
-              <span className="w-52">Last sign-in</span>
-              <span className="w-56 text-right">Role</span>
-            </div>
-          }
-          items={members.map((member) => {
-            const target = {
-              id: member.id as string,
-              role: member.role as Role,
-            };
-            const manageable = canManageMember(actor, target);
-            return {
-              key: target.id,
-              text: `${member.name} ${member.email} ${ROLE_LABELS[target.role]}`,
-              node: (
+        <Selectable>
+          <PagedList
+            path="/team"
+            params={params}
+            total={Number(members[0]?.total ?? 0)}
+            placeholder="Search people"
+            noun="people"
+            single="person"
+            filters={removable.length > 0 ? <ListMenu /> : undefined}
+            bar={
+              <SelectionBar
+                noun="people"
+                single="person"
+                deleteBase="/api/team/members/"
+                warning="Their accounts are deleted and they are signed out everywhere. You can invite them again later."
+              />
+            }
+            head={
+              <div className={`${LIST_HEAD} gap-x-4 lg:flex`}>
+                <span className="flex flex-1 items-center gap-3">
+                  <HeadTick ids={removable} />
+                  Person
+                </span>
+                <span className="w-52">Last sign-in</span>
+                <span className="w-56 text-right">Role</span>
+              </div>
+            }
+          >
+            {members.map((member) => {
+              const target = {
+                id: member.id as string,
+                role: member.role as Role,
+              };
+              const manageable = canManageMember(actor, target);
+              return (
                 <li
                   key={member.id}
                   className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-line px-6 py-4 first:border-t-0"
                 >
+                  {manageable && (
+                    <RowTick id={target.id} label={member.name as string} />
+                  )}
                   <Avatar name={member.name as string} />
                   <div className="min-w-0 flex-1 basis-56">
                     <p className="flex items-center gap-2 text-[1.05rem] font-semibold">
@@ -115,7 +158,9 @@ export default async function TeamPage() {
                     </p>
                   </div>
                   <span className="w-52 text-[0.95rem] font-semibold">
-                    <span className="mr-1.5 text-ink-soft lg:hidden">Last sign-in</span>
+                    <span className="mr-1.5 text-ink-soft lg:hidden">
+                      Last sign-in
+                    </span>
                     {formatDate(member.last_login_at)}
                   </span>
                   <div className="flex w-56 items-center justify-end gap-1">
@@ -123,6 +168,7 @@ export default async function TeamPage() {
                       <>
                         <RoleSelect
                           memberId={target.id}
+                          memberName={member.name as string}
                           role={target.role}
                           roles={roles}
                         />
@@ -131,6 +177,7 @@ export default async function TeamPage() {
                           title={`Remove ${member.name}?`}
                           body="Their account is deleted and they are signed out everywhere. You can invite them again later."
                           confirmLabel="Remove"
+                          doneMessage={`${member.name} removed from the team`}
                           path={`/api/team/members/${target.id}`}
                         />
                       </>
@@ -143,10 +190,10 @@ export default async function TeamPage() {
                     )}
                   </div>
                 </li>
-              ),
-            };
-          })}
-        />
+              );
+            })}
+          </PagedList>
+        </Selectable>
       </section>
 
       {manages && (
@@ -190,6 +237,7 @@ export default async function TeamPage() {
                     title="Cancel this invitation?"
                     body={`The link sent to ${invite.email} will stop working.`}
                     confirmLabel="Cancel invitation"
+                    doneMessage="Invitation cancelled"
                     path={`/api/team/invites/${invite.id}`}
                   />
                 </li>

@@ -23,7 +23,12 @@ export function parseModality(value: unknown): Modality | null {
   return MODALITIES.find((modality) => modality === value) ?? null;
 }
 
-type Block = { text: string; heading: boolean; centered: boolean; bold: boolean };
+type Block = {
+  text: string;
+  heading: boolean;
+  centered: boolean;
+  bold: boolean;
+};
 
 const IMPRESSION = /^(impression|conclusion|opinion|summary)$/i;
 // Report parts that are often written on one line with their text, as in
@@ -34,7 +39,9 @@ const PART =
 const INLINE = /^([^:.]{2,60}):\s*(.*)$/;
 
 const plain = (node: DocNode): string =>
-  node.type === "hardBreak" ? "\n" : node.text ?? (node.content ?? []).map(plain).join("");
+  node.type === "hardBreak"
+    ? "\n"
+    : (node.text ?? (node.content ?? []).map(plain).join(""));
 
 /** The inline content between two character positions, keeping its formatting. */
 function slice(content: DocNode[], from: number, to = Infinity): DocNode[] {
@@ -45,7 +52,8 @@ function slice(content: DocNode[], from: number, to = Infinity): DocNode[] {
     const start = Math.max(from, at);
     const end = Math.min(to, at + length);
     if (end > start) {
-      if (child.type === "text") out.push({ ...child, text: child.text!.slice(start - at, end - at) });
+      if (child.type === "text")
+        out.push({ ...child, text: child.text!.slice(start - at, end - at) });
       else if (start === at && end === at + length) out.push(child);
     }
     at += length;
@@ -60,7 +68,12 @@ function slice(content: DocNode[], from: number, to = Infinity): DocNode[] {
  */
 function normalise(node: DocNode): DocNode[] {
   if (node.type !== "paragraph" && node.type !== "heading") {
-    return [{ ...node, ...(node.content ? { content: node.content.flatMap(normalise) } : {}) }];
+    return [
+      {
+        ...node,
+        ...(node.content ? { content: node.content.flatMap(normalise) } : {}),
+      },
+    ];
   }
   const content = node.content ?? [];
   const full = content.map(plain).join("");
@@ -70,7 +83,9 @@ function normalise(node: DocNode): DocNode[] {
     return edges.slice(1).flatMap((end, index) =>
       normalise({
         ...node,
-        content: slice(content, edges[index] + 1, end).filter((child) => child.type !== "hardBreak"),
+        content: slice(content, edges[index] + 1, end).filter(
+          (child) => child.type !== "hardBreak",
+        ),
       }),
     );
   }
@@ -79,37 +94,70 @@ function normalise(node: DocNode): DocNode[] {
     const restAt = full.length - inline[2].length;
     return [
       { ...node, content: slice(content, 0, inline[1].length + 1) },
-      { ...node, type: "paragraph", attrs: { ...node.attrs, level: undefined }, content: slice(content, restAt) },
+      {
+        ...node,
+        type: "paragraph",
+        attrs: { ...node.attrs, level: undefined },
+        content: slice(content, restAt),
+      },
     ];
   }
   return [node];
 }
 
 function blockOf(node: DocNode): Block {
-  const texts = (node.content ?? []).filter((child) => (child.text ?? "").trim());
+  const texts = (node.content ?? []).filter((child) =>
+    (child.text ?? "").trim(),
+  );
   return {
     text: (node.content ?? []).map(plain).join("").replace(/\s+/g, " ").trim(),
     heading: node.type === "heading",
     centered: node.attrs?.textAlign === "center",
-    bold: texts.length > 0 && texts.every((child) => (child.marks ?? []).some((mark) => mark.type === "bold")),
+    bold:
+      texts.length > 0 &&
+      texts.every((child) =>
+        (child.marks ?? []).some((mark) => mark.type === "bold"),
+      ),
   };
 }
 
 /** "FINDINGS:" on a line of its own, or a short bold line: a heading. */
 function headingOf(block: Block): string | null {
   const inline = block.text.match(INLINE);
-  if (inline && !inline[2].trim()) return inline[1].trim();
-  if ((block.heading || block.bold) && block.text.length <= 60 && !/[.]$/.test(block.text)) return block.text;
+  if (inline && !inline[2].trim()) {
+    const label = inline[1].trim();
+    // "FINDINGS:" is a heading; "Right kidney measures:" with its value to be
+    // dictated is a line. Report parts, capitals and bold make a heading.
+    const capitals = label === label.toUpperCase() && /\p{L}/u.test(label);
+    if (PART.test(label) || capitals || block.bold || block.heading)
+      return label;
+    return null;
+  }
+  if (
+    (block.heading || block.bold) &&
+    block.text.length <= 60 &&
+    !/[.]$/.test(block.text)
+  )
+    return block.text;
   return null;
 }
 
 // Line details the report editor keeps on paragraphs.
-const REPORT_ATTRS = ["lineId", "sectionId", "status", "source", "warnings", "role", "impression"];
+const REPORT_ATTRS = [
+  "lineId",
+  "sectionId",
+  "status",
+  "source",
+  "warnings",
+  "role",
+  "impression",
+];
 
 /** Every heading and paragraph, in reading order, including those in lists. */
 function paragraphs(node: DocNode, found: DocNode[] = []) {
   for (const child of node.content ?? []) {
-    if (child.type === "paragraph" || child.type === "heading") found.push(child);
+    if (child.type === "paragraph" || child.type === "heading")
+      found.push(child);
     else paragraphs(child, found);
   }
   return found;
@@ -139,42 +187,75 @@ export function readTemplate(
 ): { draft: TemplateDraft; reportDoc: DocNode } | string {
   const doc = { ...source, content: (source.content ?? []).flatMap(normalise) };
   const nodes = paragraphs(doc);
-  const roles = new Map<DocNode, Role>();
-
+  // Headings found to have nothing under them, read again as plain lines.
+  const asLine = new Set<DocNode>();
+  let roles = new Map<DocNode, Role>();
   let title = "";
-  const sections: Section[] = [];
+  let sections: Section[] = [];
 
-  nodes.forEach((node) => {
-    const block = blockOf(node);
-    if (!block.text) return roles.set(node, { kind: "gap" });
-    const heading = headingOf(block);
-    const nothingYet = !title && sections.length === 0;
-    if (nothingYet && (block.centered || block.heading || block.bold) && !block.text.includes(":")) {
-      title = block.text;
-      return roles.set(node, { kind: "title" });
-    }
-    if (heading) {
-      const section = { heading: heading.toUpperCase(), lines: [] as string[] };
-      sections.push(section);
-      return roles.set(node, { kind: IMPRESSION.test(heading) ? "impression-heading" : "heading", section });
-    }
-    let current = sections.at(-1);
-    if (!current && !title && !block.text.includes(":")) {
-      title = block.text;
-      return roles.set(node, { kind: "title" });
-    }
-    if (!current) {
-      current = { heading: "FINDINGS", lines: [] };
-      sections.push(current);
-    }
-    current.lines.push(block.text);
-    roles.set(node, { kind: "line", section: current, index: current.lines.length - 1 });
-  });
+  const read = () => {
+    roles = new Map();
+    title = "";
+    sections = [];
+    nodes.forEach((node) => {
+      const block = blockOf(node);
+      if (!block.text) return roles.set(node, { kind: "gap" });
+      const heading = asLine.has(node) ? null : headingOf(block);
+      const nothingYet = !title && sections.length === 0;
+      if (
+        nothingYet &&
+        (block.centered || block.heading || block.bold) &&
+        !block.text.includes(":")
+      ) {
+        title = block.text;
+        return roles.set(node, { kind: "title" });
+      }
+      if (heading) {
+        const section = {
+          heading: heading.toUpperCase(),
+          lines: [] as string[],
+        };
+        sections.push(section);
+        return roles.set(node, {
+          kind: IMPRESSION.test(heading) ? "impression-heading" : "heading",
+          section,
+        });
+      }
+      let current = sections.at(-1);
+      if (!current && !title && !block.text.includes(":")) {
+        title = block.text;
+        return roles.set(node, { kind: "title" });
+      }
+      if (!current) {
+        current = { heading: "FINDINGS", lines: [] };
+        sections.push(current);
+      }
+      current.lines.push(block.text);
+      roles.set(node, {
+        kind: "line",
+        section: current,
+        index: current.lines.length - 1,
+      });
+    });
+  };
 
-  if (nodes.every((node) => roles.get(node)?.kind === "gap")) return "Write or paste the template first.";
-  const impression = sections.find((section) => IMPRESSION.test(section.heading));
+  read();
+  // A heading with no lines under it, such as a bold "Right kidney measures:"
+  // followed by another heading, is a line to fill in, not a section.
+  for (const [node, role] of roles) {
+    if (role.kind === "heading" && role.section.lines.length === 0)
+      asLine.add(node);
+  }
+  if (asLine.size > 0) read();
+
+  if (nodes.every((node) => roles.get(node)?.kind === "gap"))
+    return "Write or paste the template first.";
+  const impression = sections.find((section) =>
+    IMPRESSION.test(section.heading),
+  );
   const body = sections.filter((section) => section !== impression);
-  if (body.length === 0) return "Add at least one section, such as FINDINGS: with its normal lines under it.";
+  if (body.length === 0)
+    return "Add at least one section, such as FINDINGS: with its normal lines under it.";
   const empty = body.find((section) => section.lines.length === 0);
   if (empty) return `Add the normal wording under ${empty.heading}:.`;
   if (!impression || impression.lines.length === 0) {
@@ -193,9 +274,11 @@ export function readTemplate(
     const attrs: Record<string, unknown> = { ...node.attrs };
     for (const key of REPORT_ATTRS) delete attrs[key];
     if (role?.kind === "title") attrs.role = "title";
-    else if (role?.kind === "heading") Object.assign(attrs, { role: "section", sectionId: idOf(role.section) });
+    else if (role?.kind === "heading")
+      Object.assign(attrs, { role: "section", sectionId: idOf(role.section) });
     else if (role?.kind === "impression-heading") attrs.role = "impression";
-    else if (role?.kind === "line" && role.section === impression) attrs.impression = true;
+    else if (role?.kind === "line" && role.section === impression)
+      attrs.impression = true;
     else if (role?.kind === "line") {
       const sectionId = idOf(role.section);
       Object.assign(attrs, {
@@ -210,7 +293,12 @@ export function readTemplate(
   };
 
   return {
-    draft: { name, title: title || name.toUpperCase(), sections: body, normalImpression: impression.lines },
+    draft: {
+      name,
+      title: title || name.toUpperCase(),
+      sections: body,
+      normalImpression: impression.lines,
+    },
     reportDoc: tag(doc),
   };
 }

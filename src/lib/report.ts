@@ -39,7 +39,12 @@ export type LogEntry = {
   at: string;
   /** "unchanged": the words were heard but nothing in the report needed to change. */
   kind: "created" | "updated" | "unchanged";
+  /** What was said, as the doctor meant it: self-corrections applied, false starts dropped. */
   dictation: string;
+  /** The exact words heard, kept when they differ from the tidied version above. */
+  heard?: string;
+  /** True when a later dictation corrected this one and the tidied words were rewritten. */
+  correctedLater?: boolean;
   changes: { heading: string; text: string; flagged: boolean }[];
 };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { Spinner } from "@/components/Spinner";
+import { toast } from "@/components/Toast";
 import { Dialog } from "@base-ui/react/dialog";
 import { Check, Copy, Plus } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
@@ -42,8 +43,10 @@ export function InviteButton({ roles }: { roles: Role[] }) {
     setBusy(false);
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
+    toast.success("Invitation created. Copy the link and send it.");
     setLink(result.data?.link ?? "");
     router.refresh();
   }
@@ -137,32 +140,85 @@ export function InviteButton({ roles }: { roles: Role[] }) {
   );
 }
 
-export function RoleSelect({ memberId, role, roles }: { memberId: string; role: Role; roles: Role[] }) {
+export function RoleSelect({
+  memberId,
+  memberName,
+  role,
+  roles,
+}: {
+  memberId: string;
+  memberName: string;
+  role: Role;
+  roles: Role[];
+}) {
   const router = useRouter();
   const [value, setValue] = useState(role);
+  // The role picked but not yet confirmed.
+  const [pending, setPending] = useState<Role | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   async function change(next: Role) {
     setBusy(true);
+    setError("");
     const result = await send("PATCH", `/api/team/members/${memberId}`, { role: next });
     setBusy(false);
-    if (!result.error) setValue(next);
+    if (result.error) {
+      setError(result.error);
+      toast.error(result.error);
+      return;
+    }
+    toast.success(`${memberName} is now ${ROLE_LABELS[next].toLowerCase()}`);
+    setValue(next);
+    setPending(null);
     router.refresh();
   }
 
   return (
-    <Select
-      aria-label="Role"
-      value={value}
-      disabled={busy}
-      onChange={(event) => change(event.target.value as Role)}
-    >
-      {roles.map((option) => (
-        <option key={option} value={option}>
-          {ROLE_LABELS[option]}
-        </option>
-      ))}
-    </Select>
+    <>
+      <Select
+        aria-label="Role"
+        value={value}
+        disabled={busy}
+        onChange={(event) => setPending(event.target.value as Role)}
+      >
+        {roles.map((option) => (
+          <option key={option} value={option}>
+            {ROLE_LABELS[option]}
+          </option>
+        ))}
+      </Select>
+      <Dialog.Root open={pending !== null} onOpenChange={(open) => !open && !busy && (setPending(null), setError(""))}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className={BACKDROP} />
+          <Dialog.Popup className={POPUP}>
+            <Dialog.Title className="text-[1.3rem] font-semibold tracking-[-0.02em]">
+              Make {memberName} {pending ? ROLE_LABELS[pending].toLowerCase() : ""}?
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-ink-soft">
+              {pending === "radiologist"
+                ? "They will no longer be able to invite people or change the team."
+                : "They will be able to invite people and change the team."}
+            </Dialog.Description>
+            <div className="mt-4">
+              <FormError message={error} />
+            </div>
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => pending && change(pending)}
+                disabled={busy}
+                className={buttonClass.primary}
+              >
+                {busy && <Spinner />}
+                {busy ? "Changing" : "Change role"}
+              </button>
+              <Dialog.Close className={buttonClass.secondary}>Cancel</Dialog.Close>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </>
   );
 }
 
@@ -177,8 +233,22 @@ export function ConfirmAction({
   method = "DELETE",
   payload,
   tone = "danger",
+  icon,
+  triggerClassName = buttonClass.quiet,
+  onDone,
+  doneMessage,
+  doneTone = "success",
 }: {
   label: string;
+  /** Shown instead of the label on the button; the label is then its name for screen readers. */
+  icon?: React.ReactNode;
+  triggerClassName?: string;
+  /** Called after it succeeds, for screens that keep their own copy of the data. */
+  onDone?: () => void;
+  /** The toast shown when it worked, such as "Template deleted". */
+  doneMessage?: string;
+  /** Green for a plain success; orange when the result needs attention, such as turning an account off. */
+  doneTone?: "success" | "warning";
   title: string;
   body: string;
   confirmLabel: string;
@@ -200,16 +270,26 @@ export function ConfirmAction({
     setBusy(false);
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
     setOpen(false);
+    toast[doneTone](doneMessage ?? "Done");
+    onDone?.();
     if (redirectTo) router.push(redirectTo);
     router.refresh();
   }
 
   return (
     <Dialog.Root open={open} onOpenChange={(next) => (setOpen(next), setError(""))}>
-      <Dialog.Trigger type="button" className={buttonClass.quiet}>{label}</Dialog.Trigger>
+      <Dialog.Trigger
+        type="button"
+        className={triggerClassName}
+        aria-label={icon ? label : undefined}
+        title={icon ? label : undefined}
+      >
+        {icon ?? label}
+      </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop className={BACKDROP} />
         <Dialog.Popup className={POPUP}>

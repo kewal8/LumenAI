@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@/components/Toast";
 import { Dialog } from "@base-ui/react/dialog";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -19,6 +20,8 @@ export function PlanControl({ orgId, name, status }: { orgId: string; name: stri
   const [cycle, setCycle] = useState<Cycle>(status?.requestedCycle ?? status?.cycle ?? "monthly");
   const [busy, setBusy] = useState<"activate" | "end" | null>(null);
   const [error, setError] = useState("");
+  // Ending a plan locks the account's report screen, so it is asked about once more.
+  const [confirmEnd, setConfirmEnd] = useState(false);
 
   const state = status?.status ?? "pilot";
   const chosen = PLANS.find((item) => item.id === plan) ?? PLANS[0];
@@ -30,9 +33,13 @@ export function PlanControl({ orgId, name, status }: { orgId: string; name: stri
     setBusy(null);
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
+    if (action === "end") toast.warning(`Plan ended for ${name}`);
+    else toast.success(`Plan active for ${name}`);
     setOpen(false);
+    setConfirmEnd(false);
     router.refresh();
   }
 
@@ -125,11 +132,30 @@ export function PlanControl({ orgId, name, status }: { orgId: string; name: stri
                 {busy === "activate" ? "Activating" : "Payment received, activate"}
               </button>
               {state === "active" && (
-                <button type="button" onClick={() => submit("end")} disabled={busy !== null} className={buttonClass.danger}>
-                  {busy === "end" && <Spinner />}
+                <button type="button" onClick={() => setConfirmEnd(true)} disabled={busy !== null} className={buttonClass.danger}>
                   End plan now
                 </button>
               )}
+              <Dialog.Close className={buttonClass.secondary}>Cancel</Dialog.Close>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      <Dialog.Root open={confirmEnd} onOpenChange={(next) => busy === null && setConfirmEnd(next)}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className={BACKDROP} />
+          <Dialog.Popup className={POPUP}>
+            <Dialog.Title className="text-[1.3rem] font-semibold tracking-[-0.02em]">End the plan for {name}?</Dialog.Title>
+            <Dialog.Description className="mt-2 text-ink-soft">
+              Their report screen closes at once and stays closed until a plan is activated again. Saved reports
+              and templates are kept.
+            </Dialog.Description>
+            <div className="mt-6 flex gap-2">
+              <button type="button" onClick={() => submit("end")} disabled={busy !== null} className={buttonClass.danger}>
+                {busy === "end" && <Spinner />}
+                {busy === "end" ? "Ending" : "End plan"}
+              </button>
               <Dialog.Close className={buttonClass.secondary}>Cancel</Dialog.Close>
             </div>
           </Dialog.Popup>

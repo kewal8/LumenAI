@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { likePattern, offsetOf, type ListParams, type Paged } from "@/lib/listQuery";
 import { claudeCost, deepgramCost } from "@/lib/usage";
 
 // Day boundaries follow India time, where the doctors are.
@@ -169,19 +170,38 @@ export type AccountRow = {
   }[];
 };
 
-/** Every organisation with its people and its last 30 days of use. */
-export async function listAccounts(): Promise<AccountRow[]> {
+/**
+ * One page of organisations with their people and their last 30 days of use.
+ * The search finds an account by its name or by any of its people.
+ */
+export async function pageAccounts(params: ListParams): Promise<Paged<AccountRow>> {
   const sql = db();
-  const [orgs, members] = await Promise.all([
-    sql`
+  const like = likePattern(params.q);
+  const kind = params.filter.kind === "centre" || params.filter.kind === "solo" ? params.filter.kind : "";
+  const orgs = await sql`
       select o.id, o.name, o.kind, o.created_at,
              (select count(*)::int from usage_events e
                where e.org_id = o.id and e.purpose = 'report'
                  and e.created_at > now() - interval '30 days') as updates_30,
              (select coalesce(sum(seconds), 0)::int from usage_events e
-               where e.org_id = o.id and e.created_at > now() - interval '30 days') as seconds_30
-      from organizations o order by o.created_at desc
-    `,
+               where e.org_id = o.id and e.created_at > now() - interval '30 days') as seconds_30,
+             count(*) over () as total
+      from organizations o
+      where (${kind} = '' or o.kind = ${kind})
+        and (${params.q} = '' or o.name ilike ${like} or exists (
+          select 1 from memberships m join users u on u.id = m.user_id
+          where m.org_id = o.id and (u.name ilike ${like} or u.email ilike ${like} or coalesce(u.phone, '') ilike ${like})
+        ))
+      order by
+        case when ${params.sort} = 'name' and ${params.dir} = 'asc' then lower(o.name) end asc,
+        case when ${params.sort} = 'name' and ${params.dir} = 'desc' then lower(o.name) end desc,
+        case when ${params.sort} = 'created' and ${params.dir} = 'asc' then o.created_at end asc,
+        case when ${params.sort} = 'created' and ${params.dir} = 'desc' then o.created_at end desc,
+        o.id
+      limit ${params.size} offset ${offsetOf(params)}
+    `;
+  const ids = orgs.map((org) => org.id as string);
+  const [members] = await Promise.all([
     sql`
       select m.org_id, m.role, u.id, u.name, u.email, u.phone, u.is_platform_admin, u.disabled_at, u.last_login_at,
              (select count(*)::int from usage_events e
@@ -191,11 +211,12 @@ export async function listAccounts(): Promise<AccountRow[]> {
                where e.user_id = u.id and e.org_id = m.org_id
                  and e.created_at > now() - interval '30 days') as seconds_30
       from memberships m join users u on u.id = m.user_id
+      where m.org_id = any(${ids})
       order by array_position(array['owner', 'admin', 'radiologist'], m.role), u.name
     `,
   ]);
 
-  return orgs.map((org) => ({
+  const rows = orgs.map((org) => ({
     id: org.id,
     name: org.name,
     kind: org.kind,
@@ -216,7 +237,16 @@ export async function listAccounts(): Promise<AccountRow[]> {
         updates30: member.updates_30,
         seconds30: member.seconds_30,
       })),
-  }));
+  })) as AccountRow[];
+  return { rows, total: Number(orgs[0]?.total ?? 0) };
+}
+
+/** How many accounts and people there are in all, for the page header. */
+export async function accountTotals() {
+  const [row] = await db()`
+    select (select count(*)::int from organizations) as accounts, (select count(*)::int from memberships) as people
+  `;
+  return { accounts: row?.accounts ?? 0, people: row?.people ?? 0 };
 }
 
 export async function listPendingInvites() {
@@ -225,6 +255,7 @@ export async function listPendingInvites() {
     from invites i left join organizations o on o.id = i.org_id
     where i.accepted_at is null and i.expires_at > now()
     order by i.created_at desc
+    limit 20
   `;
   return rows.map((row) => ({
     id: row.id as string,

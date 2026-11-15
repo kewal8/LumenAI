@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Spinner } from "@/components/Spinner";
 import { expandMacros, removeLastMacro, type Macro } from "@/lib/macros";
 import { useDictation, type Word } from "@/lib/useDictation";
-import { COMMAND_LABELS, spokenStream, type SpokenPiece } from "@/lib/voiceCommands";
+import { COMMAND_LABELS, hasCorrection, resolveCorrections, spokenStream, type SpokenPiece } from "@/lib/voiceCommands";
 import { VoiceMeter } from "./VoiceMeter";
 
 const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
@@ -248,7 +248,19 @@ export function useLineVoice({ macros, onStart }: { macros: Macro[]; onStart?: (
 
       if (piece.kind === "text") {
         const next = insertWords(field.value, start, end, expandMacros(piece.text, macrosRef.current));
-        change(key, next.value, next.caret);
+        if (hasCorrection(piece.text)) {
+          // "18 cm… sorry, 15 cm": the correction replaces what it corrects in this line.
+          const corrected = resolveCorrections(next.value.slice(0, next.caret));
+          const rest = next.value.slice(next.caret);
+          change(key, corrected.text + (rest && !/^\s/.test(rest) ? " " : "") + rest, corrected.text.length);
+          tell(
+            corrected.changes.length
+              ? `Corrected: ${corrected.changes.join(", ")}`
+              : "Correction heard. Check this line.",
+          );
+        } else {
+          change(key, next.value, next.caret);
+        }
       } else if (piece.command === "newLine" || piece.command === "newParagraph") {
         const addLine = lineMakers.current.get(key);
         if (addLine) {
