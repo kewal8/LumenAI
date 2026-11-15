@@ -79,7 +79,7 @@ export function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-4 border-t border-line py-3 first:border-t-0 first:pt-0 last:pb-0">
       <dt className="text-[0.95rem] text-ink-soft">{label}</dt>
-      <dd className="text-[1.02rem] font-bold tabular-nums">{value}</dd>
+      <dd className="whitespace-nowrap text-[1.02rem] font-bold tabular-nums">{value}</dd>
     </div>
   );
 }

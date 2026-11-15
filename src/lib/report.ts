@@ -14,6 +14,8 @@ export type Template = {
   normalImpression: string[];
   /** The template's own page, tagged with these line ids. A new report starts from it. */
   doc?: unknown;
+  /** The study type it is for, such as CT; suggested for a new report's details. */
+  modality?: string | null;
 };
 
 export type ReportLine = {

@@ -22,6 +22,8 @@ export function recordClaudeUsage(
   purpose: "report" | "template",
   model: string,
   usage: ClaudeUsage,
+  /** How long the model took, in milliseconds. */
+  durationMs?: number,
 ) {
   const input =
     (usage.input_tokens ?? 0) +
@@ -29,8 +31,9 @@ export function recordClaudeUsage(
     (usage.cache_creation_input_tokens ?? 0);
   return record(
     () => db()`
-      insert into usage_events (user_id, org_id, provider, purpose, model, input_tokens, output_tokens)
-      values (${user.id}, ${user.org?.id ?? null}, 'claude', ${purpose}, ${model}, ${input}, ${usage.output_tokens ?? 0})
+      insert into usage_events (user_id, org_id, provider, purpose, model, input_tokens, output_tokens, duration_ms)
+      values (${user.id}, ${user.org?.id ?? null}, 'claude', ${purpose}, ${model}, ${input}, ${usage.output_tokens ?? 0},
+              ${durationMs === undefined ? null : Math.round(durationMs)})
     `,
   );
 }

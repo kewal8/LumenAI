@@ -63,7 +63,9 @@ import { ReportEditor, type ReportEditorHandle } from "./editor/ReportEditor";
 import { docToHtml, docToReport, docToText, reportToDoc, type DocNode } from "@/lib/reportDoc";
 import type { Credits } from "@/lib/workspace";
 import { setUpdatesLeft } from "@/lib/updatesLeft";
+import { EMPTY_PATIENT, ageSex, hasPatient, type Patient } from "@/lib/patient";
 import { AssistantMenu } from "./AssistantMenu";
+import { PatientDialog } from "./PatientDialog";
 import { VoiceButton } from "./VoiceButton";
 import { MICROPHONE_MESSAGES, useDictation, type Word } from "@/lib/useDictation";
 import { COMMAND_LABELS, appendSpoken, spokenStream, type SpokenPiece } from "@/lib/voiceCommands";
@@ -120,7 +122,7 @@ export function ReportWorkspace({
   /** The template a new report starts from. Others are fetched when picked. */
   template: Template;
   /** A saved report being reopened. Left out for a new report. */
-  saved?: { id: string; template: Template; report: Report; finalizedAt?: string | null };
+  saved?: { id: string; template: Template; report: Report; finalizedAt?: string | null; patient?: Patient | null };
 }) {
   const router = useRouter();
   // The page arrives without the signature and letterhead images; they are
@@ -139,6 +141,11 @@ export function ReportWorkspace({
   const [template, setTemplate] = useState(saved?.template ?? startTemplate);
   const [report, setReport] = useState(() => saved?.report ?? reportFromTemplate(startTemplate));
   const [savedId, setSavedId] = useState(saved?.id ?? null);
+  // Who the report is for. Asked for on the first save, and confirmed before finalizing.
+  const [patient, setPatient] = useState<Patient | null>(saved?.patient ?? null);
+  const [patientAsk, setPatientAsk] = useState<"save" | "finalize" | "edit" | null>(null);
+  // What to do once a save asked for from elsewhere (such as starting a new report) succeeds.
+  const afterSave = useRef<(() => void) | null>(null);
   // When the report was last finalized, and whether the finalized preview is open.
   const [finalizedAt, setFinalizedAt] = useState<string | null>(saved?.finalizedAt ?? null);
   const [showFinal, setShowFinal] = useState(false);
@@ -273,10 +280,10 @@ export function ReportWorkspace({
     section.lines.some((line) => line.status !== "normal"),
   );
 
-  async function save(finalize = false) {
+  async function save(finalize = false, details: Patient | null = patient) {
     setSaving(true);
     setError("");
-    const body = { template, report: { ...reportRef.current, log: logRef.current }, finalize };
+    const body = { template, report: { ...reportRef.current, log: logRef.current }, finalize, patient: details };
     const result = savedId
       ? await sendJson<{ id: string; finalizedAt: string | null }>("PATCH", `/api/reports/${savedId}`, body)
       : await sendJson<{ id: string; finalizedAt: string | null }>("POST", "/api/reports", body);
@@ -293,9 +300,45 @@ export function ReportWorkspace({
     return true;
   }
 
-  // The last step: saves the report as final, then shows it as it will print.
-  async function finalize() {
-    if (await save(true)) setShowFinal(true);
+  // Saving needs the patient's details: they are asked for the first time.
+  function requestSave(then?: () => void) {
+    afterSave.current = then ?? null;
+    if (hasPatient(patient)) {
+      void save().then((ok) => ok && then?.());
+    } else {
+      setPatientAsk("save");
+    }
+  }
+
+  // Finalizing is the end of the AI work, so it opens once the AI Assistant has
+  // updated this report (a reopened report with its history counts too).
+  const readyToFinalize = log.length > 0 || Boolean(finalizedAt);
+
+  // The last step: the details are confirmed, the report is saved as final and shown as it will print.
+  function finalize() {
+    afterSave.current = null;
+    setPatientAsk("finalize");
+  }
+
+  /** The details as the pop-up starts with them: what was given, or suggestions from the template. */
+  const patientDraft: Patient = patient ?? { ...EMPTY_PATIENT, study: template.name, modality: template.modality ?? null };
+
+  async function submitPatient(details: Patient) {
+    const purpose = patientAsk;
+    setPatient(details);
+    if (purpose === "edit") {
+      setPatientAsk(null);
+      // Counts as a change: saved with the next save, and not lost silently by starting a new report.
+      setDirty(true);
+      return;
+    }
+    const ok = await save(purpose === "finalize", details);
+    if (!ok) return;
+    setPatientAsk(null);
+    if (purpose === "finalize") setShowFinal(true);
+    const then = afterSave.current;
+    afterSave.current = null;
+    then?.();
   }
 
   function printHtml(from: ReportIdentity = identity) {
@@ -343,6 +386,8 @@ export function ReportWorkspace({
       return;
     }
     setSavedId(null);
+    setPatient(null);
+    setFinalizedAt(null);
     setDirty(false);
     setTemplate(next);
     setReport(reportFromTemplate(next));
@@ -553,7 +598,7 @@ export function ReportWorkspace({
     actions.current = {
       dictate: () => !busy && !dictation.starting && toggleMic(),
       copy: () => !busy && copy(report),
-      save: () => !busy && !saving && (savedId === null || dirty) && save(),
+      save: () => !busy && !saving && (savedId === null || dirty) && requestSave(),
       print: () => !busy && print(),
       new: () => !busy && newCase(),
     };
@@ -739,40 +784,55 @@ export function ReportWorkspace({
         onCopy={() => copy(report)}
       />
 
+      <PatientDialog
+        open={patientAsk !== null}
+        initial={patientDraft}
+        purpose={patientAsk ?? "save"}
+        busy={saving}
+        onCancel={() => {
+          afterSave.current = null;
+          setPatientAsk(null);
+        }}
+        onSubmit={submitPatient}
+      />
+
       <Dialog.Root open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
         <Dialog.Portal>
           <Dialog.Backdrop className="app-backdrop fixed inset-0 z-50 bg-[#06110f]/50" />
           <Dialog.Popup className="app-layer fixed left-1/2 top-1/2 z-50 w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/20 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(6_17_15/0.55)] outline-none sm:p-8">
             <Dialog.Title className="text-[1.4rem] font-semibold tracking-[-0.02em]">
-              Save this report?
+              Discard this draft?
             </Dialog.Title>
             <Dialog.Description className="mt-2 text-[1.02rem] leading-relaxed text-ink-soft">
               {savedId
-                ? "You changed this report after saving it. Save the changes before starting a new one?"
-                : "This report is not saved yet. Save it to Reports before starting a new one?"}
+                ? "You changed this report after saving it. Starting a new one loses those changes."
+                : "This draft is not saved. Starting a new report loses it."}
             </Dialog.Description>
             <div className="mt-6 flex flex-col gap-2.5">
               <button
                 type="button"
                 disabled={saving}
-                onClick={async () => {
-                  const next = pending;
-                  if (next && (await save())) startNew(next);
-                }}
-                className={`${buttonClass.primary} h-12`}
-              >
-                <FloppyDisk weight="bold" className="h-5 w-5" />
-                {saving && <Spinner />}
-                {saving ? "Saving" : "Save and start new report"}
-              </button>
-              <button
-                type="button"
                 onClick={() => pending && startNew(pending)}
                 className={`${buttonClass.danger} h-12`}
               >
-                Do not save
+                Discard draft
               </button>
-              <Dialog.Close className={`${buttonClass.quiet} h-12`}>Go back to this report</Dialog.Close>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => {
+                  const next = pending;
+                  if (!next) return;
+                  setPending(null);
+                  requestSave(() => startNew(next));
+                }}
+                className={`${buttonClass.secondary} h-12`}
+              >
+                <FloppyDisk weight="bold" className="h-5 w-5" />
+                {saving && <Spinner />}
+                {saving ? "Saving" : "Save first"}
+              </button>
+              <Dialog.Close className={`${buttonClass.quiet} h-12`}>Keep editing</Dialog.Close>
             </div>
           </Dialog.Popup>
         </Dialog.Portal>
@@ -816,7 +876,7 @@ export function ReportWorkspace({
     "flex min-h-0 flex-col overflow-clip rounded-[28px] border border-line bg-surface shadow-[0_1px_2px_rgb(10_13_12/0.05),0_22px_60px_-34px_rgb(10_13_12/0.4)]";
   // Round icon tools with no outline; a soft grey circle shows on hover.
   const TOOL =
-    "grid h-11 w-11 shrink-0 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.07] disabled:opacity-40";
+    "grid h-10 w-10 shrink-0 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.07] disabled:opacity-40";
   const ICON_BUTTON =
     "grid h-10 w-10 shrink-0 place-items-center rounded-full text-ink-soft transition-colors hover:bg-ink/[0.06] hover:text-ink disabled:opacity-40";
 
@@ -828,85 +888,75 @@ export function ReportWorkspace({
           aria-label="Report"
           className={`${CARD} order-2 min-h-[70dvh] min-w-0 flex-1 lg:order-1 lg:min-h-0 ${fullScreen ? "lg:mx-auto lg:max-w-[72rem]" : ""}`}
         >
-          {/* One calm row: the case on the left, actions on the right, each group
-              in its own space. Labels give way to icons when the card is narrow. */}
-          <header className="@container shrink-0 border-b border-line px-4 py-2.5">
+          {/* A draft document: who it is for on the left, with the template it
+              started from as a quiet detail; actions on the right in two groups,
+              output (print, copy) and keeping it (save, finalize). */}
+          <header className="@container shrink-0 border-b border-line px-4 py-2">
             <div className="flex items-center gap-3">
-              <div className="flex min-w-0 items-center gap-1.5">
-                <TemplatePicker
-                  current={template}
-                  onPick={pickTemplate}
-                  // Reads as the report's title: a quiet dropdown, not a boxed field.
-                  className="w-auto max-w-[13rem] !border-transparent !pl-3 !text-[1.02rem] !font-bold hover:!bg-ink/[0.05] data-[popup-open]:!bg-ink/[0.06] @[60rem]:max-w-[18rem]"
-                />
+              {/* New report first, then the document's label. */}
+              <div className="flex min-w-0 flex-1 items-center gap-2">
                 <Tip label="New report">
-                  <button
-                    type="button"
-                    onClick={() => newCase()}
-                    aria-label="New report"
-                    className={ICON_BUTTON}
-                  >
+                  <button type="button" onClick={() => newCase()} aria-label="New report" className={`${ICON_BUTTON} shrink-0`}>
                     <Plus weight="bold" className="h-5 w-5" />
                   </button>
                 </Tip>
-                <p aria-live="polite" className="t-meta hidden items-center gap-1.5 whitespace-nowrap @[52rem]:flex">
-                  {finalizedAt && !dirty ? (
-                    <>
-                      <SealCheck weight="fill" className="h-4 w-4 text-teal" />
-                      Finalized
-                    </>
-                  ) : finalizedAt ? (
-                    "Changed after finalizing"
-                  ) : savedId && !dirty ? (
-                    <>
-                      <CheckCircle weight="fill" className="h-4 w-4 text-teal" />
-                      Saved as draft
-                    </>
-                  ) : savedId ? (
-                    "Changes not saved"
-                  ) : (
-                    "Not saved yet"
-                  )}
-                </p>
+                {/* The document's label: who it is for, and beneath it the draft state
+                    and the template it started from, as small details. */}
+                <div className="flex min-w-0 flex-1 flex-col leading-tight">
+                  {/* The patient: a label on the document, not its headline. */}
+                  <Tip label={hasPatient(patient) ? "Change patient details" : "Add patient details"}>
+                    <button
+                      type="button"
+                      onClick={() => setPatientAsk("edit")}
+                      className="-mx-1.5 flex min-w-0 max-w-full items-baseline gap-2 self-start rounded-md px-1.5 text-left transition-colors hover:bg-ink/[0.05]"
+                    >
+                      {hasPatient(patient) ? (
+                        <>
+                          <span className="truncate text-[0.95rem] font-semibold text-ink">{patient.name}</span>
+                          {ageSex(patient) && (
+                            <span className="shrink-0 text-[0.88rem] text-ink-soft">{ageSex(patient)}</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="whitespace-nowrap text-[0.95rem] font-semibold text-ink-quiet">New patient</span>
+                      )}
+                    </button>
+                  </Tip>
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <span
+                      className={`shrink-0 rounded px-1.5 py-px text-[0.68rem] font-bold uppercase tracking-[0.06em] ${
+                        savedId && !dirty ? "bg-teal/[0.12] text-teal-deep" : "bg-ink/[0.07] text-ink-soft"
+                      }`}
+                      title={
+                        finalizedAt && !dirty
+                          ? "Finalized"
+                          : finalizedAt
+                            ? "Changed after finalizing"
+                            : savedId && !dirty
+                              ? "Saved as a draft"
+                              : savedId
+                                ? "Changes not saved"
+                                : "Not saved yet"
+                      }
+                    >
+                      {/* Draft until saved; changes after a save make it a draft again until saved. */}
+                      {finalizedAt && !dirty ? "Final" : savedId && !dirty ? "Saved" : "Draft"}
+                    </span>
+                    <TemplatePicker
+                      current={template}
+                      onPick={pickTemplate}
+                      // Where the draft started: a small detail under the patient, not its name.
+                      className="!h-6 min-w-0 max-w-[14rem] !gap-1 !rounded-md !border-transparent !bg-transparent !px-1 !text-[0.82rem] !font-medium !text-ink-soft hover:!bg-ink/[0.05] hover:!text-ink data-[popup-open]:!bg-ink/[0.06] [&>svg]:!h-3 [&>svg]:!w-3"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="ml-auto flex shrink-0 items-center gap-2">
-                {/* Speaking is in the AI Assistant; its shortcut works from anywhere. */}
-
-                {/* Round icon tools in groups, laid out like the template editor's header:
-                    file (save, print) · sign-off (finalize, copy) · view (full screen). */}
-                <Tip label="Save" shortcut={shortcuts.save.replace(/\+/g, " + ")}>
-                  <button
-                    type="button"
-                    onClick={() => save()}
-                    disabled={saving || busy || (savedId !== null && !dirty)}
-                    aria-label="Save"
-                    className={TOOL}
-                  >
-                    {saving ? <Spinner /> : <FloppyDisk weight="bold" className="h-5 w-5" />}
-                  </button>
-                </Tip>
+              <div className="ml-auto flex shrink-0 items-center gap-1">
+                {/* Output: any time, nothing asked. */}
                 <Tip label="Print or PDF" shortcut={shortcuts.print.replace(/\+/g, " + ")}>
-                  <button
-                    type="button"
-                    onClick={print}
-                    disabled={busy}
-                    aria-label="Print or PDF"
-                    className={TOOL}
-                  >
+                  <button type="button" onClick={print} disabled={busy} aria-label="Print or PDF" className={TOOL}>
                     <Printer weight="bold" className="h-5 w-5" />
-                  </button>
-                </Tip>
-                <span aria-hidden="true" className="mx-1 h-7 w-px bg-ink/20" />
-                <Tip label={finalizedAt && !dirty ? "Finalized" : "Finalize"}>
-                  <button
-                    type="button"
-                    onClick={finalize}
-                    disabled={saving || busy}
-                    aria-label={finalizedAt && !dirty ? "Finalized" : "Finalize"}
-                    className={TOOL}
-                  >
-                    <SealCheck weight={finalizedAt && !dirty ? "fill" : "bold"} className="h-5 w-5" />
                   </button>
                 </Tip>
                 <Tip label="Copy report" shortcut={shortcuts.copy.replace(/\+/g, " + ")}>
@@ -920,7 +970,48 @@ export function ReportWorkspace({
                     <Copy weight="bold" className="h-5 w-5" />
                   </button>
                 </Tip>
-                <span aria-hidden="true" className="mx-1 hidden h-7 w-px bg-ink/20 lg:block" />
+                <span aria-hidden="true" className="mx-1 h-6 w-px bg-ink/20" />
+                {/* Keeping it: the patient's details are asked for here. */}
+                <Tip label={savedId ? "Save changes" : "Save"} shortcut={shortcuts.save.replace(/\+/g, " + ")}>
+                  <button
+                    type="button"
+                    onClick={() => requestSave()}
+                    disabled={saving || busy || (savedId !== null && !dirty)}
+                    className="inline-flex h-10 items-center gap-2 rounded-full px-3.5 text-[0.95rem] font-semibold text-ink transition-colors hover:bg-ink/[0.07] disabled:text-ink-quiet disabled:hover:bg-transparent"
+                  >
+                    {saving && patientAsk === null ? <Spinner /> : <FloppyDisk weight="bold" className="h-5 w-5" />}
+                    <span className="hidden @[52rem]:inline">{savedId && !dirty ? "Saved" : "Save"}</span>
+                  </button>
+                </Tip>
+                {/* Finalize opens, and stands out, once the AI Assistant has worked on the report. */}
+                <Tip
+                  label={
+                    finalizedAt && !dirty
+                      ? "Finalized: view it as it prints"
+                      : readyToFinalize
+                        ? "Finalize: check details, save as final"
+                        : "Finalize opens once the AI Assistant has updated the report"
+                  }
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (finalizedAt && !dirty) setShowFinal(true);
+                      else if (readyToFinalize) finalize();
+                    }}
+                    disabled={saving || busy}
+                    aria-disabled={!readyToFinalize}
+                    className={`inline-flex h-10 items-center gap-2 rounded-full px-3 text-[0.95rem] font-bold transition-colors disabled:opacity-60 @[40rem]:px-4 ${
+                      readyToFinalize
+                        ? "bg-btn text-btn-text hover:bg-teal-deep"
+                        : "cursor-default bg-ink/[0.06] text-ink-quiet"
+                    }`}
+                  >
+                    <SealCheck weight={finalizedAt && !dirty ? "fill" : "bold"} className="h-5 w-5" />
+                    <span className="hidden @[40rem]:inline">{finalizedAt && !dirty ? "Finalized" : "Finalize"}</span>
+                  </button>
+                </Tip>
+                <span aria-hidden="true" className="mx-1 hidden h-6 w-px bg-ink/20 lg:block" />
                 <Tip label={fullScreen ? "Exit full screen" : "Full screen"}>
                   <button
                     type="button"
@@ -1316,7 +1407,7 @@ export function ReportWorkspace({
             </button>
             <button
               type="button"
-              onClick={() => save()}
+              onClick={() => requestSave()}
               disabled={saving || busy || (savedId !== null && !dirty)}
               className={buttonClass.secondary}
             >

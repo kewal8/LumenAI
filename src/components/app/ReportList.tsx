@@ -4,6 +4,7 @@ import { SealCheck, Trash } from "@phosphor-icons/react";
 import Link from "next/link";
 import type { ListParams } from "@/lib/listQuery";
 import type { SavedReportSummary } from "@/lib/reportStore";
+import { ageSex } from "@/lib/patient";
 import { ListFilter, ListSearch, Pager, SortHeading } from "./ListControls";
 import {
   HeadTick,
@@ -50,7 +51,7 @@ export function ReportList({
             <ListSearch
               path={PATH}
               params={params}
-              placeholder="Search by study or a word from the impression"
+              placeholder="Search by patient, study or a word from the impression"
             />
           </div>
           <ListFilter
@@ -84,7 +85,7 @@ export function ReportList({
               <span className="flex items-center gap-3">
                 <HeadTick ids={rows.map((report) => report.id)} />
                 <SortHeading path={PATH} params={params} by="name">
-                  Report
+                  Patient and study
                 </SortHeading>
               </span>
               <span className="hidden md:block">Status</span>
@@ -117,10 +118,18 @@ export function ReportList({
                           href={`/reports/${report.id}`}
                           className="block truncate font-semibold hover:underline"
                         >
-                          {report.templateName}
+                          {report.patient ? report.patient.name : report.templateName}
+                          {report.patient && ageSex(report.patient) && (
+                            <span className="ml-2 font-medium text-ink-soft">{ageSex(report.patient)}</span>
+                          )}
                         </Link>
                         <span className="block truncate text-[0.88rem] text-ink-soft">
-                          {report.impression}
+                          {/* Older reports, saved before details were asked for, show the template only. */}
+                          {report.patient
+                            ? [report.patient.study || report.templateName, report.patient.modality, report.impression]
+                                .filter(Boolean)
+                                .join(" · ")
+                            : report.impression}
                         </span>
                         <span className="block text-[0.85rem] text-ink-soft md:hidden">
                           {report.finalizedAt ? "Final" : "Draft"} ·{" "}

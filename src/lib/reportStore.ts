@@ -1,6 +1,7 @@
 import type { CurrentUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { likePattern, offsetOf, type ListParams, type Paged } from "@/lib/listQuery";
+import { patientFromRow, type Patient } from "./patient";
 import type { Report, Template } from "./report";
 
 export type SavedReportSummary = {
@@ -15,6 +16,8 @@ export type SavedReportSummary = {
   updatedAt: string;
   /** When the doctor finalized it; null for a draft. */
   finalizedAt: string | null;
+  /** Who it is for; null for a report saved before details were asked for. */
+  patient: Patient | null;
 };
 
 export type SavedReport = {
@@ -23,6 +26,7 @@ export type SavedReport = {
   report: Report;
   updatedAt: string;
   finalizedAt: string | null;
+  patient: Patient | null;
 };
 
 const MAX_BYTES = 300_000;
@@ -57,6 +61,7 @@ export async function pageReports(user: CurrentUser, params: ListParams): Promis
   const status = params.filter.status ?? "";
   const rows = await db()`
     select id, template_name, title, created_at, updated_at, finalized_at,
+           patient_name, patient_age, patient_age_unit, patient_sex, study, modality,
            coalesce(content->'impression'->>0, '') as impression,
            (select count(*)::int
               from jsonb_array_elements(content->'sections') as section,
@@ -66,6 +71,7 @@ export async function pageReports(user: CurrentUser, params: ListParams): Promis
     from reports
     where user_id = ${user.id}
       and (${params.q} = '' or template_name ilike ${like} or title ilike ${like}
+           or patient_name ilike ${like} or study ilike ${like}
            or content->'impression'->>0 ilike ${like})
       and (${status} = '' or (${status} = 'final') = (finalized_at is not null))
     order by
@@ -87,6 +93,7 @@ export async function pageReports(user: CurrentUser, params: ListParams): Promis
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString(),
       finalizedAt: row.finalized_at ? row.finalized_at.toISOString() : null,
+      patient: patientFromRow(row),
     })),
   };
 }
@@ -99,7 +106,9 @@ export async function hasReports(user: CurrentUser) {
 
 export async function findReport(user: CurrentUser, id: string): Promise<SavedReport | null> {
   const [row] = await db()`
-    select id, template, content, updated_at, finalized_at from reports
+    select id, template, content, updated_at, finalized_at,
+           patient_name, patient_age, patient_age_unit, patient_sex, study, modality
+    from reports
     where id::text = ${id} and user_id = ${user.id}
   `;
   return row
@@ -109,6 +118,7 @@ export async function findReport(user: CurrentUser, id: string): Promise<SavedRe
         report: row.content,
         updatedAt: row.updated_at.toISOString(),
         finalizedAt: row.finalized_at ? row.finalized_at.toISOString() : null,
+        patient: patientFromRow(row),
       }
     : null;
 }

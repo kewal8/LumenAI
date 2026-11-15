@@ -1,5 +1,5 @@
 import { apiUser, fail, handle } from "@/lib/auth/respond";
-import { db } from "@/lib/db";
+import { asUuid, db } from "@/lib/db";
 import { findPlan } from "@/lib/plans";
 import { activatePlan, endPlan } from "@/lib/subscription";
 
@@ -11,7 +11,7 @@ export const PATCH = handle<RouteContext<"/api/admin/organizations/[id]/plan">>(
   if (!user.isPlatformAdmin) return fail(403, "Only LumenAI staff can do this.");
 
   const { id } = await context.params;
-  const [org] = await db()`select id from organizations where id::text = ${id}`;
+  const [org] = await db()`select id from organizations where id = ${asUuid(id)}::uuid`;
   if (!org) return fail(404, "That account no longer exists.");
 
   const body = await request.json();

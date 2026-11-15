@@ -1,6 +1,6 @@
 import { fail, handle } from "@/lib/auth/respond";
 import { createSession } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { asUuid, db } from "@/lib/db";
 import { codeHash } from "@/lib/auth/signup";
 
 /** Wrong codes allowed before a new one has to be sent. */
@@ -19,7 +19,7 @@ export const POST = handle(async (request) => {
   const [signup] = await sql`
     select id, email, first_name, last_name, phone, password_hash, code_hash, attempts,
            expires_at < now() as expired
-    from signup_codes where id::text = ${id} and used_at is null
+    from signup_codes where id = ${asUuid(id)}::uuid and used_at is null
   `;
   if (!signup || signup.expired) return fail(400, "This code has expired. Send a new one.");
   if (signup.attempts >= MAX_ATTEMPTS) return fail(429, "Too many wrong codes. Send a new one.");

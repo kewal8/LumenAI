@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { LOCKED_MESSAGE, editorLocked } from "@/lib/subscription";
 import type { PatchOp, Report, Template } from "@/lib/report";
+import { pathOf, recordError } from "@/lib/monitor";
 import { recordClaudeUsage } from "@/lib/usage";
 import { validateLine } from "@/lib/validate";
 import { updateRefusal } from "@/lib/workspace";
@@ -93,6 +94,7 @@ export async function POST(request: Request) {
   }));
 
   try {
+    const started = performance.now();
     const response = await client.beta.messages.parse({
       model: MODEL,
       max_tokens: 16000,
@@ -118,7 +120,7 @@ export async function POST(request: Request) {
       ],
     });
 
-    await recordClaudeUsage(user, "report", response.model, response.usage);
+    await recordClaudeUsage(user, "report", response.model, response.usage, performance.now() - started);
 
     if (response.stop_reason === "refusal") {
       return Response.json(
@@ -161,6 +163,10 @@ export async function POST(request: Request) {
         .map((item) => ({ id: item.id, said: item.said.trim() })),
     });
   } catch (error) {
+    // Every failure of the model, rate limits included, is noted for the admin dashboard.
+    if (error instanceof Anthropic.APIError) {
+      await recordError("ai", { method: "POST", path: pathOf(request) }, error);
+    }
     if (error instanceof Anthropic.AuthenticationError) {
       return Response.json(
         { error: "ANTHROPIC_API_KEY is missing or invalid." },

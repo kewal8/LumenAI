@@ -183,6 +183,6 @@ export function asReportTemplate(stored: StoredTemplate): Template {
   // Written in the template editor: reports start from that page, as written.
   const read = stored.doc ? readTemplate(stored.doc as DocNode, stored.name) : null;
   return typeof read === "object" && read
-    ? { ...toTemplate(stored.id, read.draft), doc: read.reportDoc }
-    : toTemplate(stored.id, stored);
+    ? { ...toTemplate(stored.id, read.draft), doc: read.reportDoc, modality: stored.modality }
+    : { ...toTemplate(stored.id, stored), modality: stored.modality };
 }

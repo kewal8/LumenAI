@@ -14,7 +14,8 @@ const PUBLIC_PAGES = new Set([
   "/forgot-password",
   "/reset-password",
 ]);
-const PUBLIC_API = ["/api/auth/", "/api/demo-requests"];
+// The scheduled clean-up has no session; it checks its own secret.
+const PUBLIC_API = ["/api/auth/", "/api/demo-requests", "/api/cron/"];
 // Editor preview links: the page checks the link's secret itself.
 const PUBLIC_PREFIXES = ["/preview/"];
 

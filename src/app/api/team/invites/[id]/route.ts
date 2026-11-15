@@ -1,5 +1,5 @@
 import { apiUser, fail, handle } from "@/lib/auth/respond";
-import { db } from "@/lib/db";
+import { asUuid, db } from "@/lib/db";
 import { canManageTeam } from "@/lib/team";
 
 export const DELETE = handle<RouteContext<"/api/team/invites/[id]">>(async (_request, context) => {
@@ -10,7 +10,7 @@ export const DELETE = handle<RouteContext<"/api/team/invites/[id]">>(async (_req
   const { id } = await context.params;
   const removed = await db()`
     delete from invites
-    where id::text = ${id} and org_id = ${user.org.id} and accepted_at is null
+    where id = ${asUuid(id)}::uuid and org_id = ${user.org.id} and accepted_at is null
     returning id
   `;
   if (removed.length === 0) return fail(404, "That invitation no longer exists.");

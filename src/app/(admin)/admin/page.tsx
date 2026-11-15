@@ -12,10 +12,24 @@ import {
   dollars,
   minutes,
 } from "@/components/admin/parts";
-import { Avatar, Badge, EmptyState, PANEL, Page, PageHeader, buttonClass, formatDate } from "@/components/app/ui";
+import {
+  Avatar,
+  Badge,
+  EmptyState,
+  PANEL,
+  Page,
+  PageHeader,
+  buttonClass,
+  formatDate,
+  formatDateTime,
+} from "@/components/app/ui";
 import { getDashboard } from "@/lib/admin";
 import { requireStaff } from "@/lib/auth/session";
 import { DEMO_STATUS_LABELS, type DemoStatus } from "@/lib/demo";
+import { getHealth, type ErrorSource } from "@/lib/monitor";
+
+const ERROR_SOURCE: Record<ErrorSource, string> = { page: "Screen", api: "Request", ai: "AI model" };
+const seconds = (value: number) => `${value.toFixed(1)} s`;
 
 // Live numbers on every visit.
 export const instant = false;
@@ -24,7 +38,7 @@ export const metadata = { title: "Dashboard · LumenAI Admin" };
 
 export default async function AdminDashboardPage() {
   await requireStaff();
-  const data = await getDashboard();
+  const [data, health] = await Promise.all([getDashboard(), getHealth()]);
   const accounts = data.accounts.centres + data.accounts.personal;
   const cost = data.claude.cost === null || data.speech.cost === null ? null : data.claude.cost + data.speech.cost;
   const perUpdate =
@@ -218,6 +232,45 @@ export default async function AdminDashboardPage() {
                 </li>
               ))}
             </ol>
+          )}
+        </article>
+      </section>
+
+      {/* Is the service running well: faults on the server and how long the AI takes. */}
+      <section aria-label="Service health" className="grid gap-4 lg:grid-cols-3">
+        <article className={`${PANEL} p-6 sm:p-8`}>
+          <TileHeader title="Service health">
+            <Badge tone={health.errors.last24h > 0 ? "amber" : "teal"}>
+              {health.errors.last24h > 0 ? "Check" : "Good"}
+            </Badge>
+          </TileHeader>
+          <dl className="mt-5">
+            <Row label="Errors, last 24 hours" value={String(health.errors.last24h)} />
+            <Row label="Errors, last 7 days" value={String(health.errors.last7d)} />
+            <Row label="AI update, typical" value={health.ai ? seconds(health.ai.typical) : "Not yet"} />
+            <Row label="AI update, slowest 5%" value={health.ai ? seconds(health.ai.slow) : "Not yet"} />
+          </dl>
+        </article>
+
+        <article className={`${PANEL} p-6 sm:p-8 lg:col-span-2`}>
+          <TileHeader title="Latest server errors" />
+          {health.recent.length === 0 ? (
+            <div className="mt-5">
+              <EmptyState title="No errors recorded" body="Faults on the server appear here as they happen." />
+            </div>
+          ) : (
+            <ul className="mt-4">
+              {health.recent.map((error) => (
+                <li key={error.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-t border-line py-3 first:border-t-0">
+                  <span className="w-20 shrink-0 text-[0.88rem] font-bold text-ink-soft">{ERROR_SOURCE[error.source]}</span>
+                  <span className="min-w-0 flex-1 basis-64">
+                    <span className="block truncate font-semibold">{error.message}</span>
+                    {error.path && <span className="block truncate text-[0.88rem] text-ink-soft">{error.path}</span>}
+                  </span>
+                  <span className="text-[0.88rem] font-semibold tabular-nums text-ink-soft">{formatDateTime(error.at)}</span>
+                </li>
+              ))}
+            </ul>
           )}
         </article>
       </section>

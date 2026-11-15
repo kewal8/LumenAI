@@ -4,6 +4,7 @@ import {
   Geist_Mono,
   Hanken_Grotesk,
 } from "next/font/google";
+import { SpeedMeter } from "@/components/SpeedMeter";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       {/* Browser extensions add attributes to <body> before React loads. */}
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {children}
+        <SpeedMeter />
       </body>
     </html>
   );

@@ -32,6 +32,8 @@ export async function getDashboard() {
                count(distinct e.user_id) filter (where e.created_at > now() - interval '7 days')::int as active_7
         from usage_events e left join users u on u.id = e.user_id
         where e.purpose = 'report' and coalesce(not u.is_platform_admin, true)
+          -- Nothing older is counted, so nothing older is read.
+          and e.created_at > now() - interval '30 days'
       `,
       sql`
         select (select count(*)::int from reports) as saved_reports,
@@ -63,6 +65,8 @@ export async function getDashboard() {
         ) as day
         left join usage_events e
           on e.purpose = 'report' and (e.created_at at time zone ${ZONE})::date = day::date
+          -- A day more than the chart shows, so the index on created_at narrows the read.
+          and e.created_at > now() - interval '15 days'
         group by day order by day
       `,
       sql`

@@ -1,6 +1,6 @@
 import { apiUser, fail, handle } from "@/lib/auth/respond";
 import type { CurrentUser, Role } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { asUuid, db } from "@/lib/db";
 import { assignableRoles, canManageMember } from "@/lib/team";
 
 type Context = RouteContext<"/api/team/members/[id]">;
@@ -9,7 +9,7 @@ async function findTarget(user: CurrentUser, id: string) {
   if (!user.org) return null;
   const [member] = await db()`
     select user_id as id, role from memberships
-    where user_id::text = ${id} and org_id = ${user.org.id}
+    where user_id = ${asUuid(id)}::uuid and org_id = ${user.org.id}
   `;
   if (!member) return null;
   const target = { id: member.id as string, role: member.role as Role };

@@ -1,4 +1,5 @@
 import { DatabaseNotConfiguredError } from "@/lib/db";
+import { pathOf, recordError } from "@/lib/monitor";
 import { getCurrentUser, type CurrentUser } from "./session";
 
 export function fail(status: number, error: string) {
@@ -19,6 +20,8 @@ export function handle<Context = unknown>(
         return fail(503, "The database is not connected yet.");
       }
       console.error(error);
+      // Shown on the admin dashboard, so a fault is seen before a doctor reports it.
+      await recordError("api", { method: request.method, path: pathOf(request) }, error);
       return fail(500, "Something went wrong on our side. Try again.");
     }
   };

@@ -1,5 +1,5 @@
 import { apiUser, fail, handle } from "@/lib/auth/respond";
-import { db } from "@/lib/db";
+import { asUuid, db } from "@/lib/db";
 import { DEMO_STATUSES } from "@/lib/demo";
 
 export const PATCH = handle<RouteContext<"/api/demo-requests/[id]">>(async (request, context) => {
@@ -13,7 +13,7 @@ export const PATCH = handle<RouteContext<"/api/demo-requests/[id]">>(async (requ
 
   const { id } = await context.params;
   const updated = await db()`
-    update demo_requests set status = ${status} where id::text = ${id} returning id
+    update demo_requests set status = ${status} where id = ${asUuid(id)}::uuid returning id
   `;
   if (updated.length === 0) return fail(404, "That request no longer exists.");
   return Response.json({ ok: true });
