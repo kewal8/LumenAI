@@ -23,6 +23,16 @@ export type FormattedReport = {
   sections: { heading: string; lines: string[] }[];
 };
 
+/** Sign-off under a report. */
+export type Signature = { text: string; image: string | null };
+
+function signatureLines(signature?: Signature) {
+  return (signature?.text ?? "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 function escapeHtml(text: string) {
   return text
     .replace(/&/g, "&amp;")
@@ -33,6 +43,7 @@ function escapeHtml(text: string) {
 export function buildReportHtml(
   report: FormattedReport,
   { font, size, headingStyle, listStyle }: PasteProfile = DEFAULT_PROFILE,
+  signature?: Signature,
 ) {
   // Inline styles only: PACS editors drop <style> blocks and class names on paste.
   const base = `font-family:'${font}',sans-serif;font-size:${size}pt;color:#000;`;
@@ -58,18 +69,58 @@ export function buildReportHtml(
     })
     .join("");
 
-  return `<p style="${heading}text-align:center;margin:0 0 8pt 0;">${escapeHtml(report.title)}</p>${sections}`;
+  const lines = signatureLines(signature);
+  // The first sign-off line is the name, so it is set bold.
+  const signOff =
+    (signature?.image
+      ? `<p style="margin:16pt 0 2pt 0;"><img src="${signature.image}" alt="Signature" height="56" style="height:42pt;width:auto;"></p>`
+      : "") +
+    lines
+      .map(
+        (line, index) =>
+          `<p style="${index === 0 ? heading : base}margin:${index === 0 && !signature?.image ? "16pt" : "0"} 0 0 0;">${escapeHtml(line)}</p>`,
+      )
+      .join("");
+
+  return `<p style="${heading}text-align:center;margin:0 0 8pt 0;">${escapeHtml(report.title)}</p>${sections}${signOff}`;
+}
+
+/**
+ * A whole page for printing or saving as PDF: the report between the
+ * letterhead's header and footer, which repeat on every sheet.
+ */
+export function buildPrintHtml(
+  report: FormattedReport,
+  profile: PasteProfile,
+  signature: Signature | undefined,
+  letterhead: { header: string | null; footer: string | null } | null,
+) {
+  const header = letterhead?.header ? `<img src="${letterhead.header}" alt="">` : "";
+  const footer = letterhead?.footer ? `<img src="${letterhead.footer}" alt="">` : "";
+  // The table's header and footer groups are what browsers repeat on each sheet.
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(report.title)}</title><style>
+@page{size:A4;margin:0}
+html,body{margin:0;padding:0;background:#fff}
+table{width:100%;border-collapse:collapse}
+td{padding:0}
+img{display:block}
+thead img,tfoot img{width:100%;height:auto}
+.body{padding:${header ? "6mm" : "18mm"} 18mm ${footer ? "6mm" : "18mm"}}
+tfoot td{vertical-align:bottom}
+</style></head><body><table><thead><tr><td>${header}</td></tr></thead><tfoot><tr><td>${footer}</td></tr></tfoot><tbody><tr><td><div class="body">${buildReportHtml(report, profile, signature)}</div></td></tr></tbody></table></body></html>`;
 }
 
 export function buildReportText(
   report: FormattedReport,
   { listStyle }: PasteProfile = DEFAULT_PROFILE,
+  signature?: Signature,
 ) {
   const sections = report.sections.map(({ heading, lines }) => {
     const body = lines.map((line) => (listStyle === "bullets" ? `- ${line}` : line));
     return `${heading}:\n${body.join("\n")}`;
   });
-  return [report.title, ...sections].join("\n\n");
+  const lines = signatureLines(signature);
+  return [report.title, ...sections, ...(lines.length ? [lines.join("\n")] : [])].join("\n\n");
 }
 
 /** A stored or submitted paste profile, with anything unknown replaced by the default. */

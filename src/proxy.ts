@@ -14,6 +14,8 @@ const PUBLIC_PAGES = new Set([
   "/reset-password",
 ]);
 const PUBLIC_API = ["/api/auth/", "/api/demo-requests"];
+// Editor preview links: the page checks the link's secret itself.
+const PUBLIC_PREFIXES = ["/preview/"];
 
 /**
  * First gate: no session cookie, no entry. The cookie is checked against the
@@ -22,7 +24,10 @@ const PUBLIC_API = ["/api/auth/", "/api/demo-requests"];
  */
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (PUBLIC_PAGES.has(pathname) || PUBLIC_API.some((prefix) => pathname.startsWith(prefix))) {
+  if (
+    PUBLIC_PAGES.has(pathname) ||
+    [...PUBLIC_API, ...PUBLIC_PREFIXES].some((prefix) => pathname.startsWith(prefix))
+  ) {
     return NextResponse.next();
   }
   if (request.cookies.has(SESSION_COOKIE)) return NextResponse.next();

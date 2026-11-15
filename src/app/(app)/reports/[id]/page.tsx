@@ -11,7 +11,7 @@ export const metadata = { title: "Report · LumenAI" };
 
 export default async function SavedReportPage({ params }: PageProps<"/reports/[id]">) {
   const user = await requireUser();
-  const [saved, { profile, templates }] = await Promise.all([
+  const [saved, { profile, shortcuts, templates, identity }] = await Promise.all([
     findReport(user, (await params).id),
     loadWorkspace(user),
   ]);
@@ -24,6 +24,8 @@ export default async function SavedReportPage({ params }: PageProps<"/reports/[i
     <ReportWorkspace
       key={saved.id}
       profile={profile}
+      identity={identity}
+      shortcuts={shortcuts}
       templates={[saved.template, ...others]}
       saved={saved}
     />

@@ -12,6 +12,7 @@ import {
   Files,
   FolderOpen,
   GearSix,
+  LinkSimple,
   List,
   Moon,
   NotePencil,
@@ -51,6 +52,7 @@ const NAV: Record<Area, NavItem[]> = {
     { href: "/admin", label: "Dashboard", icon: ChartBar, exact: true },
     { href: "/admin/demo-requests", label: "Demo requests", icon: CalendarCheck },
     { href: "/admin/accounts", label: "Accounts", icon: Buildings },
+    { href: "/admin/preview-links", label: "Preview links", icon: LinkSimple },
   ],
 };
 

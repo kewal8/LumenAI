@@ -10,8 +10,8 @@ export const metadata = { title: "New report · LumenAI" };
 export default async function NewReportPage({ searchParams }: PageProps<"/report">) {
   const user = await requireUser();
   const { template } = await searchParams;
-  const { profile, templates } = await loadWorkspace(user, typeof template === "string" ? template : null);
+  const { profile, shortcuts, templates, identity } = await loadWorkspace(user, typeof template === "string" ? template : null);
 
   // Keyed by the starting template so choosing another one starts a clean report.
-  return <ReportWorkspace key={templates[0].id} profile={profile} templates={templates} />;
+  return <ReportWorkspace key={templates[0].id} profile={profile} identity={identity} shortcuts={shortcuts} templates={templates} />;
 }
