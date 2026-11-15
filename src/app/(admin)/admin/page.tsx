@@ -14,6 +14,7 @@ import {
 } from "@/components/admin/parts";
 import { Avatar, Badge, EmptyState, PANEL, Page, PageHeader, buttonClass, formatDate } from "@/components/app/ui";
 import { getDashboard } from "@/lib/admin";
+import { requireStaff } from "@/lib/auth/session";
 import { DEMO_STATUS_LABELS, type DemoStatus } from "@/lib/demo";
 
 // Live numbers on every visit.
@@ -22,6 +23,7 @@ export const instant = false;
 export const metadata = { title: "Dashboard · LumenAI Admin" };
 
 export default async function AdminDashboardPage() {
+  await requireStaff();
   const data = await getDashboard();
   const accounts = data.accounts.centres + data.accounts.personal;
   const cost = data.claude.cost === null || data.speech.cost === null ? null : data.claude.cost + data.speech.cost;

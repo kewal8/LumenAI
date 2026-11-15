@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import { DemoStatusSelect } from "@/components/app/DemoStatusSelect";
 import { FilterList } from "@/components/app/Search";
 import {
@@ -18,7 +17,7 @@ import {
   PageHeader,
   formatDate,
 } from "@/components/app/ui";
-import { requireUser } from "@/lib/auth/session";
+import { requireStaff } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import type { DemoStatus } from "@/lib/demo";
 
@@ -28,8 +27,7 @@ export const instant = false;
 export const metadata = { title: "Demo requests · LumenAI Admin" };
 
 export default async function DemoRequestsPage() {
-  const user = await requireUser();
-  if (!user.isPlatformAdmin) notFound();
+  await requireStaff();
 
   const requests = await db()`
     select id, created_at, status, name, email, phone, designation, organisation,

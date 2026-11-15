@@ -21,7 +21,7 @@ import {
   formatDate,
 } from "@/components/app/ui";
 import { listAccounts, listPendingInvites } from "@/lib/admin";
-import { requireUser } from "@/lib/auth/session";
+import { requireStaff } from "@/lib/auth/session";
 import type { Role } from "@/lib/auth/session";
 import { ROLE_LABELS } from "@/lib/team";
 
@@ -50,7 +50,8 @@ function Cell({ label, number, children }: { label: string; number?: boolean; ch
 }
 
 export default async function AdminAccountsPage() {
-  const [user, accounts, invites] = await Promise.all([requireUser(), listAccounts(), listPendingInvites()]);
+  const user = await requireStaff();
+  const [accounts, invites] = await Promise.all([listAccounts(), listPendingInvites()]);
   const people = accounts.reduce((sum, account) => sum + account.members.length, 0);
 
   return (

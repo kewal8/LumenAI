@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { DatabaseNotConfiguredError, db } from "@/lib/db";
 import { hashToken, newToken } from "./crypto";
@@ -89,5 +89,17 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 export async function requireUser() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  return user;
+}
+
+/**
+ * For admin pages: LumenAI staff only; anyone else sees "not found". Each
+ * admin page calls this before it reads any data. The layout's own check does
+ * not stop a page's queries from running, and reading the session first keeps
+ * the page out of the build, where there is no database.
+ */
+export async function requireStaff() {
+  const user = await requireUser();
+  if (!user.isPlatformAdmin) notFound();
   return user;
 }

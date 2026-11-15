@@ -13,6 +13,7 @@ import {
   formatDate,
   formatDateTime,
 } from "@/components/app/ui";
+import { requireStaff } from "@/lib/auth/session";
 import { listPreviewLinks, type PreviewLink } from "@/lib/previewLinks";
 
 // Live link data on every visit.
@@ -44,6 +45,7 @@ function Cell({ label, number, children }: { label: string; number?: boolean; ch
 }
 
 export default async function AdminPreviewLinksPage() {
+  await requireStaff();
   const links = await listPreviewLinks();
   const active = links.filter((link) => link.state === "active").length;
 
