@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { ListParams } from "@/lib/listQuery";
 import { MODALITIES } from "@/lib/templateDoc";
 import type { TemplateRow } from "@/lib/templateStore";
+import { Tip } from "@/components/Tip";
 import { ListFilter, ListSearch, Pager, SortHeading } from "./ListControls";
 import {
   HeadTick,
@@ -211,17 +212,18 @@ export function TemplateList({
                     </Link>
                     {template.canEdit && (
                       <>
-                        <Link
-                          href={`/templates/${template.id}`}
-                          aria-label={`Edit ${template.name}`}
-                          title="Edit"
-                          className={ICON}
-                        >
-                          <PencilSimple
-                            weight="bold"
-                            className="h-[1.1rem] w-[1.1rem]"
-                          />
-                        </Link>
+                        <Tip label="Edit">
+                          <Link
+                            href={`/templates/${template.id}`}
+                            aria-label={`Edit ${template.name}`}
+                            className={ICON}
+                          >
+                            <PencilSimple
+                              weight="bold"
+                              className="h-[1.1rem] w-[1.1rem]"
+                            />
+                          </Link>
+                        </Tip>
                         <ConfirmAction
                           label={`Delete ${template.name}`}
                           icon={

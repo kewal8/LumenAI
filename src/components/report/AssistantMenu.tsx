@@ -9,6 +9,7 @@ import { toast } from "@/components/Toast";
 import { FormError, send } from "@/components/auth/fields";
 import { BACKDROP, POPUP } from "@/components/app/TeamClient";
 import { buttonClass } from "@/components/app/ui";
+import { Tip } from "@/components/Tip";
 import type { DocNode } from "@/lib/reportDoc";
 import { MODALITIES } from "@/lib/templateDoc";
 
@@ -40,13 +41,14 @@ export function AssistantMenu({
   return (
     <>
       <Menu.Root>
-        <Menu.Trigger
-          aria-label="More actions"
-          title="More actions"
-          className="grid h-10 w-10 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.08] data-[popup-open]:bg-ink/[0.1]"
-        >
-          <DotsThree weight="bold" className="h-5 w-5" />
-        </Menu.Trigger>
+        <Tip label="More actions">
+          <Menu.Trigger
+            aria-label="More actions"
+            className="grid h-10 w-10 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.08] data-[popup-open]:bg-ink/[0.1]"
+          >
+            <DotsThree weight="bold" className="h-5 w-5" />
+          </Menu.Trigger>
+        </Tip>
         <Menu.Portal>
           <Menu.Positioner side="bottom" align="end" sideOffset={6} className="z-50">
             <Menu.Popup className="app-layer w-72 origin-[var(--transform-origin)] rounded-3xl border border-ink/20 bg-surface p-2 shadow-[0_18px_50px_-18px_rgb(15_38_36/0.45)] outline-none">

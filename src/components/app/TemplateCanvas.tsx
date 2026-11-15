@@ -20,6 +20,7 @@ import {
   ReportEditor,
   type ReportEditorHandle,
 } from "@/components/report/editor/ReportEditor";
+import { Tip } from "@/components/Tip";
 import type { DocNode } from "@/lib/reportDoc";
 import { docToHtml } from "@/lib/reportDoc";
 import { DEFAULT_PROFILE, buildPrintHtml } from "@/lib/reportFormat";
@@ -228,28 +229,26 @@ export function TemplateCanvas({
             </>
           )}
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={askReset}
-              aria-label="Reset"
-              title={
-                template
-                  ? "Reset to the last saved version"
-                  : "Clear and start again"
-              }
-              className={TOOL}
-            >
-              <ArrowCounterClockwise weight="bold" className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              onClick={pdf}
-              aria-label="See as PDF"
-              title="See as PDF"
-              className={`${TOOL} text-flag`}
-            >
-              <FilePdf weight="fill" className="h-5 w-5" />
-            </button>
+            <Tip label={template ? "Reset to the last saved version" : "Clear and start again"}>
+              <button
+                type="button"
+                onClick={askReset}
+                aria-label="Reset"
+                className={TOOL}
+              >
+                <ArrowCounterClockwise weight="bold" className="h-5 w-5" />
+              </button>
+            </Tip>
+            <Tip label="See as PDF">
+              <button
+                type="button"
+                onClick={pdf}
+                aria-label="See as PDF"
+                className={`${TOOL} text-flag`}
+              >
+                <FilePdf weight="fill" className="h-5 w-5" />
+              </button>
+            </Tip>
             {template && (
               <ConfirmAction
                 label="Delete template"

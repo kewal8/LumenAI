@@ -14,6 +14,7 @@ import { useState } from "react";
 import { Spinner } from "@/components/Spinner";
 import { toast } from "@/components/Toast";
 import { FormError, send } from "@/components/auth/fields";
+import { Tip } from "@/components/Tip";
 import {
   HeadTick,
   ListMenu,
@@ -170,15 +171,16 @@ export function MacrosManager({ macros: initial }: { macros: Macro[] }) {
                       {macro.body}
                     </p>
                     <span className="flex items-center gap-1 md:justify-end">
-                      <button
-                        type="button"
-                        onClick={() => (setEditing(macro.id), setError(""))}
-                        aria-label={`Change macro ${macro.shortForm}`}
-                        title="Change"
-                        className="grid h-9 w-9 place-items-center rounded-full text-ink-soft transition-colors hover:bg-ink/[0.08] hover:text-ink"
-                      >
-                        <PencilSimple weight="bold" className="h-4.5 w-4.5" />
-                      </button>
+                      <Tip label="Change">
+                        <button
+                          type="button"
+                          onClick={() => (setEditing(macro.id), setError(""))}
+                          aria-label={`Change macro ${macro.shortForm}`}
+                          className="grid h-9 w-9 place-items-center rounded-full text-ink-soft transition-colors hover:bg-ink/[0.08] hover:text-ink"
+                        >
+                          <PencilSimple weight="bold" className="h-4.5 w-4.5" />
+                        </button>
+                      </Tip>
                       <ConfirmAction
                         label={`Delete macro ${macro.shortForm}`}
                         icon={<Trash weight="bold" className="h-4.5 w-4.5" />}

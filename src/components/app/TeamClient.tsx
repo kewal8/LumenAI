@@ -7,6 +7,7 @@ import { Check, Copy, Plus } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Field, FieldLabel, FormError, send } from "@/components/auth/fields";
+import { Tip } from "@/components/Tip";
 import type { Role } from "@/lib/auth/session";
 import { ROLE_LABELS } from "@/lib/team";
 import { Select, buttonClass } from "./ui";
@@ -282,14 +283,17 @@ export function ConfirmAction({
 
   return (
     <Dialog.Root open={open} onOpenChange={(next) => (setOpen(next), setError(""))}>
-      <Dialog.Trigger
-        type="button"
-        className={triggerClassName}
-        aria-label={icon ? label : undefined}
-        title={icon ? label : undefined}
-      >
-        {icon ?? label}
-      </Dialog.Trigger>
+      {icon ? (
+        <Tip label={label}>
+          <Dialog.Trigger type="button" className={triggerClassName} aria-label={label}>
+            {icon}
+          </Dialog.Trigger>
+        </Tip>
+      ) : (
+        <Dialog.Trigger type="button" className={triggerClassName}>
+          {label}
+        </Dialog.Trigger>
+      )}
       <Dialog.Portal>
         <Dialog.Backdrop className={BACKDROP} />
         <Dialog.Popup className={POPUP}>

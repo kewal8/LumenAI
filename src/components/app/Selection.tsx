@@ -8,6 +8,7 @@ import { createContext, useContext, useState } from "react";
 import { Spinner } from "@/components/Spinner";
 import { toast } from "@/components/Toast";
 import { FormError, send } from "@/components/auth/fields";
+import { Tip } from "@/components/Tip";
 import { BACKDROP, POPUP } from "./TeamClient";
 import { buttonClass } from "./ui";
 
@@ -74,13 +75,14 @@ export function ListMenu({ label = "More actions" }: { label?: string }) {
   if (selecting) return null;
   return (
     <Menu.Root>
-      <Menu.Trigger
-        aria-label={label}
-        title={label}
-        className="grid h-11 w-11 place-items-center rounded-full border border-ink/30 text-ink transition-colors hover:border-ink/60 hover:bg-ink/[0.05] data-[popup-open]:bg-ink/[0.08]"
-      >
-        <DotsThree weight="bold" className="h-5 w-5" />
-      </Menu.Trigger>
+      <Tip label={label}>
+        <Menu.Trigger
+          aria-label={label}
+          className="grid h-11 w-11 place-items-center rounded-full border border-ink/30 text-ink transition-colors hover:border-ink/60 hover:bg-ink/[0.05] data-[popup-open]:bg-ink/[0.08]"
+        >
+          <DotsThree weight="bold" className="h-5 w-5" />
+        </Menu.Trigger>
+      </Tip>
       <Menu.Portal>
         <Menu.Positioner side="bottom" align="end" sideOffset={6} className="z-50">
           <Menu.Popup className="app-layer w-56 origin-[var(--transform-origin)] rounded-3xl border border-ink/20 bg-surface p-2 shadow-[0_18px_50px_-18px_rgb(15_38_36/0.45)] outline-none">
@@ -208,15 +210,16 @@ export function SelectionBar({
           </Dialog.Popup>
         </Dialog.Portal>
       </Dialog.Root>
-      <button
-        type="button"
-        onClick={stop}
-        aria-label="Close select mode"
-        title="Close"
-        className="grid h-9 w-9 place-items-center rounded-full transition-colors hover:bg-surface/15"
-      >
-        <X weight="bold" className="h-4 w-4" />
-      </button>
+      <Tip label="Close select mode">
+        <button
+          type="button"
+          onClick={stop}
+          aria-label="Close select mode"
+          className="grid h-9 w-9 place-items-center rounded-full transition-colors hover:bg-surface/15"
+        >
+          <X weight="bold" className="h-4 w-4" />
+        </button>
+      </Tip>
     </div>
   );
 }

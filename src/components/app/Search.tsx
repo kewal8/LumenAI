@@ -3,6 +3,7 @@
 import { MagnifyingGlass, X } from "@phosphor-icons/react";
 import { useRef } from "react";
 import { Spinner } from "@/components/Spinner";
+import { Tip } from "@/components/Tip";
 
 /** Whether every word typed appears somewhere in `text`. */
 export function matchesSearch(text: string, query: string) {
@@ -81,18 +82,19 @@ export function SearchField({
           </span>
         ) : (
           value && (
-            <button
-              type="button"
-              onClick={() => {
-                onChange("");
-                input.current?.focus();
-              }}
-              aria-label="Clear search"
-              title="Clear"
-              className="grid h-8 w-8 place-items-center rounded-full text-ink-soft transition-colors hover:bg-ink/[0.08] hover:text-ink"
-            >
-              <X weight="bold" className="h-3.5 w-3.5" />
-            </button>
+            <Tip label="Clear search">
+              <button
+                type="button"
+                onClick={() => {
+                  onChange("");
+                  input.current?.focus();
+                }}
+                aria-label="Clear search"
+                className="grid h-8 w-8 place-items-center rounded-full text-ink-soft transition-colors hover:bg-ink/[0.08] hover:text-ink"
+              >
+                <X weight="bold" className="h-3.5 w-3.5" />
+              </button>
+            </Tip>
           )
         )}
       </span>

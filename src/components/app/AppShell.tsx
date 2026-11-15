@@ -29,6 +29,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import { Spinner } from "@/components/Spinner";
+import { Tip, TipProvider } from "@/components/Tip";
 import { Toaster } from "@/components/Toast";
 import { useTheme } from "@/components/landing/ThemeToggle";
 import { useUpdatesLeft } from "@/lib/updatesLeft";
@@ -144,13 +145,13 @@ function NavLinks({
         const active = item.exact
           ? pathname === item.href
           : pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return (
+        const link = (
           <Link
             key={item.href}
             href={item.href}
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
-            title={compact ? item.label : undefined}
+            aria-label={compact ? item.label : undefined}
             // The current screen is a solid black pill; the others are quieter,
             // so one glance shows where you are. Teal is kept for actions.
             className={`relative flex h-11 items-center gap-3 rounded-full text-[1rem] transition-colors ${
@@ -171,6 +172,14 @@ function NavLinks({
               />
             )}
           </Link>
+        );
+        // Folded to icons, each link names itself on pointing.
+        return compact ? (
+          <Tip key={item.href} label={item.label} side="right">
+            {link}
+          </Tip>
+        ) : (
+          link
         );
       })}
     </nav>
@@ -311,6 +320,7 @@ export function AppShell({
   return (
     <div className="app flex min-h-[100dvh] flex-1">
       <Toaster />
+      <TipProvider>
       <aside
         data-app-nav=""
         className={`sticky top-0 hidden h-[100dvh] shrink-0 flex-col justify-between border-r border-line bg-surface transition-[width] duration-200 lg:flex ${
@@ -320,16 +330,17 @@ export function AppShell({
         <div className={compact ? "flex flex-col items-center" : undefined}>
           <div className={`flex items-center pb-6 pt-1 ${compact ? "justify-center" : "justify-between pl-2"}`}>
             {!compact && <Wordmark area={area} />}
-            <button
-              type="button"
-              onClick={() => setMenuCompact(!compact)}
-              aria-label={compact ? "Show the menu" : "Hide the menu"}
-              aria-expanded={!compact}
-              title={compact ? "Show the menu" : "Hide the menu, for more room"}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-quiet transition-colors hover:bg-ink/[0.08] hover:text-ink"
-            >
-              <SidebarSimple weight={compact ? "fill" : "regular"} className="h-5 w-5" />
-            </button>
+            <Tip label={compact ? "Show the menu" : "Hide the menu"} side={compact ? "right" : "bottom"}>
+              <button
+                type="button"
+                onClick={() => setMenuCompact(!compact)}
+                aria-label={compact ? "Show the menu" : "Hide the menu"}
+                aria-expanded={!compact}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-quiet transition-colors hover:bg-ink/[0.08] hover:text-ink"
+              >
+                <SidebarSimple weight={compact ? "fill" : "regular"} className="h-5 w-5" />
+              </button>
+            </Tip>
           </div>
           <NavLinks area={area} compact={compact} locked={user.locked} />
         </div>
@@ -369,6 +380,7 @@ export function AppShell({
 
         {children}
       </div>
+      </TipProvider>
     </div>
   );
 }

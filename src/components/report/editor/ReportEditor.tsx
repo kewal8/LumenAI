@@ -27,6 +27,7 @@ import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/r
 import StarterKit from "@tiptap/starter-kit";
 import { useImperativeHandle, useSyncExternalStore } from "react";
 import { Select } from "@/components/app/ui";
+import { Tip } from "@/components/Tip";
 import type { DocNode, PatchPlan } from "@/lib/reportDoc";
 import { PASTE_FONTS, type PasteProfile } from "@/lib/reportFormat";
 import { ReportLines, applyPatchToEditor } from "./reportLines";
@@ -107,24 +108,25 @@ function ToolButton({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      aria-pressed={active}
-      disabled={disabled}
-      // Keeps the selection in the report while the button is pressed.
-      onMouseDown={(event) => event.preventDefault()}
-      onClick={onClick}
-      // Quiet by design: the report is what the eye should go to, not the tools.
-      className={`grid shrink-0 place-items-center rounded-full transition-colors disabled:opacity-35 ${
-        small ? "h-8 w-8 [&>svg]:h-3.5 [&>svg]:w-3.5" : "h-9 w-9 [&>svg]:h-[1.1rem] [&>svg]:w-[1.1rem]"
-      } ${
-        active ? "bg-teal/[0.12] text-teal-deep" : "text-ink-soft hover:bg-ink/[0.06] hover:text-ink"
-      }`}
-    >
-      {children}
-    </button>
+    <Tip label={label}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={active}
+        disabled={disabled}
+        // Keeps the selection in the report while the button is pressed.
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={onClick}
+        // Quiet by design: the report is what the eye should go to, not the tools.
+        className={`grid shrink-0 place-items-center rounded-full transition-colors disabled:opacity-35 ${
+          small ? "h-8 w-8 [&>svg]:h-3.5 [&>svg]:w-3.5" : "h-9 w-9 [&>svg]:h-[1.1rem] [&>svg]:w-[1.1rem]"
+        } ${
+          active ? "bg-teal/[0.12] text-teal-deep" : "text-ink-soft hover:bg-ink/[0.06] hover:text-ink"
+        }`}
+      >
+        {children}
+      </button>
+    </Tip>
   );
 }
 
@@ -184,14 +186,15 @@ function MoreTools({
 }) {
   return (
     <Popover.Root>
-      <Popover.Trigger
-        title="More tools"
-        aria-label="More tools: colour, highlight, zoom"
-        onMouseDown={(event) => event.preventDefault()}
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-soft transition-colors hover:bg-ink/[0.06] hover:text-ink data-[popup-open]:bg-ink/[0.08] data-[popup-open]:text-ink"
-      >
-        <DotsThree weight="bold" className="h-5 w-5" />
-      </Popover.Trigger>
+      <Tip label="More: colour, highlight, zoom">
+        <Popover.Trigger
+          aria-label="More tools: colour, highlight, zoom"
+          onMouseDown={(event) => event.preventDefault()}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-soft transition-colors hover:bg-ink/[0.06] hover:text-ink data-[popup-open]:bg-ink/[0.08] data-[popup-open]:text-ink"
+        >
+          <DotsThree weight="bold" className="h-5 w-5" />
+        </Popover.Trigger>
+      </Tip>
       <Popover.Portal>
         <Popover.Positioner side="bottom" align="end" sideOffset={8} className="z-50">
           <Popover.Popup className="app-layer flex flex-col gap-4 rounded-3xl border border-ink/20 bg-surface p-4 shadow-[0_18px_50px_-18px_rgb(6_17_15/0.45)] outline-none">
