@@ -6,6 +6,7 @@ import { LOCKED_MESSAGE, editorLocked } from "@/lib/subscription";
 import type { PatchOp, Report, Template } from "@/lib/report";
 import { recordClaudeUsage } from "@/lib/usage";
 import { validateLine } from "@/lib/validate";
+import { updateRefusal } from "@/lib/workspace";
 
 const MODEL = process.env.REPORT_MODEL ?? "claude-opus-5-5";
 
@@ -68,6 +69,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "Signed out. Sign in again." }, { status: 401 });
   }
   if (await editorLocked(user)) return Response.json({ error: LOCKED_MESSAGE }, { status: 402 });
+  const refusal = await updateRefusal(user);
+  if (refusal) return Response.json({ error: refusal }, { status: 429 });
 
   const { template, report, dictation, earlier: sentEarlier }: GenerateRequest = await request.json();
   const earlier = (Array.isArray(sentEarlier) ? sentEarlier : [])

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { db } from "@/lib/db";
 import type { CurrentUser } from "@/lib/auth/session";
 import { findPlan, type Cycle, type Plan } from "./plans";
@@ -25,7 +26,8 @@ function isLocked(row: Row) {
   return row.status === "active" && Boolean(row.period_end && row.period_end.getTime() < Date.now());
 }
 
-export async function loadSubscription(orgId: string): Promise<Subscription> {
+// Read once per request: the layout, the page and the credit count all ask for it.
+export const loadSubscription = cache(async (orgId: string): Promise<Subscription> => {
   const [row] = await db()`
     select plan, cycle, status, period_end, requested_plan, requested_cycle, requested_at
     from subscriptions where org_id = ${orgId}
@@ -41,7 +43,7 @@ export async function loadSubscription(orgId: string): Promise<Subscription> {
         : null,
     locked: isLocked(row as Row),
   };
-}
+});
 
 /** Sent back by the AI and speech routes while the editor is locked. */
 export const LOCKED_MESSAGE = "Your plan is not active yet. Choose a plan on the Plans page to start reporting.";
@@ -49,8 +51,7 @@ export const LOCKED_MESSAGE = "Your plan is not active yet. Choose a plan on the
 /** Whether this person's report editor is closed. LumenAI staff are never locked out. */
 export async function editorLocked(user: CurrentUser) {
   if (user.isPlatformAdmin || !user.org) return false;
-  const [row] = await db()`select status, period_end from subscriptions where org_id = ${user.org.id}`;
-  return isLocked(row as Row);
+  return (await loadSubscription(user.org.id)).locked;
 }
 
 /** Records that an organisation wants a plan. Asking again replaces the earlier request. */

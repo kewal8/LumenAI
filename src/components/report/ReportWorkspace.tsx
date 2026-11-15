@@ -32,6 +32,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { buttonClass, formatDateTime, tidyHeading } from "@/components/app/ui";
 import { send as sendJson } from "@/components/auth/fields";
+import { Tip } from "@/components/Tip";
 import { copyReport, writeClipboard } from "@/lib/clipboard";
 import {
   applyPatch,
@@ -49,7 +50,8 @@ import {
   type FormattedReport,
   type PasteProfile,
 } from "@/lib/reportFormat";
-import type { ReportIdentity } from "@/lib/reportIdentity";
+import type { IdentitySummary, ReportIdentity } from "@/lib/reportIdentity";
+import { useIdentityImages } from "@/lib/useIdentityImages";
 import { expandMacros, removeLastMacro, type Macro } from "@/lib/macros";
 import { comboFromEvent, type ShortcutAction, type Shortcuts } from "@/lib/shortcuts";
 import { FinalizeDialog } from "./FinalizeDialog";
@@ -93,7 +95,7 @@ function toBlob(text: string, type: string) {
 
 export function ReportWorkspace({
   profile,
-  identity,
+  identity: identitySummary,
   shortcuts,
   floatingBox,
   macros: initialMacros,
@@ -104,7 +106,7 @@ export function ReportWorkspace({
 }: {
   profile: PasteProfile;
   /** The doctor's sign-off and letterhead, from Settings. */
-  identity: ReportIdentity;
+  identity: IdentitySummary;
   /** The doctor's keyboard shortcuts, from Settings. */
   shortcuts: Shortcuts;
   /** Whether the floating dictation window opens by itself, from Settings. */
@@ -121,7 +123,19 @@ export function ReportWorkspace({
   saved?: { id: string; template: Template; report: Report; finalizedAt?: string | null };
 }) {
   const router = useRouter();
+  // The page arrives without the signature and letterhead images; they are
+  // fetched once and kept by the browser. Copy and print wait for them.
+  const { identity, ready: identityReady } = useIdentityImages(identitySummary);
   const signature = { text: identity.signatureText, image: identity.signatureImage };
+  /** The identity with its images, or null (with a message) when they could not be loaded. */
+  async function fullIdentity(): Promise<ReportIdentity | null> {
+    try {
+      return await identityReady();
+    } catch {
+      toast.error("Your signature and letterhead could not be loaded. Check the connection and try again.");
+      return null;
+    }
+  }
   const [template, setTemplate] = useState(saved?.template ?? startTemplate);
   const [report, setReport] = useState(() => saved?.report ?? reportFromTemplate(startTemplate));
   const [savedId, setSavedId] = useState(saved?.id ?? null);
@@ -284,23 +298,24 @@ export function ReportWorkspace({
     if (await save(true)) setShowFinal(true);
   }
 
-  function printHtml() {
+  function printHtml(from: ReportIdentity = identity) {
     const doc = future ? editorRef.current?.getDoc() : undefined;
     return buildPrintHtml(
       formatted(report),
       profile,
-      signature,
-      identity.letterheadEnabled ? { header: identity.headerImage, footer: identity.footerImage } : null,
+      { text: from.signatureText, image: from.signatureImage },
+      from.letterheadEnabled ? { header: from.headerImage, footer: from.footerImage } : null,
       doc ? docToHtml(doc, profile) : undefined,
     );
   }
 
   /** The report for the clipboard: rich and plain, from the editor in the new design. */
-  function clipboardParts(value: Report) {
+  function clipboardParts(value: Report, from: ReportIdentity = identity) {
+    const sign = { text: from.signatureText, image: from.signatureImage };
     const doc = future ? editorRef.current?.getDoc() : undefined;
-    if (doc) return { html: docToHtml(doc, profile, signature), text: docToText(doc, signature) };
+    if (doc) return { html: docToHtml(doc, profile, sign), text: docToText(doc, sign) };
     const output = formatted(value);
-    return { html: buildReportHtml(output, profile, signature), text: buildReportText(output, profile, signature) };
+    return { html: buildReportHtml(output, profile, sign), text: buildReportText(output, profile, sign) };
   }
 
   // A template picked from the list is fetched then, not loaded with the page.
@@ -343,11 +358,13 @@ export function ReportWorkspace({
 
   // Prints through a hidden frame, so the report page itself stays as it is.
   // "Save as PDF" in the print window gives the PDF.
-  function print() {
+  async function print() {
+    const from = await fullIdentity();
+    if (!from) return;
     const frame = document.createElement("iframe");
     frame.setAttribute("aria-hidden", "true");
     frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
-    frame.srcdoc = printHtml();
+    frame.srcdoc = printHtml(from);
     frame.onload = () => {
       frame.contentWindow?.focus();
       frame.contentWindow?.print();
@@ -357,7 +374,9 @@ export function ReportWorkspace({
   }
 
   async function copy(next: Report) {
-    const { html, text } = clipboardParts(next);
+    const from = await fullIdentity();
+    if (!from) return;
+    const { html, text } = clipboardParts(next, from);
     try {
       await copyReport(html, text);
       setCopyState("copied");
@@ -448,7 +467,8 @@ export function ReportWorkspace({
       setDraft("");
       return next;
     });
-    const output = nextReport.then(clipboardParts);
+    // Waits for the signature image too, so a copy is never made without it.
+    const output = nextReport.then(async (value) => clipboardParts(value, await identityReady()));
 
     const copied = writeClipboard(
       output.then((value) => toBlob(value.html, "text/html")),
@@ -819,15 +839,16 @@ export function ReportWorkspace({
                   // Reads as the report's title: a quiet dropdown, not a boxed field.
                   className="w-auto max-w-[13rem] !border-transparent !pl-3 !text-[1.02rem] !font-bold hover:!bg-ink/[0.05] data-[popup-open]:!bg-ink/[0.06] @[60rem]:max-w-[18rem]"
                 />
-                <button
-                  type="button"
-                  onClick={() => newCase()}
-                  aria-label="New report"
-                  title="New report"
-                  className={ICON_BUTTON}
-                >
-                  <Plus weight="bold" className="h-5 w-5" />
-                </button>
+                <Tip label="New report">
+                  <button
+                    type="button"
+                    onClick={() => newCase()}
+                    aria-label="New report"
+                    className={ICON_BUTTON}
+                  >
+                    <Plus weight="bold" className="h-5 w-5" />
+                  </button>
+                </Tip>
                 <p aria-live="polite" className="t-meta hidden items-center gap-1.5 whitespace-nowrap @[52rem]:flex">
                   {finalizedAt && !dirty ? (
                     <>
@@ -854,58 +875,63 @@ export function ReportWorkspace({
 
                 {/* Round icon tools in groups, laid out like the template editor's header:
                     file (save, print) · sign-off (finalize, copy) · view (full screen). */}
-                <button
-                  type="button"
-                  onClick={() => save()}
-                  disabled={saving || busy || (savedId !== null && !dirty)}
-                  aria-label="Save"
-                  title={`Save (${shortcuts.save.replace(/\+/g, " + ")})`}
-                  className={TOOL}
-                >
-                  {saving ? <Spinner /> : <FloppyDisk weight="bold" className="h-5 w-5" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={print}
-                  disabled={busy}
-                  aria-label="Print or PDF"
-                  title={`Print or PDF (${shortcuts.print.replace(/\+/g, " + ")})`}
-                  className={TOOL}
-                >
-                  <Printer weight="bold" className="h-5 w-5" />
-                </button>
+                <Tip label="Save" shortcut={shortcuts.save.replace(/\+/g, " + ")}>
+                  <button
+                    type="button"
+                    onClick={() => save()}
+                    disabled={saving || busy || (savedId !== null && !dirty)}
+                    aria-label="Save"
+                    className={TOOL}
+                  >
+                    {saving ? <Spinner /> : <FloppyDisk weight="bold" className="h-5 w-5" />}
+                  </button>
+                </Tip>
+                <Tip label="Print or PDF" shortcut={shortcuts.print.replace(/\+/g, " + ")}>
+                  <button
+                    type="button"
+                    onClick={print}
+                    disabled={busy}
+                    aria-label="Print or PDF"
+                    className={TOOL}
+                  >
+                    <Printer weight="bold" className="h-5 w-5" />
+                  </button>
+                </Tip>
                 <span aria-hidden="true" className="mx-1 h-7 w-px bg-ink/20" />
-                <button
-                  type="button"
-                  onClick={finalize}
-                  disabled={saving || busy}
-                  aria-label={finalizedAt && !dirty ? "Finalized" : "Finalize"}
-                  title="Finalize: save as final and see it as it prints"
-                  className={TOOL}
-                >
-                  <SealCheck weight={finalizedAt && !dirty ? "fill" : "bold"} className="h-5 w-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => copy(report)}
-                  disabled={busy}
-                  aria-label="Copy report"
-                  title={`Copy report (${shortcuts.copy.replace(/\+/g, " + ")})`}
-                  className={TOOL}
-                >
-                  <Copy weight="bold" className="h-5 w-5" />
-                </button>
+                <Tip label={finalizedAt && !dirty ? "Finalized" : "Finalize"}>
+                  <button
+                    type="button"
+                    onClick={finalize}
+                    disabled={saving || busy}
+                    aria-label={finalizedAt && !dirty ? "Finalized" : "Finalize"}
+                    className={TOOL}
+                  >
+                    <SealCheck weight={finalizedAt && !dirty ? "fill" : "bold"} className="h-5 w-5" />
+                  </button>
+                </Tip>
+                <Tip label="Copy report" shortcut={shortcuts.copy.replace(/\+/g, " + ")}>
+                  <button
+                    type="button"
+                    onClick={() => copy(report)}
+                    disabled={busy}
+                    aria-label="Copy report"
+                    className={TOOL}
+                  >
+                    <Copy weight="bold" className="h-5 w-5" />
+                  </button>
+                </Tip>
                 <span aria-hidden="true" className="mx-1 hidden h-7 w-px bg-ink/20 lg:block" />
-                <button
-                  type="button"
-                  onClick={toggleFullScreen}
-                  aria-pressed={fullScreen}
-                  aria-label={fullScreen ? "Exit full screen" : "Full screen"}
-                  title={fullScreen ? "Exit full screen" : "Full screen: only the report, with the AI Assistant floating"}
-                  className={`${TOOL} hidden lg:grid`}
-                >
-                  {fullScreen ? <CornersIn weight="bold" className="h-5 w-5" /> : <CornersOut weight="bold" className="h-5 w-5" />}
-                </button>
+                <Tip label={fullScreen ? "Exit full screen" : "Full screen"}>
+                  <button
+                    type="button"
+                    onClick={toggleFullScreen}
+                    aria-pressed={fullScreen}
+                    aria-label={fullScreen ? "Exit full screen" : "Full screen"}
+                    className={`${TOOL} hidden lg:grid`}
+                  >
+                    {fullScreen ? <CornersIn weight="bold" className="h-5 w-5" /> : <CornersOut weight="bold" className="h-5 w-5" />}
+                  </button>
+                </Tip>
               </div>
             </div>
           </header>
@@ -967,20 +993,21 @@ export function ReportWorkspace({
               {/* The microphone button says what is happening, so this corner holds the panel's own actions. */}
               <div className="flex items-center gap-1">
                 {fullScreen && (
-                  <button
-                    type="button"
-                    onClick={() => setAssistantBig((big) => !big)}
-                    aria-pressed={assistantBig}
-                    aria-label={assistantBig ? "Make smaller" : "Make bigger"}
-                    title={assistantBig ? "Make smaller" : "Make bigger"}
-                    className="hidden h-10 w-10 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.08] lg:grid"
-                  >
-                    {assistantBig ? (
-                      <ArrowsInSimple weight="bold" className="h-5 w-5" />
-                    ) : (
-                      <ArrowsOutSimple weight="bold" className="h-5 w-5" />
-                    )}
-                  </button>
+                  <Tip label={assistantBig ? "Make smaller" : "Make bigger"}>
+                    <button
+                      type="button"
+                      onClick={() => setAssistantBig((big) => !big)}
+                      aria-pressed={assistantBig}
+                      aria-label={assistantBig ? "Make smaller" : "Make bigger"}
+                      className="hidden h-10 w-10 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.08] lg:grid"
+                    >
+                      {assistantBig ? (
+                        <ArrowsInSimple weight="bold" className="h-5 w-5" />
+                      ) : (
+                        <ArrowsOutSimple weight="bold" className="h-5 w-5" />
+                      )}
+                    </button>
+                  </Tip>
                 )}
                 <AssistantMenu
                   getDoc={() => editorRef.current?.getDoc()}
@@ -1190,16 +1217,17 @@ export function ReportWorkspace({
                   className="min-w-0 flex-1"
                 />
                 {/* Faded until something is typed. */}
-                <button
-                  type="button"
-                  onClick={() => send(Promise.resolve(draft))}
-                  disabled={busy || dictation.recording || dictation.starting || draft.trim() === ""}
-                  aria-label="Update report from typed text"
-                  title="Update report from typed text"
-                  className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-teal text-white transition-[opacity,filter] hover:brightness-110 disabled:cursor-default disabled:opacity-25 disabled:hover:brightness-100"
-                >
-                  <ArrowUp weight="bold" className="h-5 w-5" />
-                </button>
+                <Tip label="Update report from typed text">
+                  <button
+                    type="button"
+                    onClick={() => send(Promise.resolve(draft))}
+                    disabled={busy || dictation.recording || dictation.starting || draft.trim() === ""}
+                    aria-label="Update report from typed text"
+                    className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-teal text-white transition-[opacity,filter] hover:brightness-110 disabled:cursor-default disabled:opacity-25 disabled:hover:brightness-100"
+                  >
+                    <ArrowUp weight="bold" className="h-5 w-5" />
+                  </button>
+                </Tip>
               </div>
 
               {heard ? (

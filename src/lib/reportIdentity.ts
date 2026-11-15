@@ -49,6 +49,45 @@ export async function getIdentity(userId: string): Promise<ReportIdentity> {
   };
 }
 
+/** The identity as a page is first sent: the words and settings, with the images left to be fetched. */
+export type IdentitySummary = ReportIdentity & {
+  /** Changes whenever the images do, so the browser can keep them until then. Null when there are none. */
+  imagesVersion: string | null;
+};
+
+export type IdentityImages = Pick<ReportIdentity, "signatureImage" | "headerImage" | "footerImage">;
+
+/**
+ * Everything but the images. They can be a couple of megabytes together, so
+ * they are not sent inside every report page: the browser fetches them once
+ * from /api/account/identity-images and keeps them until they change.
+ */
+export async function getIdentitySummary(userId: string): Promise<IdentitySummary> {
+  const [row] = await db()`
+    select signature_text, letterhead_enabled, updated_at,
+           (signature_image is not null or header_image is not null or footer_image is not null) as has_images
+    from report_identity where user_id = ${userId}
+  `;
+  if (!row) return { ...NO_IDENTITY, imagesVersion: null };
+  return {
+    ...NO_IDENTITY,
+    signatureText: row.signature_text,
+    letterheadEnabled: row.letterhead_enabled,
+    imagesVersion: row.has_images ? `${userId.slice(0, 8)}-${(row.updated_at as Date).getTime()}` : null,
+  };
+}
+
+export async function getIdentityImages(userId: string): Promise<IdentityImages> {
+  const [row] = await db()`
+    select signature_image, header_image, footer_image from report_identity where user_id = ${userId}
+  `;
+  return {
+    signatureImage: row?.signature_image ?? null,
+    headerImage: row?.header_image ?? null,
+    footerImage: row?.footer_image ?? null,
+  };
+}
+
 export async function saveIdentity(userId: string, next: ReportIdentity) {
   await db()`
     insert into report_identity
