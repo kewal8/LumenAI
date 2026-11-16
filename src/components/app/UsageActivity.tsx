@@ -1,5 +1,6 @@
 "use client";
 
+import { CalendarCheck, Lightning, Microphone } from "@phosphor-icons/react";
 import { useState } from "react";
 import type { UsageActivity as Activity, UsageDay } from "@/lib/usageActivity";
 
@@ -30,7 +31,7 @@ function TodayRing({ used, limit }: { used: number; limit: number | null }) {
   return (
     <div className="relative grid h-[152px] w-[152px] shrink-0 place-items-center">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="absolute inset-0 -rotate-90" aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={stroke} className="stroke-ink/10" />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={stroke} className={limit === null ? "stroke-teal/25" : "stroke-amber/20"} />
         {limit !== null && (
           <circle
             cx={size / 2}
@@ -53,12 +54,29 @@ function TodayRing({ used, limit }: { used: number; limit: number | null }) {
   );
 }
 
-function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
+function Stat({
+  icon: Icon,
+  tone,
+  label,
+  value,
+  note,
+}: {
+  icon: typeof Lightning;
+  tone: string;
+  label: string;
+  value: string;
+  note?: string;
+}) {
   return (
-    <div className="border-t border-line py-3.5 first:border-t-0 sm:border-l sm:border-t-0 sm:px-5 sm:py-1 sm:first:border-l-0 sm:first:pl-0">
-      <p className="text-[0.85rem] font-semibold text-ink-soft">{label}</p>
-      <p className="mt-1 text-[1.35rem] font-semibold tracking-[-0.02em]">{value}</p>
-      {note && <p className="text-[0.85rem] text-ink-soft">{note}</p>}
+    <div className="flex items-start gap-3 border-t border-line py-3.5 first:border-t-0 sm:border-l sm:border-t-0 sm:px-5 sm:py-1 sm:first:border-l-0 sm:first:pl-0">
+      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${tone}`}>
+        <Icon weight="fill" className="h-[18px] w-[18px]" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[0.85rem] font-semibold text-ink-soft">{label}</span>
+        <span className="mt-0.5 block text-[1.35rem] font-semibold tracking-[-0.02em]">{value}</span>
+        {note && <span className="block text-[0.85rem] text-ink-soft">{note}</span>}
+      </span>
     </div>
   );
 }
@@ -195,16 +213,25 @@ export function UsageActivity({ activity }: { activity: Activity }) {
           </div>
           <div className="grid sm:grid-cols-3">
             <Stat
+              icon={Lightning}
+              tone="bg-amber-tint text-amber-deep"
               label="Last 30 days"
               value={String(team ? mine30 : total30)}
               note={team ? `by you, of ${total30} in your team` : "AI updates"}
             />
             <Stat
+              icon={CalendarCheck}
+              tone="bg-teal/[0.12] text-teal-deep"
               label="Busiest day"
               value={busiest.mine + busiest.others > 0 ? String(busiest.mine + busiest.others) : "–"}
               note={busiest.mine + busiest.others > 0 ? dayLabel(busiest.day, true) : "No updates yet"}
             />
-            <Stat label="Dictated this month" value={duration(dictationSeconds)} />
+            <Stat
+              icon={Microphone}
+              tone="bg-teal/[0.12] text-teal-deep"
+              label="Dictated this month"
+              value={duration(dictationSeconds)}
+            />
           </div>
         </div>
       </div>
