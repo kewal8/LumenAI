@@ -61,6 +61,7 @@ const NAV: Record<Area, NavItem[]> = {
     { href: "/team", label: "Team", icon: UsersThree },
     { href: "/plans", label: "Plans", icon: CreditCard },
     { href: "/insights", label: "Insights", icon: ChartLineUp },
+    { href: "/referrals", label: "Referrals", icon: Gift },
     { href: "/settings", label: "Settings", icon: GearSix },
   ],
   admin: [
