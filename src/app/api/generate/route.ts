@@ -40,6 +40,8 @@ The dictation can also be an instruction about the existing report rather than a
 
 Radiologists correct themselves mid-sentence, the way people do when speaking: "18 cm stone in the gallbladder. Sorry, 15 cm", "left kidney, I mean right kidney", "4 mm, no wait, 6 mm". The words after the correction ("sorry", "I mean", "no wait", "correction", "make that") replace what they correct, so the corrected value or side is the dictated one: write only that, never both, and never the correction words themselves. The same goes for a correction of something said in an earlier dictation of this report. If it is not clear what a correction replaces, keep the words before it and let the safety checks flag the line rather than guess.
 
+A template can be blank: sections with no lines and no normal impression. The radiologist then dictates only the positive findings, and nothing is assumed normal. Write each finding as its own line with "add" in the section it belongs to (FINDINGS unless another section fits), in finished report language, and base the impression only on those lines. Do not add normal statements that were not dictated.
+
 Return edits as ops:
 - "replace": rewrite an existing line, identified by sectionId and lineId. Use this when the dictated finding belongs to the structure a line describes, or makes that line's normal statement untrue. A report must not state a finding and also keep a normal line that contradicts it.
 - "add": append a new line to a section when no existing line covers the finding. Set lineId to "".

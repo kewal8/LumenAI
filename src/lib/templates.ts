@@ -60,3 +60,20 @@ export const CT_BRAIN_PLAIN: Template = {
 };
 
 export const TEMPLATES: Template[] = [CT_BRAIN_PLAIN];
+
+/** The id that starts a report with no template. */
+export const BLANK_TEMPLATE_ID = "blank";
+
+/**
+ * A report with no template: no normal wording to keep, only the findings the
+ * doctor dictates. The AI writes each one as its own line under FINDINGS and
+ * builds the impression from them. The title is left for the doctor to type.
+ */
+export const BLANK_TEMPLATE: Template = {
+  id: BLANK_TEMPLATE_ID,
+  name: "Blank report",
+  title: "",
+  sections: [{ id: "findings", heading: "FINDINGS", lines: [] }],
+  normalImpression: [],
+  modality: null,
+};

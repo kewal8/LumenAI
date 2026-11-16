@@ -3,6 +3,7 @@ import {
   Browsers,
   Check,
   ClipboardText,
+  FileDashed,
   Layout,
   ListChecks,
   Microphone,
@@ -271,6 +272,66 @@ export default function LandingPage() {
             <div className="glow-up rounded-[40px] border border-line bg-surface/60 p-5 sm:p-8">
               {/* TODO: real screenshot, finished report with impression. */}
               <ScreenshotFrame label="Report" layout="report" />
+            </div>
+          </Reveal>
+        </section>
+
+        {/* No template: the report is built from the positive findings alone. */}
+        <section className={`${SHELL} pb-20 lg:pb-28`}>
+          <Reveal className="grid items-center gap-x-16 gap-y-12 lg:grid-cols-2">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-dashed border-teal/50 bg-teal-tint px-3 py-1 text-[0.85rem] font-semibold text-teal-deep">
+                <FileDashed weight="bold" className="h-4 w-4" />
+                Start from blank
+              </span>
+              <h2 className={`${H2} mt-5`}>
+                No template? <span className="text-teal">Just the findings.</span>
+              </h2>
+              <p className="mt-6 max-w-[48ch] text-[1.05rem] leading-relaxed text-ink-soft">
+                For a study you have no template for, start from blank. Say only what you see.
+                LumenAI writes each finding as a finished line and builds the impression from them.
+              </p>
+              <ul className="mt-9 flex flex-col gap-6">
+                <li className="flex gap-4">
+                  <IconTile>
+                    <ListChecks className="h-5 w-5" />
+                  </IconTile>
+                  <div>
+                    <h3 className="font-semibold leading-snug">Positive findings only</h3>
+                    <p className="mt-1 text-[0.98rem] leading-relaxed text-ink-soft">
+                      Nothing normal is added that you did not say.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-4">
+                  <IconTile>
+                    <ShieldCheck className="h-5 w-5" />
+                  </IconTile>
+                  <div>
+                    <h3 className="font-semibold leading-snug">The same checks as every report</h3>
+                    <p className="mt-1 text-[0.98rem] leading-relaxed text-ink-soft">
+                      Side, size and negation are checked against your words.
+                    </p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            {/* A worked example, in the app's own report style. */}
+            <div className="glow-up rounded-[40px] border border-line bg-surface/60 p-5 sm:p-8">
+              <div className={`${CARD} flex flex-col gap-4 p-5 sm:p-6`}>
+                <p className="self-end rounded-[1.1rem] rounded-br-md bg-amber-tint px-3.5 py-2 text-[0.94rem] leading-snug text-ink">
+                  Right kidney, twelve mm stone in the lower pole, mild hydronephrosis. Gallbladder wall five mm.
+                </p>
+                <div className="rounded-2xl border border-line bg-canvas/60 px-5 py-4 font-[Arial,sans-serif] text-[0.92rem] leading-relaxed text-ink">
+                  <p className="font-bold">FINDINGS:</p>
+                  <p>There is a 12 mm calculus in the lower pole of the right kidney with mild hydronephrosis.</p>
+                  <p>The gallbladder wall is thickened, measuring 5 mm.</p>
+                  <p className="mt-3 font-bold">IMPRESSION:</p>
+                  <p>12 mm right lower pole renal calculus with mild hydronephrosis.</p>
+                  <p>Gallbladder wall thickening (5 mm).</p>
+                </div>
+              </div>
             </div>
           </Reveal>
         </section>

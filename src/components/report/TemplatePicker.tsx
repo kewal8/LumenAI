@@ -1,9 +1,10 @@
 "use client";
 
 import { Combobox } from "@base-ui/react/combobox";
-import { CaretDown, Check, MagnifyingGlass } from "@phosphor-icons/react";
+import { CaretDown, Check, FileDashed, MagnifyingGlass } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 import { Spinner } from "@/components/Spinner";
+import { BLANK_TEMPLATE_ID } from "@/lib/templates";
 
 type Option = { value: string; label: string; modality: string | null };
 
@@ -105,6 +106,24 @@ export function TemplatePicker({
                 className="h-13 w-full bg-transparent text-[1rem] font-semibold text-ink outline-none placeholder:font-medium placeholder:text-ink-quiet"
               />
             </label>
+            {/* No template at all: the report holds only the findings that are dictated. */}
+            <div className="border-b border-line p-2">
+              <button
+                type="button"
+                onClick={() => pick(BLANK_TEMPLATE_ID)}
+                className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-teal/[0.07] ${
+                  current.id === BLANK_TEMPLATE_ID ? "bg-teal/[0.07]" : ""
+                }`}
+              >
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-dashed border-teal/60 bg-teal/[0.08] text-teal-deep">
+                  <FileDashed weight="bold" className="h-[1.1rem] w-[1.1rem]" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[0.98rem] font-semibold text-ink">Start from blank</span>
+                  <span className="block text-[0.85rem] text-ink-soft">No template. Only the findings you dictate.</span>
+                </span>
+              </button>
+            </div>
             <Combobox.Empty>
               <p className="flex items-center gap-2 px-5 py-4 text-[0.95rem] text-ink-soft">
                 {loading ? (

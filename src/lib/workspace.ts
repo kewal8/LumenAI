@@ -7,7 +7,7 @@ import { loadSubscription } from "@/lib/subscription";
 import { getIdentitySummary } from "@/lib/reportIdentity";
 import { parseShortcuts } from "@/lib/shortcuts";
 import { loadReportTemplate } from "@/lib/templateStore";
-import { CT_BRAIN_PLAIN } from "@/lib/templates";
+import { BLANK_TEMPLATE, BLANK_TEMPLATE_ID, CT_BRAIN_PLAIN } from "@/lib/templates";
 
 /**
  * What the report workspace needs: paste format, sign-off and the one template
@@ -17,14 +17,14 @@ import { CT_BRAIN_PLAIN } from "@/lib/templates";
 export async function loadWorkspace(user: CurrentUser, first: string | null = null) {
   const [[row], stored, identity, macros, credits] = await Promise.all([
     db()`select paste_profile, shortcuts, floating_box from users where id = ${user.id}`,
-    loadReportTemplate(user, first),
+    first === BLANK_TEMPLATE_ID ? null : loadReportTemplate(user, first),
     getIdentitySummary(user.id),
     listMacros(user.id),
     loadCredits(user),
   ]);
 
   // Until someone adds their own, the built-in sample keeps the screen usable.
-  const template = stored ?? CT_BRAIN_PLAIN;
+  const template = first === BLANK_TEMPLATE_ID ? BLANK_TEMPLATE : (stored ?? CT_BRAIN_PLAIN);
 
   return {
     profile: parsePasteProfile(row?.paste_profile),

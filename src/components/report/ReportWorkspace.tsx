@@ -63,6 +63,7 @@ import { ReportEditor, type ReportEditorHandle } from "./editor/ReportEditor";
 import { docToHtml, docToReport, docToText, reportToDoc, type DocNode } from "@/lib/reportDoc";
 import type { Credits } from "@/lib/workspace";
 import { setUpdatesLeft } from "@/lib/updatesLeft";
+import { BLANK_TEMPLATE, BLANK_TEMPLATE_ID } from "@/lib/templates";
 import { EMPTY_PATIENT, ageSex, hasPatient, type Patient } from "@/lib/patient";
 import { AssistantMenu } from "./AssistantMenu";
 import { PatientDialog } from "./PatientDialog";
@@ -321,7 +322,12 @@ export function ReportWorkspace({
   }
 
   /** The details as the pop-up starts with them: what was given, or suggestions from the template. */
-  const patientDraft: Patient = patient ?? { ...EMPTY_PATIENT, study: template.name, modality: template.modality ?? null };
+  const patientDraft: Patient = patient ?? {
+    ...EMPTY_PATIENT,
+    // A blank report has no study name to suggest.
+    study: template.id === BLANK_TEMPLATE_ID ? "" : template.name,
+    modality: template.modality ?? null,
+  };
 
   async function submitPatient(details: Patient) {
     const purpose = patientAsk;
@@ -363,6 +369,11 @@ export function ReportWorkspace({
 
   // A template picked from the list is fetched then, not loaded with the page.
   async function pickTemplate(id: string) {
+    // No template: only the findings the doctor dictates.
+    if (id === BLANK_TEMPLATE_ID) {
+      newCase(BLANK_TEMPLATE);
+      return;
+    }
     const result = await sendJson<{ template: Template }>("GET", `/api/templates/${id}`);
     if (result.error || !result.data) {
       setError(result.error || "That template could not be opened.");
