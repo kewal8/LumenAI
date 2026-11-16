@@ -1117,8 +1117,8 @@ export function ReportWorkspace({
             aria-label="AI Assistant"
             // On a phone or tablet it docks at the bottom of the screen: the speak
             // controls always in reach, the chat pulled up as a sheet when wanted.
-            className={`${CARD} order-1 w-full shrink-0 max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-30 max-lg:rounded-b-none max-lg:border-x-0 max-lg:border-b-0 max-lg:pb-[env(safe-area-inset-bottom)] max-lg:shadow-[0_-14px_34px_-20px_rgb(6_17_15/0.45)] lg:order-2 lg:max-w-[24.75rem] xl:max-w-[25.75rem] ${
-              assistantBig ? "max-lg:h-[85dvh]" : ""
+            className={`${CARD} order-1 w-full shrink-0 max-lg:fixed max-lg:inset-x-0 max-lg:bottom-[var(--kb,0px)] max-lg:z-30 max-lg:rounded-b-none max-lg:border-x-0 max-lg:border-b-0 max-lg:pb-[env(safe-area-inset-bottom)] max-lg:shadow-[0_-14px_34px_-20px_rgb(6_17_15/0.45)] lg:order-2 lg:max-w-[24.75rem] xl:max-w-[25.75rem] ${
+              assistantBig ? "max-lg:h-[calc(var(--vvh,100dvh)*0.85)]" : ""
             } ${
               fullScreen
                 ? `lg:fixed lg:bottom-5 lg:right-5 lg:z-40 lg:!shadow-[0_30px_80px_-24px_rgb(10_13_12/0.55)] ${

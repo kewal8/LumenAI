@@ -503,12 +503,13 @@ html[data-report-focus] [data-app-nav] {
 @media (max-width: 639px) {
   .sheet {
     top: auto;
-    bottom: 0;
+    /* Above the on-screen keyboard while one is open (see useKeyboardInset). */
+    bottom: var(--kb, 0px);
     left: 0;
     right: 0;
     width: 100%;
     max-width: none;
-    max-height: 92dvh;
+    max-height: calc(var(--vvh, 100dvh) * 0.92);
     overflow-y: auto;
     /* The centring utilities would otherwise keep pulling it up and to the left. */
     translate: none !important;

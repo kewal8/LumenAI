@@ -13,11 +13,13 @@ const PUBLIC_PAGES = new Set([
   "/accept-invite",
   "/forgot-password",
   "/reset-password",
+  // What a phone reads to add LumenAI to its home screen.
+  "/manifest.webmanifest",
 ]);
 // The scheduled clean-up has no session; it checks its own secret.
 const PUBLIC_API = ["/api/auth/", "/api/demo-requests", "/api/cron/"];
 // Editor preview links: the page checks the link's secret itself.
-const PUBLIC_PREFIXES = ["/preview/"];
+const PUBLIC_PREFIXES = ["/preview/", "/icons/"];
 
 /**
  * First gate: no session cookie, no entry. The cookie is checked against the

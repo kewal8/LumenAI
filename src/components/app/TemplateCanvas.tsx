@@ -195,40 +195,43 @@ export function TemplateCanvas({
         event.preventDefault();
         save();
       }}
-      className="flex flex-col gap-5"
+      // On a phone the main button is docked at the bottom; room is left for it.
+      className="flex flex-col gap-5 max-lg:pb-24"
       noValidate
       // The browser would otherwise refill a new template with the last one's name and modality.
       autoComplete="off"
     >
       <header className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={leave} className={buttonClass.secondary}>
+        <button type="button" onClick={leave} aria-label="Back" className={`${buttonClass.secondary} max-sm:!w-11 max-sm:!px-0`}>
           <ArrowLeft weight="bold" className="h-4 w-4" />
-          Back
+          <span className="max-sm:hidden">Back</span>
         </button>
-        <h1 className="sr-only">
+        {/* Named on a phone, where the screen has no other title. */}
+        <h1 className="text-[1.15rem] font-semibold tracking-[-0.02em] sm:sr-only">
           {template ? "Edit template" : "New template"}
         </h1>
         {/* Right side: sharing, then each tool on its own with room around it,
             then the main action, divided into three groups. */}
-        <div className="ml-auto flex flex-wrap items-center gap-3">
+        <div className="ml-auto flex flex-wrap items-center gap-2 sm:gap-3">
           {canShare && (
             <>
               <button
                 type="button"
                 onClick={() => setSharing(true)}
-                className={buttonClass.secondary}
+                aria-label="Share"
+                className={`${buttonClass.secondary} max-sm:!w-11 max-sm:!px-0`}
               >
                 {shared ? (
                   <Buildings weight="bold" className="h-4 w-4" />
                 ) : (
                   <LockSimple weight="bold" className="h-4 w-4" />
                 )}
-                Share
+                <span className="max-sm:hidden">Share</span>
               </button>
-              <span aria-hidden="true" className="h-7 w-px bg-ink/20" />
+              <span aria-hidden="true" className="h-7 w-px bg-ink/20 max-sm:hidden" />
             </>
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <Tip label={template ? "Reset to the last saved version" : "Clear and start again"}>
               <button
                 type="button"
@@ -263,11 +266,13 @@ export function TemplateCanvas({
               />
             )}
           </div>
-          <span aria-hidden="true" className="h-7 w-px bg-ink/20" />
+          <span aria-hidden="true" className="h-7 w-px bg-ink/20 max-lg:hidden" />
+          {/* On a phone or tablet: a full-width button docked at the bottom, above the keyboard when it is open. */}
+          <div className="max-lg:fixed max-lg:inset-x-0 max-lg:bottom-[var(--kb,0px)] max-lg:z-30 max-lg:border-t max-lg:border-line max-lg:bg-surface/90 max-lg:px-4 max-lg:pt-3 max-lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-lg:backdrop-blur-xl">
           <button
             type="submit"
             disabled={busy || duplicate}
-            className={buttonClass.primary}
+            className={`${buttonClass.primary} max-lg:h-12 max-lg:w-full`}
           >
             {busy && <Spinner />}
             {template
@@ -278,6 +283,7 @@ export function TemplateCanvas({
                 ? "Creating"
                 : "Create template"}
           </button>
+          </div>
         </div>
       </header>
 

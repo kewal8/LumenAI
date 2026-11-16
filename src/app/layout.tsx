@@ -26,12 +26,17 @@ export const metadata: Metadata = {
   title: "LumenAI",
   description:
     "Dictate only the abnormal findings. LumenAI writes the radiology report in your template. Paste it into PACS, or finalise, sign and print it in LumenAI.",
+  // Added to an iPhone's home screen, it opens full screen with its own icon and name.
+  appleWebApp: { capable: true, title: "LumenAI", statusBarStyle: "default" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
 // Phones: the page reaches under the notch and home bar (the app's bars pad
 // themselves with the safe-area insets), and the browser bar takes the page colour.
 export const viewport: Viewport = {
   viewportFit: "cover",
+  // Android: the page shrinks to the space above the keyboard instead of being covered.
+  interactiveWidget: "resizes-content",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fefefe" },
     { media: "(prefers-color-scheme: dark)", color: "#0b1514" },

@@ -348,7 +348,7 @@ function MobileTopBar({ user, area }: { user: ShellUser; area: Area }) {
 
   return (
     <header
-      className={`sticky top-0 z-40 flex h-14 items-center justify-between gap-3 bg-surface/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-xl transition-[border-color] lg:hidden ${
+      className={`sticky top-0 z-40 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center justify-between gap-3 bg-surface/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-xl transition-[border-color] lg:hidden ${
         scrolled ? "border-b border-line" : "border-b border-transparent"
       }`}
     >
@@ -370,14 +370,50 @@ function MobileTopBar({ user, area }: { user: ShellUser; area: Area }) {
   );
 }
 
-/** Writing a report takes the whole screen on a phone; the tabs step aside there. */
+/**
+ * Writing a report or a template takes the whole screen on a phone, like a
+ * compose screen; the tabs step aside there.
+ */
 function isReportScreen(pathname: string) {
-  return pathname === "/report" || pathname.startsWith("/report/") || /^\/reports\/[^/]+/.test(pathname);
+  return (
+    pathname === "/report" ||
+    pathname.startsWith("/report/") ||
+    /^\/reports\/[^/]+/.test(pathname) ||
+    /^\/templates\/[^/]+/.test(pathname)
+  );
 }
 
 // The doctor's tabs on a phone: New report in the middle, raised, as the main
 // action; Plans is in the account menu.
 const DOCTOR_TABS = ["/reports", "/templates", "/report", "/team", "/settings"];
+
+/**
+ * The on-screen keyboard covers the bottom of a phone screen without telling
+ * the page. This measures it, as --kb (how far it reaches up) and --vvh (the
+ * height still visible), so docked boxes and sheets can sit just above it.
+ */
+function useKeyboardInset() {
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const root = document.documentElement;
+    const update = () => {
+      const covered = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      // Small differences are the browser's own bars moving, not a keyboard.
+      root.style.setProperty("--kb", `${covered > 80 ? covered : 0}px`);
+      root.style.setProperty("--vvh", `${viewport.height}px`);
+    };
+    update();
+    viewport.addEventListener("resize", update);
+    viewport.addEventListener("scroll", update);
+    return () => {
+      viewport.removeEventListener("resize", update);
+      viewport.removeEventListener("scroll", update);
+      root.style.removeProperty("--kb");
+      root.style.removeProperty("--vvh");
+    };
+  }, []);
+}
 
 /** The phone's bottom tab bar: every screen one thumb-tap away. */
 function BottomTabs({ area, locked }: { area: Area; locked?: boolean }) {
@@ -454,6 +490,7 @@ export function AppShell({
   // Phones and tablets get app-style navigation: a top bar and tabs at the bottom.
   const pathname = usePathname();
   const tabsShown = !(area === "doctor" && isReportScreen(pathname));
+  useKeyboardInset();
 
   return (
     <div data-app-style="" className="app group/app flex min-h-[100dvh] flex-1">
