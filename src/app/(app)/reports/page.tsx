@@ -2,8 +2,11 @@ import { FolderOpen, Plus } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { ReportList } from "@/components/app/ReportList";
 import { EmptyState, Page, PageHeader, buttonClass } from "@/components/app/ui";
+import { FirstReportNote } from "@/components/welcome/FirstReportNote";
 import { requireUser } from "@/lib/auth/session";
+import { greetingName } from "@/lib/greeting";
 import { readListParams } from "@/lib/listQuery";
+import { firstReportDue } from "@/lib/moments";
 import { REPORT_SORTS, hasReports, pageReports } from "@/lib/reportStore";
 
 // Reads the signed-in user's data on every request, so it is rendered on demand.
@@ -20,7 +23,11 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
     filters: ["status"],
   });
   // Only the page asked for is read, never every report.
-  const [{ rows, total }, any] = await Promise.all([pageReports(user, params), hasReports(user)]);
+  const [{ rows, total }, any, firstReport] = await Promise.all([
+    pageReports(user, params),
+    hasReports(user),
+    firstReportDue(user),
+  ]);
 
   return (
     <Page>
@@ -36,6 +43,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
           </Link>
         }
       />
+      {firstReport && <FirstReportNote firstName={greetingName(user.name)} took={firstReport.took} />}
       {!any ? (
         <EmptyState
           icon={<FolderOpen weight="fill" className="h-5 w-5" />}

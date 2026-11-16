@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/landing/ThemeToggle";
 import { WelcomeScreen } from "@/components/welcome/WelcomeScreen";
 import { requireUser } from "@/lib/auth/session";
+import { greetingName } from "@/lib/greeting";
 import { editorLocked } from "@/lib/subscription";
 
 // Greets the signed-in doctor by name, so it is rendered on demand.
@@ -12,9 +13,7 @@ export const metadata = { title: "Welcome · LumenAI" };
 export default async function WelcomePage() {
   const user = await requireUser();
   const locked = await editorLocked(user);
-  // "Dr. Anita Rao" is greeted as "Dr. Anita"; "Anita Rao" as "Anita".
-  const words = user.name.split(" ");
-  const firstName = /^dr\.?$/i.test(words[0]) && words[1] ? `${words[0]} ${words[1]}` : words[0];
+  const firstName = greetingName(user.name);
 
   return (
     <div className="landing flex min-h-[100dvh] flex-1 flex-col">

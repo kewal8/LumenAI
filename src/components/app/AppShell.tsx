@@ -12,6 +12,7 @@ import {
   Files,
   FolderOpen,
   GearSix,
+  AppWindow,
   LinkSimple,
   LockSimple,
   Plus,
@@ -64,6 +65,7 @@ const NAV: Record<Area, NavItem[]> = {
     { href: "/admin/demo-requests", label: "Demo requests", icon: CalendarCheck },
     { href: "/admin/accounts", label: "Accounts", icon: Buildings },
     { href: "/admin/preview-links", label: "Preview links", icon: LinkSimple },
+    { href: "/admin/screens", label: "Screens", icon: AppWindow },
   ],
 };
 

@@ -2,6 +2,9 @@ import { AppShell } from "@/components/app/AppShell";
 import { requireUser } from "@/lib/auth/session";
 import { editorLocked } from "@/lib/subscription";
 import { loadCredits } from "@/lib/workspace";
+import { greetingName } from "@/lib/greeting";
+import { renewalDue } from "@/lib/moments";
+import { RenewalPrompt } from "@/components/welcome/RenewalPrompt";
 
 // Reads the session on every request, so this route is rendered on demand
 // rather than prerendered.
@@ -10,7 +13,7 @@ export const instant = false;
 // Everything in this group needs a signed-in user.
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const [locked, credits] = await Promise.all([editorLocked(user), loadCredits(user)]);
+  const [locked, credits, renewal] = await Promise.all([editorLocked(user), loadCredits(user), renewalDue(user)]);
 
   return (
     <AppShell
@@ -25,6 +28,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       }}
     >
       {children}
+      {/* Asks the owner to renew in the last week of a plan. */}
+      {renewal && <RenewalPrompt key={renewal.moment} due={renewal} firstName={greetingName(user.name)} />}
     </AppShell>
   );
 }
