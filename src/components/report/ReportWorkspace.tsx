@@ -23,6 +23,7 @@ import {
   Printer,
   SealCheck,
   ArrowUp,
+  Stop,
   ArrowsInSimple,
   ArrowsOutSimple,
   CornersIn,
@@ -444,9 +445,10 @@ export function ReportWorkspace({
     }
   }
 
-  async function generate(text: string): Promise<Report> {
+  async function generate(text: string, signal: AbortSignal): Promise<Report> {
     const response = await fetch("/api/generate", {
       method: "POST",
+      signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         // The page itself is not needed to write the report.
@@ -507,6 +509,8 @@ export function ReportWorkspace({
   // while the browser still counts it as user-initiated, and is filled in when
   // the report arrives a few seconds later.
   async function send(textPromise: Promise<string>) {
+    const stopper = new AbortController();
+    writingStop.current = stopper;
     setBusy(true);
     setError("");
     setFailed(null);
@@ -518,18 +522,21 @@ export function ReportWorkspace({
       if (!text.trim()) throw new Error("Nothing was dictated.");
       // Short forms become their full text before the report is written.
       dictated = expandMacros(text.trim(), macrosRef.current);
+      if (stopper.signal.aborted) throw new Error("Stopped.");
       setWriting(dictated);
-      const next = await generate(dictated);
+      const next = await generate(dictated, stopper.signal);
       setDraft("");
       return next;
     });
     // Waits for the signature image too, so a copy is never made without it.
     const output = nextReport.then(async (value) => clipboardParts(value, await identityReady()));
 
-    const copied = writeClipboard(
-      output.then((value) => toBlob(value.html, "text/html")),
-      output.then((value) => toBlob(value.text, "text/plain")),
-    ).then(
+    const asHtml = output.then((value) => toBlob(value.html, "text/html"));
+    const asText = output.then((value) => toBlob(value.text, "text/plain"));
+    // A stopped or failed update is reported below, not as a stray browser error.
+    asHtml.catch(() => {});
+    asText.catch(() => {});
+    const copied = writeClipboard(asHtml, asText).then(
         () => true,
         () => false,
       );
@@ -544,16 +551,27 @@ export function ReportWorkspace({
         toast.warning("Report updated, but not copied. Press Copy report.");
       }
     } catch (cause) {
+      if (stopper.signal.aborted) {
+        // Stopped by the doctor: the report is as it was and the words stay in the box.
+        toast.warning("Stopped. The report was not changed.");
+        return;
+      }
       const message = cause instanceof Error ? cause.message : "Could not update the report.";
       // A dictation that did not reach the report stays in the log, with a way to retry.
       if (dictated) setFailed({ text: dictated, message });
       else setError(message);
       toast.error(dictated ? "Not added to the report. Try again." : message);
     } finally {
+      if (writingStop.current === stopper) writingStop.current = null;
       setWriting(null);
       setBusy(false);
     }
   }
+
+  // The Stop button while the AI is writing: the request is dropped and the
+  // report stays as it was.
+  const writingStop = useRef<AbortController>(null);
+  const stopWriting = () => writingStop.current?.abort();
 
   // True when the microphone is on but no voice has been heard for a few seconds.
   const [quiet, setQuiet] = useState(false);
@@ -584,14 +602,16 @@ export function ReportWorkspace({
   // After 5 seconds with no voice the microphone switches off by itself and
   // goes back to Start. What was said stays in the box as a draft: nothing is
   // sent to the report until the doctor presses Enter or the send button.
-  function pauseMic() {
+  // Escape does the same on request: microphone off, nothing written.
+  function pauseMic(message = "Paused after 5 seconds of silence. Press Enter or Send when ready.") {
     if (!dictation.recording) return;
+    setQuiet(false);
     dictation
       .stop()
       .then(() => {
         apply(listener.current.flush());
         if (draftRef.current.trim()) {
-          toast.warning("Paused after 5 seconds of silence. Press Enter or Send when ready.");
+          toast.warning(message);
         }
       })
       .catch(() => {});
@@ -604,6 +624,8 @@ export function ReportWorkspace({
   // Keyboard shortcuts. The handlers are read through a ref so the listener
   // is attached once and still calls the latest version of each action.
   const actions = useRef<Record<ShortcutAction, () => void>>(null);
+  // Escape: microphone off without writing. Says whether it was on.
+  const stopListening = useRef<() => boolean>(null);
   useEffect(() => {
     // Same limits as the buttons: nothing fires while a report is being written.
     actions.current = {
@@ -613,10 +635,19 @@ export function ReportWorkspace({
       print: () => !busy && print(),
       new: () => !busy && newCase(),
     };
+    stopListening.current = () => {
+      if (!dictation.recording) return false;
+      pauseMic("Microphone stopped. Nothing was written. Press Enter or Send when ready.");
+      return true;
+    };
   });
   const floatingWindow = floating.win;
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape" && !event.repeat && !event.defaultPrevented) {
+        if (stopListening.current?.()) event.preventDefault();
+        return;
+      }
       const combo = comboFromEvent(event);
       if (!combo || event.repeat) return;
       const match = (Object.keys(shortcuts) as ShortcutAction[]).find((id) => shortcuts[id] === combo);
@@ -1337,18 +1368,31 @@ export function ReportWorkspace({
                   keyShortcut={shortcuts.dictate}
                   className="min-w-0 flex-1"
                 />
-                {/* Faded until something is typed. */}
-                <Tip label="Update report from typed text">
-                  <button
-                    type="button"
-                    onClick={() => send(Promise.resolve(draft))}
-                    disabled={busy || dictation.recording || dictation.starting || draft.trim() === ""}
-                    aria-label="Update report from typed text"
-                    className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-teal text-white transition-[opacity,filter] hover:brightness-110 disabled:cursor-default disabled:opacity-25 disabled:hover:brightness-100"
-                  >
-                    <ArrowUp weight="bold" className="h-5 w-5" />
-                  </button>
-                </Tip>
+                {/* Faded until something is typed. While the AI writes, it is the Stop button. */}
+                {busy ? (
+                  <Tip label="Stop writing">
+                    <button
+                      type="button"
+                      onClick={stopWriting}
+                      aria-label="Stop writing"
+                      className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-ink text-white transition-[filter] hover:brightness-125 active:scale-[0.97]"
+                    >
+                      <Stop weight="fill" className="h-5 w-5" />
+                    </button>
+                  </Tip>
+                ) : (
+                  <Tip label="Update report from typed text">
+                    <button
+                      type="button"
+                      onClick={() => send(Promise.resolve(draft))}
+                      disabled={dictation.recording || dictation.starting || draft.trim() === ""}
+                      aria-label="Update report from typed text"
+                      className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-teal text-white transition-[opacity,filter] hover:brightness-110 disabled:cursor-default disabled:opacity-25 disabled:hover:brightness-100"
+                    >
+                      <ArrowUp weight="bold" className="h-5 w-5" />
+                    </button>
+                  </Tip>
+                )}
               </div>
 
               {heard ? (
@@ -1361,6 +1405,7 @@ export function ReportWorkspace({
                   <p className="t-meta -mt-1 text-center">
                     Say “next line”, “full stop”, “comma”, “delete last macro” or “undo that”.
                   </p>
+                  <p className="t-meta -mt-2 text-center">Press Esc to stop without writing.</p>
                 </>
               ) : null}
             </div>
@@ -1884,7 +1929,17 @@ export function ReportWorkspace({
 
           {/* Only for typed words. Speech is sent by the button above, so this
               stays out of the way until there is something typed to send. */}
-          {draft.trim() !== "" && !dictation.recording && (
+          {busy && (
+            <button
+              type="button"
+              onClick={stopWriting}
+              className="flex h-11 items-center justify-center gap-2 rounded-full border border-ink/35 text-[0.95rem] font-bold text-ink transition-colors hover:border-ink/60 hover:bg-ink/[0.06]"
+            >
+              <Stop weight="fill" className="h-4 w-4" />
+              Stop writing
+            </button>
+          )}
+          {draft.trim() !== "" && !dictation.recording && !busy && (
             <button
               type="button"
               onClick={() => send(Promise.resolve(draft))}
