@@ -20,7 +20,6 @@ import {
   Avatar,
   Badge,
   EmptyState,
-  IconTile,
   Meta,
   LIST_HEAD,
   PANEL,
@@ -66,7 +65,7 @@ export default async function TeamPage({ searchParams }: PageProps<"/team">) {
   const like = likePattern(params.q);
   const sql = db();
   // Only the page of people asked for is read.
-  const [members, invites] = await Promise.all([
+  const [members, invites, roleCounts] = await Promise.all([
     sql`
       select u.id, u.name, u.email, u.last_login_at, m.role, count(*) over () as total
       from memberships m join users u on u.id = m.user_id
@@ -81,7 +80,11 @@ export default async function TeamPage({ searchParams }: PageProps<"/team">) {
       order by created_at desc
       limit 20
     `,
+    // Headcount by role for the whole team, not just this page of the list.
+    sql`select role, count(*)::int as count from memberships where org_id = ${user.org.id} group by role`,
   ]);
+  const countOf = (role: Role) => (roleCounts.find((row) => row.role === role)?.count as number | undefined) ?? 0;
+  const people = roleCounts.reduce((sum, row) => sum + (row.count as number), 0);
 
   const actor = { id: user.id, role: user.org.role };
   const roles = assignableRoles(user.org.role);
@@ -98,11 +101,55 @@ export default async function TeamPage({ searchParams }: PageProps<"/team">) {
 
   return (
     <Page>
-      <PageHeader
-        title="Team"
-        description={`People who report under ${user.org.name}.`}
-        action={manages ? <InviteButton roles={roles} /> : undefined}
-      />
+      <PageHeader title="Team" description={`People who report under ${user.org.name}.`} />
+
+      <section
+        aria-label="Your team"
+        className="on-night relative grid gap-7 overflow-hidden rounded-[32px] bg-night p-6 text-on-night sm:p-9 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-12"
+      >
+        {/* The same soft light as the Referrals, Insights and Plans panels. */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -left-24 -top-28 h-80 w-80 rounded-full bg-teal-glow/20 blur-3xl"
+        />
+        <div className="relative">
+          <p className="flex items-center gap-2 text-[0.95rem] font-semibold text-on-night-soft">
+            <UsersThree weight="fill" className="h-5 w-5 text-teal-glow" />
+            {user.org.name}
+          </p>
+          <p className="mt-2 flex items-baseline gap-3">
+            <span className="text-[clamp(3rem,6vw,4.2rem)] font-semibold leading-none tracking-[-0.05em] tabular-nums">
+              {people}
+            </span>
+            <span className="text-[1.15rem] font-semibold text-on-night-soft">{people === 1 ? "person" : "people"}</span>
+          </p>
+          <dl className="mt-6 flex flex-wrap gap-2.5">
+            {(["owner", "admin", "radiologist"] as const).map((role) => (
+              <div key={role} className="min-w-28 rounded-2xl bg-on-night/[0.08] px-4 py-3">
+                <dt className="text-[0.8rem] font-semibold text-on-night-soft">{ROLE_LABELS[role]}s</dt>
+                <dd className="mt-0.5 text-[1.5rem] font-semibold leading-tight tabular-nums">{countOf(role)}</dd>
+              </div>
+            ))}
+            {manages && (
+              <div className="min-w-28 rounded-2xl bg-amber/15 px-4 py-3">
+                <dt className="text-[0.8rem] font-semibold text-amber">Invited</dt>
+                <dd className="mt-0.5 text-[1.5rem] font-semibold leading-tight tabular-nums text-amber">{invites.length}</dd>
+              </div>
+            )}
+          </dl>
+        </div>
+        {manages && (
+          <div className="relative flex flex-col gap-3 lg:items-end">
+            <p className="max-w-[30ch] text-[0.95rem] leading-relaxed text-on-night-soft lg:text-right">
+              Everyone in the team reports from the same plan and its daily AI updates.
+            </p>
+            <InviteButton
+              roles={roles}
+              triggerClassName="inline-flex h-12 items-center justify-center gap-2 self-start rounded-full bg-teal-glow px-6 font-bold text-[#08302d] transition-[filter,transform] hover:brightness-105 active:scale-[0.98] lg:self-end"
+            />
+          </div>
+        )}
+      </section>
 
       <section aria-label="Members">
         <Selectable>
@@ -208,11 +255,17 @@ export default async function TeamPage({ searchParams }: PageProps<"/team">) {
             Pending invitations
           </h2>
           {invites.length === 0 ? (
-            <EmptyState
-              icon={<EnvelopeSimple weight="fill" className="h-5 w-5" />}
-              title="No pending invitations"
-              body="Invite a radiologist and send them the link. It appears here until they accept."
-            />
+            <div className={`${PANEL} flex items-center gap-4 p-5 sm:p-6`}>
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-amber-tint text-amber-deep">
+                <EnvelopeSimple weight="fill" className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="font-semibold">No pending invitations</p>
+                <p className="text-[0.95rem] text-ink-soft">
+                  Invite a radiologist and send them the link. It waits here until they accept.
+                </p>
+              </div>
+            </div>
           ) : (
             <ul className={`${PANEL} overflow-hidden`}>
               {invites.map((invite) => (
@@ -220,9 +273,9 @@ export default async function TeamPage({ searchParams }: PageProps<"/team">) {
                   key={invite.id}
                   className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line px-6 py-4 first:border-t-0"
                 >
-                  <IconTile tone="amber">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-amber-tint text-amber-deep">
                     <EnvelopeSimple weight="fill" className="h-5 w-5" />
-                  </IconTile>
+                  </span>
                   <p className="min-w-0 flex-1 basis-56 truncate text-[1.05rem] font-semibold">
                     {invite.email}
                   </p>
