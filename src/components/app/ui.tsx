@@ -40,10 +40,17 @@ export function PageHeader({
   title,
   description,
   action,
+  phoneAction = "float",
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
+  /**
+   * On a phone: "float" lifts the main action above the tab bar; "inline" keeps
+   * it where it is (for a status, not an action); "hide" when the tab bar
+   * already offers the same thing.
+   */
+  phoneAction?: "float" | "inline" | "hide";
 }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">
@@ -51,7 +58,12 @@ export function PageHeader({
         <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.03em]">{title}</h1>
         {description && <p className="mt-1.5 max-w-[60ch] text-ink-soft">{description}</p>}
       </div>
-      {action}
+      {/* In the app-style layout on a phone, the main action floats above the tab bar. */}
+      {action && (
+        <div className={phoneAction === "inline" ? "" : `${phoneAction === "hide" ? "max-lg:hidden" : ""} group-data-[app-style]/app:max-lg:fixed group-data-[app-style]/app:max-lg:right-4 group-data-[app-style]/app:max-lg:bottom-[calc(5rem+env(safe-area-inset-bottom))] group-data-[app-style]/app:max-lg:z-30 group-data-[app-style]/app:max-lg:rounded-full group-data-[app-style]/app:max-lg:shadow-[0_12px_32px_-10px_rgb(6_17_15/0.55)]`}>
+          {action}
+        </div>
+      )}
     </header>
   );
 }

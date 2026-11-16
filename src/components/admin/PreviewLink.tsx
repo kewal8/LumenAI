@@ -9,7 +9,7 @@ import { useState } from "react";
 import { BACKDROP, POPUP } from "@/components/app/TeamClient";
 import { Select, buttonClass } from "@/components/app/ui";
 import { Field, FieldLabel, FormError, send } from "@/components/auth/fields";
-import { PREVIEW_DAYS } from "@/lib/previewLinks";
+import { PREVIEW_DAYS } from "@/lib/previewLinkDays";
 
 /** Makes a link to the editor preview for someone without an account. */
 export function PreviewLinkButton() {

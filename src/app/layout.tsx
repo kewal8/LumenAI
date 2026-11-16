@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import {
   Geist,
   Geist_Mono,
@@ -26,6 +26,16 @@ export const metadata: Metadata = {
   title: "LumenAI",
   description:
     "Dictate only the abnormal findings. LumenAI writes the radiology report in your template. Paste it into PACS, or finalise, sign and print it in LumenAI.",
+};
+
+// Phones: the page reaches under the notch and home bar (the app's bars pad
+// themselves with the safe-area insets), and the browser bar takes the page colour.
+export const viewport: Viewport = {
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fefefe" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1514" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

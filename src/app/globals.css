@@ -498,3 +498,52 @@ html[data-report-focus] [data-app-nav] {
     animation: none;
   }
 }
+
+/* Phones: pop-ups rise from the bottom as sheets, with a grab bar, like a native app. */
+@media (max-width: 639px) {
+  .sheet {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: none;
+    max-height: 92dvh;
+    overflow-y: auto;
+    /* The centring utilities would otherwise keep pulling it up and to the left. */
+    translate: none !important;
+    transform: none;
+    border-radius: 28px 28px 0 0;
+    border-bottom: 0;
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  }
+  .sheet::before {
+    content: "";
+    display: block;
+    width: 40px;
+    height: 5px;
+    margin: -0.5rem auto 1rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--c-ink) 18%, transparent);
+  }
+  .sheet[data-starting-style],
+  .sheet[data-ending-style] {
+    opacity: 1;
+    transform: translateY(100%);
+  }
+  .sheet {
+    transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  /* Typing in a field never zooms the page in. */
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+}
+
+/* Touch: no grey flash on tap; the app's own pressed states show instead. */
+.app {
+  -webkit-tap-highlight-color: transparent;
+}

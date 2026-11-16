@@ -233,7 +233,7 @@ function MacroDialog({
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
         <Dialog.Backdrop className={BACKDROP} />
-        <Dialog.Popup className="app-layer fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-3xl border border-ink/20 bg-surface shadow-[0_24px_70px_-20px_rgb(15_38_36/0.5)] outline-none">
+        <Dialog.Popup className="app-layer sheet fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-3xl border border-ink/20 bg-surface shadow-[0_24px_70px_-20px_rgb(15_38_36/0.5)] outline-none">
           {/* Remounted for each macro, so the fields always start from it. */}
           {open && (
             <MacroForm

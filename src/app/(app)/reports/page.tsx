@@ -27,6 +27,8 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
       <PageHeader
         title="Reports"
         description="Reports you saved, newest first. Open one to read, change or copy it again."
+        // The phone's tab bar has New report in the middle already.
+        phoneAction="hide"
         action={
           <Link href="/report" className={buttonClass.primary}>
             <Plus weight="bold" className="h-4 w-4" />

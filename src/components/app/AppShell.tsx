@@ -13,21 +13,20 @@ import {
   FolderOpen,
   GearSix,
   LinkSimple,
-  List,
   LockSimple,
+  Plus,
   Moon,
   NotePencil,
   SidebarSimple,
   SignOut,
   Sun,
   UsersThree,
-  X,
   type Icon,
   Sparkle,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Spinner } from "@/components/Spinner";
 import { Tip, TipProvider } from "@/components/Tip";
 import { Toaster } from "@/components/Toast";
@@ -207,7 +206,18 @@ function UpdatesLeft({ fromServer }: { fromServer: number | null }) {
   );
 }
 
-function UserMenu({ user, area, compact = false }: { user: ShellUser; area: Area; compact?: boolean }) {
+function UserMenu({
+  user,
+  area,
+  compact = false,
+  below = false,
+}: {
+  user: ShellUser;
+  area: Area;
+  compact?: boolean;
+  /** Opens downwards, for the avatar in the phone's top bar. */
+  below?: boolean;
+}) {
   const router = useRouter();
   const { theme, toggle } = useTheme();
 
@@ -227,7 +237,7 @@ function UserMenu({ user, area, compact = false }: { user: ShellUser; area: Area
     <Dialog.Root open={confirmSignOut} onOpenChange={(open) => !signingOut && setConfirmSignOut(open)}>
       <Dialog.Portal>
         <Dialog.Backdrop className="app-backdrop fixed inset-0 z-50 bg-[#0f2624]/40" />
-        <Dialog.Popup className="app-layer fixed left-1/2 top-1/2 z-50 w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/20 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(15_38_36/0.5)] outline-none sm:p-8">
+        <Dialog.Popup className="app-layer sheet fixed left-1/2 top-1/2 z-50 w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/20 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(15_38_36/0.5)] outline-none sm:p-8">
           <Dialog.Title className="text-[1.3rem] font-semibold tracking-[-0.02em]">Sign out?</Dialog.Title>
           <Dialog.Description className="mt-2 text-ink-soft">
             You will need your email and password to sign in again. A report that is not saved will be lost.
@@ -247,6 +257,7 @@ function UserMenu({ user, area, compact = false }: { user: ShellUser; area: Area
     <Menu.Root>
       <Menu.Trigger
         title={compact ? user.name : undefined}
+        aria-label={compact ? `Account: ${user.name}` : undefined}
         className={`flex items-center gap-3 rounded-2xl text-left outline-none transition-colors hover:bg-ink/10 data-[popup-open]:bg-ink/10 ${
           compact ? "p-1" : "w-full p-2"
         }`}
@@ -269,14 +280,21 @@ function UserMenu({ user, area, compact = false }: { user: ShellUser; area: Area
         )}
       </Menu.Trigger>
       <Menu.Portal>
-        <Menu.Positioner side="top" align="start" sideOffset={8} className="z-50">
+        <Menu.Positioner side={below ? "bottom" : "top"} align={below ? "end" : "start"} sideOffset={8} className="z-50">
           <Menu.Popup className="app-layer w-60 origin-[var(--transform-origin)] rounded-3xl border border-ink/20 bg-surface p-2 shadow-[0_18px_50px_-18px_rgb(15_38_36/0.45)] outline-none">
             <p className="truncate px-3 pb-2 pt-1.5 text-[0.85rem] text-ink-soft">{user.email}</p>
             {area === "doctor" && (
-              <Menu.Item className={MENU_ITEM} onClick={() => router.push("/settings")}>
-                <GearSix className="h-5 w-5" />
-                Settings
-              </Menu.Item>
+              <>
+                <Menu.Item className={MENU_ITEM} onClick={() => router.push("/settings")}>
+                  <GearSix className="h-5 w-5" />
+                  Settings
+                </Menu.Item>
+                {/* On a phone Plans has no tab of its own; it is here. */}
+                <Menu.Item className={MENU_ITEM} onClick={() => router.push("/plans")}>
+                  <CreditCard className="h-5 w-5" />
+                  Plans
+                </Menu.Item>
+              </>
             )}
             {/* Staff can step into the doctor's workspace to try the product, and back. */}
             {user.isPlatformAdmin && (
@@ -305,6 +323,124 @@ function UserMenu({ user, area, compact = false }: { user: ShellUser; area: Area
   );
 }
 
+/** The current screen's name, for the phone's top bar. */
+function useScreenTitle(area: Area) {
+  const pathname = usePathname();
+  const item = [...NAV[area]]
+    .sort((a, b) => b.href.length - a.href.length)
+    .find((nav) => (nav.exact ? pathname === nav.href : pathname === nav.href || pathname.startsWith(`${nav.href}/`)));
+  return item?.label ?? "";
+}
+
+/**
+ * The phone's top bar, as in an app: the brand and the account at rest; once
+ * the page's own large title scrolls away, the screen's name takes its place.
+ */
+function MobileTopBar({ user, area }: { user: ShellUser; area: Area }) {
+  const title = useScreenTitle(area);
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 56);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <header
+      className={`sticky top-0 z-40 flex h-14 items-center justify-between gap-3 bg-surface/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-xl transition-[border-color] lg:hidden ${
+        scrolled ? "border-b border-line" : "border-b border-transparent"
+      }`}
+    >
+      <span className="relative min-w-0 flex-1">
+        <span className={`block transition-opacity duration-200 ${scrolled ? "opacity-0" : "opacity-100"}`}>
+          <Wordmark area={area} />
+        </span>
+        <span
+          aria-hidden={!scrolled}
+          className={`absolute inset-y-0 left-0 flex items-center truncate text-[1.05rem] font-semibold transition-opacity duration-200 ${
+            scrolled ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          {title}
+        </span>
+      </span>
+      <UserMenu user={user} area={area} compact below />
+    </header>
+  );
+}
+
+/** Writing a report takes the whole screen on a phone; the tabs step aside there. */
+function isReportScreen(pathname: string) {
+  return pathname === "/report" || pathname.startsWith("/report/") || /^\/reports\/[^/]+/.test(pathname);
+}
+
+// The doctor's tabs on a phone: New report in the middle, raised, as the main
+// action; Plans is in the account menu.
+const DOCTOR_TABS = ["/reports", "/templates", "/report", "/team", "/settings"];
+
+/** The phone's bottom tab bar: every screen one thumb-tap away. */
+function BottomTabs({ area, locked }: { area: Area; locked?: boolean }) {
+  const pathname = usePathname();
+  const items =
+    area === "doctor"
+      ? DOCTOR_TABS.map((href) => NAV.doctor.find((item) => item.href === href)!).filter(Boolean)
+      : NAV[area];
+  if (area === "doctor" && isReportScreen(pathname)) return null;
+  return (
+    <nav
+      aria-label={area === "admin" ? "Admin" : "App"}
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
+    >
+      <ul className="mx-auto grid max-w-xl" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+        {items.map((item) => {
+          const active = item.exact
+            ? pathname === item.href
+            : pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const Icon = item.icon;
+          if (area === "doctor" && item.href === "/report") {
+            return (
+              <li key={item.href} className="flex justify-center">
+                <Link
+                  href={item.href}
+                  aria-label="New report"
+                  className="-mt-5 flex flex-col items-center gap-1 text-[0.72rem] font-semibold text-ink transition-transform active:scale-95"
+                >
+                  <span className="grid h-14 w-14 place-items-center rounded-full bg-btn text-btn-text shadow-[0_10px_24px_-8px_rgb(6_17_15/0.55)] ring-4 ring-surface">
+                    <Plus weight="bold" className="h-6 w-6" />
+                  </span>
+                  New report
+                </Link>
+              </li>
+            );
+          }
+          return (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className="flex h-16 flex-col items-center justify-center gap-1 text-[0.72rem] font-semibold transition-transform active:scale-95"
+              >
+                <span
+                  className={`relative grid h-8 w-14 place-items-center rounded-full transition-colors ${
+                    active ? "bg-teal/[0.14] text-teal-deep" : "text-ink-soft"
+                  }`}
+                >
+                  <Icon weight={active ? "fill" : "regular"} className="h-[1.35rem] w-[1.35rem]" />
+                  {locked && item.href === "/report" && (
+                    <LockSimple weight="fill" className="absolute right-2 top-0.5 h-3 w-3 text-amber-deep" />
+                  )}
+                </span>
+                <span className={`max-w-full truncate px-1 ${active ? "text-ink" : "text-ink-soft"}`}>{item.label}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
 export function AppShell({
   user,
   area,
@@ -314,11 +450,13 @@ export function AppShell({
   area: Area;
   children: React.ReactNode;
 }) {
-  const [navOpen, setNavOpen] = useState(false);
   const compact = useCompactMenu();
+  // Phones and tablets get app-style navigation: a top bar and tabs at the bottom.
+  const pathname = usePathname();
+  const tabsShown = !(area === "doctor" && isReportScreen(pathname));
 
   return (
-    <div className="app flex min-h-[100dvh] flex-1">
+    <div data-app-style="" className="app group/app flex min-h-[100dvh] flex-1">
       <Toaster />
       <TipProvider>
       <aside
@@ -347,36 +485,13 @@ export function AppShell({
         <UserMenu user={user} area={area} compact={compact} />
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex items-center justify-between border-b border-line bg-surface px-4 py-3 lg:hidden">
-          <Wordmark area={area} />
-          <Dialog.Root open={navOpen} onOpenChange={setNavOpen}>
-            <Dialog.Trigger
-              aria-label="Open menu"
-              className="grid h-10 w-10 place-items-center rounded-full text-ink hover:bg-ink/10"
-            >
-              <List className="h-6 w-6" />
-            </Dialog.Trigger>
-            <Dialog.Portal>
-              <Dialog.Backdrop className="app-backdrop fixed inset-0 z-50 bg-[#0f2624]/40" />
-              <Dialog.Popup className="app-layer fixed inset-y-0 right-0 z-50 flex w-[min(20rem,88vw)] flex-col justify-between bg-surface p-4 outline-none">
-                <div>
-                  <div className="flex items-center justify-between pb-6 pl-3">
-                    <Dialog.Title className="text-[1.05rem] font-semibold">Menu</Dialog.Title>
-                    <Dialog.Close
-                      aria-label="Close menu"
-                      className="grid h-10 w-10 place-items-center rounded-full text-ink hover:bg-ink/10"
-                    >
-                      <X className="h-5 w-5" />
-                    </Dialog.Close>
-                  </div>
-                  <NavLinks area={area} onNavigate={() => setNavOpen(false)} locked={user.locked} />
-                </div>
-                <UserMenu user={user} area={area} />
-              </Dialog.Popup>
-            </Dialog.Portal>
-          </Dialog.Root>
-        </header>
+      <div
+        className={`flex min-w-0 flex-1 flex-col ${
+          tabsShown ? "pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0" : ""
+        }`}
+      >
+        <MobileTopBar user={user} area={area} />
+        <BottomTabs area={area} locked={user.locked} />
 
         {children}
       </div>

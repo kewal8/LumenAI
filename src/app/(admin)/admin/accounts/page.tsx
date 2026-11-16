@@ -35,9 +35,10 @@ export const instant = false;
 export const metadata = { title: "Accounts · LumenAI Admin" };
 
 // Every row, and the headings above them, share these columns so values line up.
+// The table needs a wide screen; below that each person is a compact row.
 const COLUMNS =
-  "lg:grid lg:grid-cols-[minmax(0,1fr)_7.5rem_10rem_8.5rem_8.5rem_7rem_6.5rem] lg:items-center lg:gap-x-6";
-const ROW = "flex flex-wrap items-center gap-x-8 gap-y-3 px-6 py-4";
+  "xl:grid xl:grid-cols-[minmax(0,1fr)_6.5rem_9rem_7.5rem_6.5rem_5.5rem_6rem] xl:items-center xl:gap-x-5";
+const ROW = "flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3.5 sm:px-6 xl:py-4";
 
 /** One value in a row. Below the table layout it carries its own label. */
 function Cell({
@@ -50,14 +51,15 @@ function Cell({
   children: React.ReactNode;
 }) {
   return (
+    // Below the table layout: a small "label value" pair, set in a line under the name.
     <span
-      className={`flex flex-col gap-0.5 text-[0.95rem] font-semibold ${
+      className={`flex items-baseline gap-1.5 text-[0.9rem] font-semibold xl:flex-col xl:gap-0.5 xl:text-[0.95rem] ${
         number
-          ? "tabular-nums lg:items-end lg:text-[1.05rem] lg:font-bold"
-          : "items-start"
+          ? "tabular-nums xl:items-end xl:text-[1.05rem] xl:font-bold"
+          : "xl:items-start"
       }`}
     >
-      <span className="text-[0.8rem] font-semibold text-ink-soft lg:hidden">
+      <span className="text-[0.82rem] font-medium text-ink-soft xl:hidden">
         {label}
       </span>
       {children}
@@ -158,7 +160,7 @@ export default async function AdminAccountsPage({
               <span>Type</span>
               <span>Plan</span>
               <span>Last sign-in</span>
-              <span className="text-right">Report updates</span>
+              <span className="text-right">Updates</span>
               <span className="text-right">Dictated</span>
               <span />
             </div>
@@ -175,7 +177,7 @@ export default async function AdminAccountsPage({
               >
                 {!solo && (
                   <div className={`${COLUMNS} ${ROW}`}>
-                    <div className="flex min-w-0 items-center gap-4">
+                    <div className="flex min-w-0 basis-full items-center gap-4 xl:basis-auto">
                       <IconTile tone="teal">
                         <Buildings weight="fill" className="h-5 w-5" />
                       </IconTile>
@@ -202,14 +204,14 @@ export default async function AdminAccountsPage({
                         status={plans.get(account.id) ?? null}
                       />
                     </Cell>
-                    <span className="hidden lg:block" />
+                    <span className="hidden xl:block" />
                     <Cell label="Report updates" number>
                       {account.updates30}
                     </Cell>
                     <Cell label="Dictated" number>
                       {minutes(account.seconds30)}
                     </Cell>
-                    <span className="hidden lg:block" />
+                    <span className="hidden xl:block" />
                   </div>
                 )}
                 {account.members.map((member) => (
@@ -218,7 +220,7 @@ export default async function AdminAccountsPage({
                     className={`${COLUMNS} ${ROW} ${solo ? "" : "border-t border-line bg-ink/[0.025]"}`}
                   >
                     <div
-                      className={`flex min-w-0 items-center gap-4 ${solo ? "" : "lg:pl-8"}`}
+                      className={`flex min-w-0 basis-full items-center gap-4 xl:basis-auto ${solo ? "" : "xl:pl-8"}`}
                     >
                       <Avatar name={member.name} />
                       <span className="min-w-0">
@@ -254,7 +256,7 @@ export default async function AdminAccountsPage({
                         />
                       </Cell>
                     ) : (
-                      <span className="hidden lg:block" />
+                      <span className="hidden xl:block" />
                     )}
                     <Cell label="Last sign-in">
                       {member.lastLogin
@@ -267,7 +269,7 @@ export default async function AdminAccountsPage({
                     <Cell label="Dictated" number>
                       {minutes(member.seconds30)}
                     </Cell>
-                    <span className="flex justify-end">
+                    <span className="ml-auto flex justify-end">
                       {member.id === user.id ? (
                         <span className="px-3 text-[0.9rem] font-semibold text-ink-soft">
                           You

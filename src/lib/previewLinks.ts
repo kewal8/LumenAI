@@ -2,7 +2,7 @@ import { hashToken } from "@/lib/auth/crypto";
 import { db } from "@/lib/db";
 import { likePattern, offsetOf, type ListParams, type Paged } from "@/lib/listQuery";
 
-export const PREVIEW_DAYS = [7, 14, 30];
+export { PREVIEW_DAYS } from "./previewLinkDays";
 
 export type PreviewLink = {
   id: string;

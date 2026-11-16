@@ -100,6 +100,8 @@ export function PlansClient({
     <Page>
       <PageHeader
         title="Plans"
+        // The account's status, not an action: it stays under the title on a phone.
+        phoneAction="inline"
         description="Pay for what the AI does for you. Editing, copying and printing are always free."
         action={
           // Where the account stands: a status, so it is a chip, not a block.

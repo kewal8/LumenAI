@@ -810,7 +810,7 @@ export function ReportWorkspace({
       <Dialog.Root open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
         <Dialog.Portal>
           <Dialog.Backdrop className="app-backdrop fixed inset-0 z-50 bg-[#06110f]/50" />
-          <Dialog.Popup className="app-layer fixed left-1/2 top-1/2 z-50 w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/20 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(6_17_15/0.55)] outline-none sm:p-8">
+          <Dialog.Popup className="app-layer sheet fixed left-1/2 top-1/2 z-50 w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/20 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(6_17_15/0.55)] outline-none sm:p-8">
             <Dialog.Title className="text-[1.4rem] font-semibold tracking-[-0.02em]">
               Discard this draft?
             </Dialog.Title>
@@ -893,7 +893,9 @@ export function ReportWorkspace({
 
   if (future) {
     return (
-      <main className="flex min-w-0 flex-1 flex-col gap-4 p-3 sm:p-4 lg:h-[100dvh] lg:flex-none lg:flex-row lg:overflow-clip">
+      <main
+        // On a phone the report has the screen; room is left at the bottom for the docked AI Assistant.
+        className="flex min-w-0 flex-1 flex-col gap-4 p-3 max-lg:pb-[calc(17rem+env(safe-area-inset-bottom))] sm:p-4 sm:max-lg:pb-[calc(17rem+env(safe-area-inset-bottom))] lg:h-[100dvh] lg:flex-none lg:flex-row lg:overflow-clip">
         {/* The report. */}
         <section
           aria-label="Report"
@@ -1082,7 +1084,11 @@ export function ReportWorkspace({
           <section
             ref={panelRef}
             aria-label="AI Assistant"
-            className={`${CARD} order-1 w-full shrink-0 lg:order-2 lg:max-w-[24.75rem] xl:max-w-[25.75rem] ${
+            // On a phone or tablet it docks at the bottom of the screen: the speak
+            // controls always in reach, the chat pulled up as a sheet when wanted.
+            className={`${CARD} order-1 w-full shrink-0 max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-30 max-lg:rounded-b-none max-lg:border-x-0 max-lg:border-b-0 max-lg:pb-[env(safe-area-inset-bottom)] max-lg:shadow-[0_-14px_34px_-20px_rgb(6_17_15/0.45)] lg:order-2 lg:max-w-[24.75rem] xl:max-w-[25.75rem] ${
+              assistantBig ? "max-lg:h-[85dvh]" : ""
+            } ${
               fullScreen
                 ? `lg:fixed lg:bottom-5 lg:right-5 lg:z-40 lg:!shadow-[0_30px_80px_-24px_rgb(10_13_12/0.55)] ${
                     assistantBig ? "lg:h-[min(46rem,calc(100dvh-6.75rem))]" : ""
@@ -1090,27 +1096,37 @@ export function ReportWorkspace({
                 : ""
             }`}
           >
-            <header className="flex shrink-0 items-center justify-between border-b border-line px-5 py-3">
-              <h1 className="text-[1.25rem] font-bold tracking-[-0.02em]">AI Assistant</h1>
+            <header className="flex shrink-0 items-center justify-between border-b border-line px-5 py-3 max-lg:py-2">
+              <h1 className="text-[1.25rem] font-bold tracking-[-0.02em] max-lg:text-[1.05rem]">AI Assistant</h1>
               {/* The microphone button says what is happening, so this corner holds the panel's own actions. */}
               <div className="flex items-center gap-1">
-                {fullScreen && (
+                {/* On a phone this opens the chat as a sheet; in full screen it makes the floating box bigger. */}
+                {
                   <Tip label={assistantBig ? "Make smaller" : "Make bigger"}>
                     <button
                       type="button"
                       onClick={() => setAssistantBig((big) => !big)}
                       aria-pressed={assistantBig}
                       aria-label={assistantBig ? "Make smaller" : "Make bigger"}
-                      className="hidden h-10 w-10 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.08] lg:grid"
+                      className={`h-10 place-items-center rounded-full px-3 text-ink transition-colors hover:bg-ink/[0.08] max-lg:bg-ink/[0.06] lg:w-10 lg:px-0 ${
+                        fullScreen ? "grid" : "grid lg:hidden"
+                      }`}
                     >
-                      {assistantBig ? (
-                        <ArrowsInSimple weight="bold" className="h-5 w-5" />
-                      ) : (
-                        <ArrowsOutSimple weight="bold" className="h-5 w-5" />
-                      )}
+                      {/* Phone: a "Chat" pill that pulls the conversation up or down. */}
+                      <span className="flex items-center gap-1 text-[0.9rem] font-semibold lg:hidden">
+                        Chat
+                        <CaretDown weight="bold" className={`h-4 w-4 transition-transform ${assistantBig ? "" : "rotate-180"}`} />
+                      </span>
+                      <span className="hidden lg:block">
+                        {assistantBig ? (
+                          <ArrowsInSimple weight="bold" className="h-5 w-5" />
+                        ) : (
+                          <ArrowsOutSimple weight="bold" className="h-5 w-5" />
+                        )}
+                      </span>
                     </button>
                   </Tip>
-                )}
+                }
                 <AssistantMenu
                   getDoc={() => editorRef.current?.getDoc()}
                   suggestedName={`${template.name} copy`}
@@ -1125,6 +1141,9 @@ export function ReportWorkspace({
             <ol
               className={`flex max-h-72 min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain bg-ink/[0.025] px-5 py-5 lg:max-h-none ${
                 fullScreen && !assistantBig ? "lg:hidden" : ""
+              } ${
+                // On a phone the chat shows only when pulled up.
+                assistantBig ? "" : "max-lg:hidden"
               }`}
             >
               {log.length === 0 && !writing && !failed && (
