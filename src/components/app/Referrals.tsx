@@ -17,7 +17,7 @@ import { useState, useSyncExternalStore } from "react";
 import { Field, FormError, send } from "@/components/auth/fields";
 import { toast } from "@/components/Toast";
 import { Spinner } from "@/components/Spinner";
-import { IconTile, PANEL, buttonClass } from "./ui";
+import { PANEL, buttonClass } from "./ui";
 
 const noChanges = () => () => {};
 
@@ -319,9 +319,13 @@ export function ReferralCodeEntry({
 
   return (
     <section aria-labelledby="referral-code" className={`${PANEL} flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:p-6`}>
-      <IconTile tone={applied.code ? "teal" : "neutral"}>
+      <span
+        className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${
+          applied.code ? "bg-teal/[0.12] text-teal-deep" : "bg-amber-tint text-amber-deep"
+        }`}
+      >
         <Gift weight="fill" className="h-5 w-5" />
-      </IconTile>
+      </span>
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         <div>
           <h2 id="referral-code" className="text-[1.08rem] font-bold tracking-[-0.01em] text-ink">

@@ -7,7 +7,6 @@ import {
   Buildings,
   CheckCircle,
   Clock,
-  Coins,
   Lightning,
   LockSimple,
   PencilSimpleLine,
@@ -32,7 +31,7 @@ import {
   type Plan,
 } from "@/lib/plans";
 import type { Subscription } from "@/lib/subscription";
-import { IconTile, PANEL, Page, PageHeader, formatDate } from "./ui";
+import { PANEL, Page, PageHeader, formatDate } from "./ui";
 
 /** The plan shown as the dark card. */
 const FEATURED: Plan["id"] = "max";
@@ -42,27 +41,31 @@ const PLAN_ICONS: Record<Plan["id"], React.ReactNode> = {
   max: <Sparkle weight="fill" className="h-5 w-5" />,
 };
 
-// The same in every plan: plans differ only in how many credits a day they hold.
+// The same in every plan: plans differ only in how many AI updates a day they hold.
 const INCLUDED = ["Your own templates", "Every line checked against your words", "Copy for PACS, print and PDF"];
 
 const RULES = [
   {
-    icon: <Coins weight="fill" className="h-5 w-5" />,
-    title: "One credit, one AI update",
-    body: "Each time your dictation updates the report, one credit is used.",
+    icon: <Sparkle weight="fill" className="h-5 w-5" />,
+    tone: "bg-teal/[0.12] text-teal-deep",
+    title: "What one AI update is",
+    body: "Each time your dictation updates the report, or you press Validate, one AI update is used.",
   },
   {
     icon: <PencilSimpleLine weight="fill" className="h-5 w-5" />,
+    tone: "bg-teal/[0.12] text-teal-deep",
     title: "Editing is always free",
-    body: "Typing, speaking into a line, copying and printing never use credits.",
+    body: "Typing, speaking into a line, copying and printing never use AI updates.",
   },
   {
     icon: <SunHorizon weight="fill" className="h-5 w-5" />,
-    title: "Fresh credits every day",
-    body: "Your daily credits are back in full each morning.",
+    tone: "bg-amber-tint text-amber-deep",
+    title: "Fresh AI updates every day",
+    body: "Your daily AI updates are back in full at midnight.",
   },
   {
     icon: <Receipt weight="fill" className="h-5 w-5" />,
+    tone: "bg-amber-tint text-amber-deep",
     title: "GST invoice every time",
     body: `Prices are before GST. ${Math.round(GST_RATE * 100)}% GST is added on the invoice.`,
   },
@@ -204,16 +207,23 @@ export function PlansClient({
           return (
             <article
               key={plan.id}
-              className={`relative flex flex-col rounded-3xl p-7 ${
+              className={`relative flex flex-col overflow-hidden rounded-3xl p-7 ${
                 featured
-                  ? "bg-night text-on-night shadow-[0_24px_60px_-24px_rgb(6_17_15/0.7)] lg:-my-3 lg:py-10"
+                  ? "on-night bg-night text-on-night shadow-[0_24px_60px_-24px_rgb(6_17_15/0.7)] lg:-my-3 lg:py-10"
                   : "border border-ink/20 bg-surface"
               }`}
             >
+              {/* The same soft light as the Referrals and Insights panels. */}
+              {featured && (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-teal-glow/20 blur-3xl"
+                />
+              )}
               <div className="flex items-center gap-2">
                 <span
                   className={`grid h-11 w-11 place-items-center rounded-2xl ${
-                    featured ? "bg-on-night text-night" : "bg-teal/[0.12] text-teal-deep"
+                    featured ? "bg-teal-glow text-[#08302d]" : "bg-teal/[0.12] text-teal-deep"
                   }`}
                 >
                   {PLAN_ICONS[plan.id]}
@@ -246,11 +256,11 @@ export function PlansClient({
 
               <p
                 className={`mt-6 inline-flex items-center gap-2.5 self-start rounded-full px-4 py-2 text-[1.05rem] font-bold ${
-                  featured ? "bg-on-night/[0.12]" : "bg-teal/[0.1] text-ink"
+                  featured ? "bg-teal-glow/15 text-on-night" : "bg-teal/[0.1] text-ink"
                 }`}
               >
-                <Coins weight="fill" className={`h-5 w-5 ${featured ? "text-teal-glow" : "text-teal"}`} />
-                {plan.creditsPerDay} credits a day
+                <Sparkle weight="fill" className={`h-5 w-5 ${featured ? "text-teal-glow" : "text-teal"}`} />
+                {plan.creditsPerDay} AI updates a day
               </p>
 
               <ul className={`mt-6 flex flex-col gap-3 border-t border-dashed pt-5 ${featured ? "border-night-line" : "border-ink/30"}`}>
@@ -280,8 +290,8 @@ export function PlansClient({
                     onClick={() => choose(plan)}
                     className={`flex h-12 w-full items-center justify-center gap-2 rounded-full text-[1rem] font-bold transition-[background-color,transform] duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
                       featured
-                        ? "bg-on-night text-night hover:bg-white"
-                        : "border-2 border-ink text-ink hover:bg-ink hover:text-surface"
+                        ? "bg-teal-glow text-[#08302d] hover:brightness-105"
+                        : "bg-teal/[0.1] text-teal-deep hover:bg-teal hover:text-white"
                     }`}
                   >
                     {sending === plan.id && <Spinner />}
@@ -295,16 +305,16 @@ export function PlansClient({
 
         {/* Centres and teams: a price set together, so no number on the card. */}
         <article className="flex flex-col rounded-3xl border border-ink/20 bg-surface p-7">
-          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-teal/[0.12] text-teal-deep">
+          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-amber-tint text-amber-deep">
             <Buildings weight="fill" className="h-5 w-5" />
           </span>
           <h2 className="mt-5 text-[1.5rem] font-semibold tracking-[-0.02em]">Enterprise</h2>
           <p className="text-ink-soft">Diagnostic centres and teams</p>
           <p className="mt-6 text-[2.75rem] font-bold leading-none tracking-[-0.03em]">Talk to us</p>
           <p className="mt-1.5 font-semibold text-ink-soft">Volume and contract pricing</p>
-          <p className="mt-6 inline-flex items-center gap-2.5 self-start rounded-full bg-teal/[0.1] px-4 py-2 text-[1.05rem] font-bold text-ink">
-            <Coins weight="fill" className="h-5 w-5 text-teal" />
-            Credits set for your centre
+          <p className="mt-6 inline-flex items-center gap-2.5 self-start rounded-full bg-amber-tint px-4 py-2 text-[1.05rem] font-bold text-ink">
+            <Sparkle weight="fill" className="h-5 w-5 text-amber-deep" />
+            AI updates set for your centre
           </p>
           <ul className="mt-6 flex flex-col gap-3 border-t border-dashed border-ink/30 pt-5">
             {["One shared pool for every doctor", "A daily limit for each doctor", "One GST invoice for the centre"].map((item) => (
@@ -317,7 +327,7 @@ export function PlansClient({
           <div className="mt-auto pt-7">
             <Link
               href="/book-a-demo"
-              className="group flex h-12 w-full items-center justify-center gap-2 rounded-full border-2 border-ink font-bold text-ink transition-colors hover:bg-ink hover:text-surface"
+              className="group flex h-12 w-full items-center justify-center gap-2 rounded-full bg-teal/[0.1] font-bold text-teal-deep transition-colors hover:bg-teal hover:text-white"
             >
               Talk to us
               <ArrowRight weight="bold" className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -343,7 +353,7 @@ export function PlansClient({
         <ul className="grid gap-px bg-line sm:grid-cols-2 lg:grid-cols-4">
           {RULES.map((rule) => (
             <li key={rule.title} className="flex gap-4 bg-surface p-5 sm:flex-col sm:gap-3 sm:p-6">
-              <IconTile>{rule.icon}</IconTile>
+              <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${rule.tone}`}>{rule.icon}</span>
               <div>
                 <h3 className="text-[1.05rem] font-bold leading-snug text-ink">{rule.title}</h3>
                 <p className="mt-1 text-[0.95rem] leading-relaxed text-ink-soft">{rule.body}</p>

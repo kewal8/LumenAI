@@ -99,7 +99,7 @@ export function PlanControl({ orgId, name, status }: { orgId: string; name: stri
                       className="sr-only"
                     />
                     <span className="font-bold">{item.name}</span>
-                    <span className="t-meta">{item.creditsPerDay} credits a day</span>
+                    <span className="t-meta">{item.creditsPerDay} AI updates a day</span>
                   </label>
                 ))}
               </div>
