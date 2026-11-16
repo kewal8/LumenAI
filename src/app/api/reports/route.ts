@@ -17,11 +17,20 @@ export const POST = handle(async (request) => {
   if (typeof patient === "string") return fail(400, patient);
   if (!patient) return fail(400, "Enter the patient's details before saving.");
 
+  // The template copy is stored once per distinct template and shared by its
+  // reports: the report keeps only its fingerprint (see migration 019).
+  const template = JSON.stringify(input.template);
   const [row] = await db()`
-    insert into reports (org_id, user_id, template_name, title, template, content, finalized_at,
+    with copy as (
+      insert into report_templates (hash, body)
+      values (encode(sha256(convert_to(${template}::jsonb::text, 'UTF8')), 'hex'), ${template}::jsonb)
+      -- Counts as in use again, so the nightly clean-up cannot remove it mid-save.
+      on conflict (hash) do update set created_at = now()
+    )
+    insert into reports (org_id, user_id, template_name, title, template_hash, content, finalized_at,
                          patient_name, patient_age, patient_age_unit, patient_sex, study, modality)
     values (${user.org.id}, ${user.id}, ${input.template.name}, ${input.report.title},
-            ${JSON.stringify(input.template)}::jsonb, ${JSON.stringify(input.report)}::jsonb,
+            encode(sha256(convert_to(${template}::jsonb::text, 'UTF8')), 'hex'), ${JSON.stringify(input.report)}::jsonb,
             ${finalize ? new Date() : null},
             ${patient.name}, ${patient.age}, ${patient.ageUnit}, ${patient.sex}, ${patient.study}, ${patient.modality})
     returning id, finalized_at

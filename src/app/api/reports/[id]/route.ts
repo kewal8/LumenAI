@@ -1,5 +1,5 @@
 import { apiUser, fail, handle } from "@/lib/auth/respond";
-import { db } from "@/lib/db";
+import { asUuid, db } from "@/lib/db";
 import { parsePatient } from "@/lib/patient";
 import { parseReportInput } from "@/lib/reportStore";
 
@@ -19,10 +19,19 @@ export const PATCH = handle<Context>(async (request, context) => {
   const keep = patient === null;
 
   const { id } = await context.params;
+  // The template copy is stored once and shared; the report keeps its fingerprint.
+  const template = JSON.stringify(input.template);
   const updated = await db()`
+    with copy as (
+      insert into report_templates (hash, body)
+      values (encode(sha256(convert_to(${template}::jsonb::text, 'UTF8')), 'hex'), ${template}::jsonb)
+      -- Counts as in use again, so the nightly clean-up cannot remove it mid-save.
+      on conflict (hash) do update set created_at = now()
+    )
     update reports
     set template_name = ${input.template.name}, title = ${input.report.title},
-        template = ${JSON.stringify(input.template)}::jsonb,
+        template_hash = encode(sha256(convert_to(${template}::jsonb::text, 'UTF8')), 'hex'),
+        template = null,
         content = ${JSON.stringify(input.report)}::jsonb, updated_at = now(),
         finalized_at = case when ${finalize} then now() else finalized_at end,
         patient_name = case when ${keep} then patient_name else ${patient?.name ?? null} end,
@@ -31,7 +40,7 @@ export const PATCH = handle<Context>(async (request, context) => {
         patient_sex = case when ${keep} then patient_sex else ${patient?.sex ?? null} end,
         study = case when ${keep} then study else ${patient?.study ?? null} end,
         modality = case when ${keep} then modality else ${patient?.modality ?? null} end
-    where id::text = ${id} and user_id = ${user.id}
+    where id = ${asUuid(id)}::uuid and user_id = ${user.id}
     returning id, finalized_at
   `;
   if (updated.length === 0) return fail(404, "That report no longer exists.");
@@ -43,7 +52,7 @@ export const DELETE = handle<Context>(async (_request, context) => {
   if (user instanceof Response) return user;
   const { id } = await context.params;
   const removed = await db()`
-    delete from reports where id::text = ${id} and user_id = ${user.id} returning id
+    delete from reports where id = ${asUuid(id)}::uuid and user_id = ${user.id} returning id
   `;
   if (removed.length === 0) return fail(404, "That report no longer exists.");
   return Response.json({ ok: true });

@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { DatabaseNotConfiguredError } from "@/lib/db";
 import { pathOf, recordError } from "@/lib/monitor";
 import { getCurrentUser, type CurrentUser } from "./session";
@@ -14,6 +15,9 @@ export function handle<Context = unknown>(
     try {
       return await run(request, context);
     } catch (error) {
+      // Next.js signals some things by throwing (a route that must run per
+      // request, a redirect). Those are its own to handle, not faults.
+      unstable_rethrow(error);
       // A body that is missing or not JSON is the caller's mistake, not ours.
       if (error instanceof SyntaxError) return fail(400, "The request could not be read.");
       if (error instanceof DatabaseNotConfiguredError) {

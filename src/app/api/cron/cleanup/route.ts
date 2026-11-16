@@ -23,12 +23,19 @@ export const GET = handle(async (request) => {
   if (!fromScheduler(request)) return fail(401, "Not allowed.");
 
   const sql = db();
-  const [sessions, resets, signups, attempts, errors] = await Promise.all([
+  const [sessions, resets, signups, attempts, errors, templates] = await Promise.all([
     sql`delete from sessions where expires_at < now() returning 1`,
     sql`delete from password_resets where expires_at < now() - interval '1 day' returning 1`,
     sql`delete from signup_codes where expires_at < now() - interval '1 day' returning 1`,
     sql`delete from login_attempts where created_at < now() - interval '30 days' returning 1`,
     sql`delete from error_events where created_at < now() - interval '30 days' returning 1`,
+    // Template copies no report points at any more. A day's grace covers a save still in flight.
+    sql`
+      delete from report_templates t
+      where t.created_at < now() - interval '1 day'
+        and not exists (select 1 from reports r where r.template_hash = t.hash)
+      returning 1
+    `,
   ]);
   return Response.json({
     ok: true,
@@ -38,6 +45,7 @@ export const GET = handle(async (request) => {
       signupCodes: signups.length,
       loginAttempts: attempts.length,
       errors: errors.length,
+      templateCopies: templates.length,
     },
   });
 });

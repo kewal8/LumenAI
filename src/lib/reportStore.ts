@@ -1,5 +1,5 @@
 import type { CurrentUser } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { asUuid, db } from "@/lib/db";
 import { likePattern, offsetOf, type ListParams, type Paged } from "@/lib/listQuery";
 import { patientFromRow, type Patient } from "./patient";
 import type { Report, Template } from "./report";
@@ -53,8 +53,8 @@ export const REPORT_SORTS = ["updated", "name"];
 
 /**
  * One page of a person's saved reports, searched, filtered and sorted in the
- * database. The summary is worked out there too, so the reports themselves are
- * not read.
+ * database. The impression line and the count of findings are kept in columns
+ * of their own (see migration 019), so the reports themselves are not opened.
  */
 export async function pageReports(user: CurrentUser, params: ListParams): Promise<Paged<SavedReportSummary>> {
   const like = likePattern(params.q);
@@ -62,17 +62,13 @@ export async function pageReports(user: CurrentUser, params: ListParams): Promis
   const rows = await db()`
     select id, template_name, title, created_at, updated_at, finalized_at,
            patient_name, patient_age, patient_age_unit, patient_sex, study, modality,
-           coalesce(content->'impression'->>0, '') as impression,
-           (select count(*)::int
-              from jsonb_array_elements(content->'sections') as section,
-                   jsonb_array_elements(section->'lines') as line
-             where line->>'status' <> 'normal') as findings,
+           impression, findings,
            count(*) over () as total
     from reports
     where user_id = ${user.id}
       and (${params.q} = '' or template_name ilike ${like} or title ilike ${like}
            or patient_name ilike ${like} or study ilike ${like}
-           or content->'impression'->>0 ilike ${like})
+           or impression ilike ${like})
       and (${status} = '' or (${status} = 'final') = (finalized_at is not null))
     order by
       case when ${params.sort} = 'name' and ${params.dir} = 'asc' then lower(template_name) end asc,
@@ -105,11 +101,12 @@ export async function hasReports(user: CurrentUser) {
 }
 
 export async function findReport(user: CurrentUser, id: string): Promise<SavedReport | null> {
+  // The template copy is in the report itself (older reports) or kept once in report_templates.
   const [row] = await db()`
-    select id, template, content, updated_at, finalized_at,
-           patient_name, patient_age, patient_age_unit, patient_sex, study, modality
-    from reports
-    where id::text = ${id} and user_id = ${user.id}
+    select r.id, coalesce(r.template, t.body) as template, r.content, r.updated_at, r.finalized_at,
+           r.patient_name, r.patient_age, r.patient_age_unit, r.patient_sex, r.study, r.modality
+    from reports r left join report_templates t on t.hash = r.template_hash
+    where r.id = ${asUuid(id)}::uuid and r.user_id = ${user.id}
   `;
   return row
     ? {

@@ -1,5 +1,5 @@
 import type { CurrentUser } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { asUuid, db } from "@/lib/db";
 import { canManageTeam } from "@/lib/team";
 import type { Template } from "./report";
 import type { DocNode } from "./reportDoc";
@@ -64,7 +64,7 @@ export async function findTemplate(user: CurrentUser, id: string) {
   const [row] = await db()`
     select t.*, u.name as owner_name
     from templates t join users u on u.id = t.owner_id
-    where t.id::text = ${id} and t.org_id = ${user.org.id}
+    where t.id = ${asUuid(id)}::uuid and t.org_id = ${user.org.id}
       and (t.owner_id = ${user.id} or t.shared)
   `;
   return row ? fromRow(row, user) : null;
