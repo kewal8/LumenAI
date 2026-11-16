@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/app/AppShell";
 import { requireUser } from "@/lib/auth/session";
 import { editorLocked } from "@/lib/subscription";
+import { updatesLeft } from "@/lib/credits";
 import { loadCredits } from "@/lib/workspace";
 import { greetingName } from "@/lib/greeting";
 import { renewalDue } from "@/lib/moments";
@@ -24,7 +25,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         organisation: user.org?.name ?? null,
         isPlatformAdmin: user.isPlatformAdmin,
         locked,
-        updatesLeft: credits.limit === null ? null : Math.max(0, credits.limit - credits.used),
+        updatesLeft: updatesLeft(credits),
       }}
     >
       {children}

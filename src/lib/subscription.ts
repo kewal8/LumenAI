@@ -2,6 +2,7 @@ import { cache } from "react";
 import { db } from "@/lib/db";
 import type { CurrentUser } from "@/lib/auth/session";
 import { findPlan, type Cycle, type Plan } from "./plans";
+import { rewardReferral } from "./referrals";
 
 export type Subscription = {
   /** The plan in force, or null while the organisation is on the pilot or has not paid. */
@@ -70,7 +71,9 @@ export async function requestPlan(orgId: string, userId: string, plan: Plan, cyc
 
 /**
  * Starts a paid plan for one month or one year from today. Used by LumenAI
- * staff after payment, until online payment is connected.
+ * staff after payment, until online payment is connected. On an account's
+ * first activation, whoever referred it gets their reward; the number of
+ * bonus updates given is returned (0 when none was due).
  */
 export async function activatePlan(orgId: string, plan: Plan, cycle: Cycle) {
   const length = cycle === "yearly" ? "1 year" : "1 month";
@@ -88,6 +91,7 @@ export async function activatePlan(orgId: string, plan: Plan, cycle: Cycle) {
           requested_at = null,
           updated_at = now()
   `;
+  return rewardReferral(orgId, plan);
 }
 
 /** Ends a plan now: the editor locks until a plan is activated again. */

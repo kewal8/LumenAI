@@ -11,13 +11,20 @@ const CODE_LENGTH = 6;
 /** Seconds before another code can be asked for. */
 const RESEND_AFTER = 60;
 
-type Details = { firstName: string; lastName: string; email: string; password: string; phone: string };
+type Details = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  phone: string;
+  referralCode: string;
+};
 
 /**
  * Sign-up in two steps on one screen: the doctor's details, then the six-digit
  * code emailed to them. The account exists only once the code is right.
  */
-export function SignupForm() {
+export function SignupForm({ referralCode = "" }: { referralCode?: string }) {
   const router = useRouter();
   const [details, setDetails] = useState<Details>({
     firstName: "",
@@ -25,6 +32,8 @@ export function SignupForm() {
     email: "",
     password: "",
     phone: "",
+    // Filled in when the doctor arrived from someone's referral link.
+    referralCode,
   });
   const [signupId, setSignupId] = useState<string | null>(null);
   const [devCode, setDevCode] = useState("");
@@ -188,6 +197,15 @@ export function SignupForm() {
         onChange={update("phone")}
         autoComplete="tel-national"
         hint="10 digits, for example 98765 43210."
+      />
+      <Field
+        id="referral-code"
+        label="Referral code"
+        value={details.referralCode}
+        onChange={(value) => update("referralCode")(value.toUpperCase())}
+        autoComplete="off"
+        optional
+        hint="If a colleague gave you their code. You can also add it later on the Plans page."
       />
       <FormError message={error} />
       <SubmitButton

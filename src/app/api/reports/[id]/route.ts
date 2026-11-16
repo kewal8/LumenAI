@@ -34,6 +34,7 @@ export const PATCH = handle<Context>(async (request, context) => {
         template = null,
         content = ${JSON.stringify(input.report)}::jsonb, updated_at = now(),
         finalized_at = case when ${finalize} then now() else finalized_at end,
+        first_finalized_at = case when ${finalize} then coalesce(first_finalized_at, now()) else first_finalized_at end,
         patient_name = case when ${keep} then patient_name else ${patient?.name ?? null} end,
         patient_age = case when ${keep} then patient_age else ${patient?.age ?? null}::int end,
         patient_age_unit = case when ${keep} then patient_age_unit else ${patient?.ageUnit ?? null} end,

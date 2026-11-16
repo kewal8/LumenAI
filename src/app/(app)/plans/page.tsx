@@ -1,5 +1,7 @@
 import { PlansClient } from "@/components/app/PlansClient";
+import { ReferralCodeEntry } from "@/components/app/Referrals";
 import { requireUser } from "@/lib/auth/session";
+import { loadAppliedReferral } from "@/lib/referrals";
 import { loadSubscription, type Subscription } from "@/lib/subscription";
 import { canManageTeam } from "@/lib/team";
 
@@ -12,12 +14,16 @@ const PILOT: Subscription = { plan: null, cycle: null, periodEnd: null, requeste
 
 export default async function PlansPage() {
   const user = await requireUser();
-  const subscription = user.org ? await loadSubscription(user.org.id) : PILOT;
+  const [subscription, applied] = user.org
+    ? await Promise.all([loadSubscription(user.org.id), loadAppliedReferral(user.org.id)])
+    : [PILOT, null];
+  const canChoose = Boolean(user.org) && canManageTeam(user.org?.role);
 
   return (
     <PlansClient
       subscription={subscription}
-      canChoose={Boolean(user.org) && canManageTeam(user.org?.role)}
+      canChoose={canChoose}
+      referral={applied && <ReferralCodeEntry applied={applied} canEdit={canChoose} />}
     />
   );
 }

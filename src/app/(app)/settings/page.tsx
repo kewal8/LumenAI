@@ -3,6 +3,7 @@ import {
   Buildings,
   ClipboardText,
   FileText,
+  Gift,
   Keyboard,
   Lightning,
   Microphone,
@@ -22,7 +23,8 @@ import {
   ProfileForm,
 } from "@/components/app/SettingsForms";
 import { MacrosManager } from "@/components/app/MacrosManager";
-import { Page, PageHeader, Section } from "@/components/app/ui";
+import { ReferralShare } from "@/components/app/Referrals";
+import { Page, PageHeader, Section, buttonClass } from "@/components/app/ui";
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { parsePasteProfile } from "@/lib/reportFormat";
@@ -43,6 +45,7 @@ const TABS = [
   { id: "dictation", label: "Dictation", icon: Microphone },
   { id: "macros", label: "Macros", icon: Lightning },
   { id: "shortcuts", label: "Shortcuts", icon: Keyboard },
+  { id: "referrals", label: "Referrals", icon: Gift },
 ] as const;
 
 type Tab = (typeof TABS)[number]["id"];
@@ -52,7 +55,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const [user, { tab: wanted }] = await Promise.all([requireUser(), searchParams]);
   const tab: Tab = TABS.find((item) => item.id === wanted)?.id ?? "profile";
   const [[row], identity, macros] = await Promise.all([
-    db()`select paste_profile, shortcuts, floating_box from users where id = ${user.id}`,
+    db()`select paste_profile, shortcuts, floating_box, referral_code from users where id = ${user.id}`,
     getIdentity(user.id),
     tab === "macros" ? listMacros(user.id) : [],
   ]);
@@ -160,6 +163,26 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           description="Work on the report screen without the mouse."
         >
           <ShortcutsForm shortcuts={parseShortcuts(row?.shortcuts)} />
+        </Section>
+      )}
+
+      {tab === "referrals" && (
+        <Section
+          icon={<Gift weight="fill" className="h-5 w-5" />}
+          title="Referral code"
+          description="Share it with colleagues. When they pay for their first plan, your account gets bonus AI updates."
+        >
+          <div className="flex flex-col gap-6">
+            <ReferralShare
+              code={row?.referral_code ?? ""}
+              reward="Half a month of their plan's AI updates, used after your daily allowance runs out."
+            />
+            <div>
+              <Link href="/referrals" className={buttonClass.secondary}>
+                See who used your code
+              </Link>
+            </div>
+          </div>
         </Section>
       )}
     </Page>

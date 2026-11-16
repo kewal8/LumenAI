@@ -5,6 +5,7 @@ import { normaliseEmail, normalisePhone, passwordProblem } from "@/lib/auth/rule
 import { codeHash } from "@/lib/auth/signup";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
+import { findReferrer, normaliseCode, referralProblem } from "@/lib/referrals";
 
 const CODE_MINUTES = 10;
 /** Codes one email can ask for in an hour, so the form cannot be used to flood an inbox. */
@@ -31,6 +32,15 @@ export const POST = handle(async (request) => {
   if (problem) return fail(400, `Password: ${problem}`);
   if (!phone) return fail(400, "Enter a 10-digit mobile number.");
 
+  // A referral code is optional, but one that is typed must be real.
+  const referralCode = normaliseCode(body.referralCode);
+  if (referralCode) {
+    const referrer = await findReferrer(referralCode);
+    if (!referrer) return fail(400, "That referral code is not right. Check it, or leave it empty.");
+    const problem = referralProblem(referrer, { orgId: null, email });
+    if (problem) return fail(400, problem);
+  }
+
   const sql = db();
   const [taken] = await sql`select 1 from users where lower(email) = ${email}`;
   if (taken) return fail(409, "This email already has an account. Sign in instead.");
@@ -49,9 +59,9 @@ export const POST = handle(async (request) => {
   await sql.transaction([
     sql`update signup_codes set used_at = now() where lower(email) = ${email} and used_at is null`,
     sql`
-      insert into signup_codes (id, email, first_name, last_name, phone, password_hash, code_hash, expires_at)
+      insert into signup_codes (id, email, first_name, last_name, phone, password_hash, code_hash, expires_at, referral_code)
       values (${id}, ${email}, ${firstName}, ${lastName}, ${phone}, ${await hashPassword(password)},
-              ${codeHash(id, code)}, now() + ${`${CODE_MINUTES} minutes`}::interval)
+              ${codeHash(id, code)}, now() + ${`${CODE_MINUTES} minutes`}::interval, ${referralCode || null})
     `,
   ]);
 

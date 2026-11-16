@@ -16,6 +16,13 @@ export const POST = handle(async (request) => {
   const patient = parsePatient(body?.patient);
   if (typeof patient === "string") return fail(400, patient);
   if (!patient) return fail(400, "Enter the patient's details before saving.");
+  // When the doctor first changed this report, from the report screen. Only a
+  // time in the last 12 hours is believed; anything else is left unknown.
+  const started = typeof body?.startedAt === "string" ? new Date(body.startedAt) : null;
+  const startedAt =
+    started && !Number.isNaN(started.getTime()) && started.getTime() <= Date.now() && Date.now() - started.getTime() < 12 * 3600_000
+      ? started
+      : null;
 
   // The template copy is stored once per distinct template and shared by its
   // reports: the report keeps only its fingerprint (see migration 019).
@@ -28,10 +35,10 @@ export const POST = handle(async (request) => {
       on conflict (hash) do update set created_at = now()
     )
     insert into reports (org_id, user_id, template_name, title, template_hash, content, finalized_at,
-                         patient_name, patient_age, patient_age_unit, patient_sex, study, modality)
+                         first_finalized_at, started_at, patient_name, patient_age, patient_age_unit, patient_sex, study, modality)
     values (${user.org.id}, ${user.id}, ${input.template.name}, ${input.report.title},
             encode(sha256(convert_to(${template}::jsonb::text, 'UTF8')), 'hex'), ${JSON.stringify(input.report)}::jsonb,
-            ${finalize ? new Date() : null},
+            ${finalize ? new Date() : null}, ${finalize ? new Date() : null}, ${startedAt},
             ${patient.name}, ${patient.age}, ${patient.ageUnit}, ${patient.sex}, ${patient.study}, ${patient.modality})
     returning id, finalized_at
   `;

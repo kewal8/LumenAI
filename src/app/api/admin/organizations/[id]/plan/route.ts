@@ -23,6 +23,7 @@ export const PATCH = handle<RouteContext<"/api/admin/organizations/[id]/plan">>(
   const plan = findPlan(body.plan);
   const cycle = body.cycle === "yearly" ? "yearly" : body.cycle === "monthly" ? "monthly" : null;
   if (!plan || !cycle) return fail(400, "Choose a plan and a billing cycle.");
-  await activatePlan(org.id, plan, cycle);
-  return Response.json({ ok: true });
+  // The first activation of a referred account pays its referrer.
+  const referralReward = await activatePlan(org.id, plan, cycle);
+  return Response.json({ ok: true, referralReward });
 });

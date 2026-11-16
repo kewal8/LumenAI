@@ -64,7 +64,7 @@ import { useEditorVoice } from "./editor/EditorVoice";
 import { TemplatePicker } from "./TemplatePicker";
 import { ReportEditor, type ReportEditorHandle } from "./editor/ReportEditor";
 import { docToHtml, docToReport, docToText, reportToDoc, type DocNode } from "@/lib/reportDoc";
-import type { Credits } from "@/lib/workspace";
+import { afterOneUpdate, updatesLeft, type Credits } from "@/lib/credits";
 import { setUpdatesLeft } from "@/lib/updatesLeft";
 import { BLANK_TEMPLATE, BLANK_TEMPLATE_ID } from "@/lib/templates";
 import { EMPTY_PATIENT, ageSex, hasPatient, type Patient } from "@/lib/patient";
@@ -271,10 +271,22 @@ export function ReportWorkspace({
     section.lines.some((line) => line.status !== "normal"),
   );
 
+  // When the doctor first changed this unsaved report, so Insights can time it.
+  const startedAt = useRef<string | null>(null);
+  useEffect(() => {
+    if (dirty && !savedId && !startedAt.current) startedAt.current = new Date().toISOString();
+  }, [dirty, savedId]);
+
   async function save(finalize = false, details: Patient | null = patient) {
     setSaving(true);
     setError("");
-    const body = { template, report: { ...reportRef.current, log: logRef.current }, finalize, patient: details };
+    const body = {
+      template,
+      report: { ...reportRef.current, log: logRef.current },
+      finalize,
+      patient: details,
+      startedAt: startedAt.current,
+    };
     const result = savedId
       ? await sendJson<{ id: string; finalizedAt: string | null }>("PATCH", `/api/reports/${savedId}`, body)
       : await sendJson<{ id: string; finalizedAt: string | null }>("POST", "/api/reports", body);
@@ -390,6 +402,7 @@ export function ReportWorkspace({
     setPatient(null);
     setFinalizedAt(null);
     setDirty(false);
+    startedAt.current = null;
     setTemplate(next);
     setReport(reportFromTemplate(next));
     setInitialDoc(startDoc(next));
@@ -465,7 +478,7 @@ export function ReportWorkspace({
     setReport(next);
     setDirty(true);
     // One credit is one update of the report.
-    setCredits((current) => ({ ...current, used: current.used + 1 }));
+    setCredits(afterOneUpdate);
     const entry = logEntryFor(
       next,
       ops,
@@ -880,7 +893,7 @@ export function ReportWorkspace({
 
   // The new design's message box sizes itself, so it has its own ref.
   const messageRef = useRef<HTMLTextAreaElement>(null);
-  const remaining = credits.limit === null ? null : Math.max(0, credits.limit - credits.used);
+  const remaining = updatesLeft(credits);
   // The account menu shows this count; keep it in step as updates are used.
   useEffect(() => setUpdatesLeft(remaining), [remaining]);
   // Full screen: the report alone in the middle, the menu hidden, and the AI
@@ -1029,7 +1042,7 @@ export function ReportWorkspace({
                     getLines={() => editorRef.current?.getLines() ?? []}
                     fixText={(line, find, replace) => editorRef.current?.fixText(line, find, replace) ?? false}
                     disabled={saving || busy}
-                    onChecked={() => setCredits((current) => ({ ...current, used: current.used + 1 }))}
+                    onChecked={() => setCredits(afterOneUpdate)}
                   />
                 )}
                 {/* Finalize opens, and stands out, once the AI Assistant has worked on the report. */}

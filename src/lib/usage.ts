@@ -1,5 +1,7 @@
 import type { CurrentUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import { spendBonus } from "@/lib/referrals";
+import { loadCredits } from "@/lib/workspace";
 
 type ClaudeUsage = {
   input_tokens?: number | null;
@@ -29,13 +31,19 @@ export function recordClaudeUsage(
     (usage.input_tokens ?? 0) +
     (usage.cache_read_input_tokens ?? 0) +
     (usage.cache_creation_input_tokens ?? 0);
-  return record(
-    () => db()`
+  return record(async () => {
+    await db()`
       insert into usage_events (user_id, org_id, provider, purpose, model, input_tokens, output_tokens, duration_ms)
       values (${user.id}, ${user.org?.id ?? null}, 'claude', ${purpose}, ${model}, ${input}, ${usage.output_tokens ?? 0},
               ${durationMs === undefined ? null : Math.round(durationMs)})
-    `,
-  );
+    `;
+    // Past the day's plan allowance, a report update comes out of the referral bonus.
+    // The count was read before this update, when the request was let through.
+    if (purpose === "report" && user.org) {
+      const credits = await loadCredits(user);
+      if (credits.limit !== null && credits.used >= credits.limit && credits.bonus > 0) await spendBonus(user.org.id);
+    }
+  });
 }
 
 export function recordDictation(user: CurrentUser, seconds: number) {

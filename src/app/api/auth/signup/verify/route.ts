@@ -2,6 +2,7 @@ import { fail, handle } from "@/lib/auth/respond";
 import { createSession } from "@/lib/auth/session";
 import { asUuid, db } from "@/lib/db";
 import { codeHash } from "@/lib/auth/signup";
+import { findReferrer, recordReferral, referralProblem } from "@/lib/referrals";
 
 /** Wrong codes allowed before a new one has to be sent. */
 const MAX_ATTEMPTS = 5;
@@ -17,7 +18,7 @@ export const POST = handle(async (request) => {
 
   const sql = db();
   const [signup] = await sql`
-    select id, email, first_name, last_name, phone, password_hash, code_hash, attempts,
+    select id, email, first_name, last_name, phone, password_hash, code_hash, attempts, referral_code,
            expires_at < now() as expired
     from signup_codes where id = ${asUuid(id)}::uuid and used_at is null
   `;
@@ -52,6 +53,19 @@ export const POST = handle(async (request) => {
     sql`insert into subscriptions (org_id, status) values (${orgId}, 'unpaid')`,
     sql`update signup_codes set used_at = now() where id = ${signup.id}`,
   ]);
+
+  // The code was checked when it was typed; checked again in case it changed since.
+  // A code that no longer works is dropped rather than stopping the sign-up.
+  if (signup.referral_code) {
+    try {
+      const referrer = await findReferrer(signup.referral_code);
+      if (referrer && !referralProblem(referrer, { orgId, email: signup.email })) {
+        await recordReferral({ referrer, referredOrgId: orgId, referredUserId: userId, source: "signup" });
+      }
+    } catch (error) {
+      console.error("Could not record referral:", error);
+    }
+  }
 
   await createSession(userId, request.headers.get("user-agent"));
   return Response.json({ ok: true, home: "/welcome" });

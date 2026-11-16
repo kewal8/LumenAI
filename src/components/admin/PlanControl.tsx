@@ -29,7 +29,11 @@ export function PlanControl({ orgId, name, status }: { orgId: string; name: stri
   async function submit(action: "activate" | "end") {
     setBusy(action);
     setError("");
-    const result = await send("PATCH", `/api/admin/organizations/${orgId}/plan`, { action, plan, cycle });
+    const result = await send<{ referralReward?: number }>("PATCH", `/api/admin/organizations/${orgId}/plan`, {
+      action,
+      plan,
+      cycle,
+    });
     setBusy(null);
     if (result.error) {
       setError(result.error);
@@ -37,7 +41,14 @@ export function PlanControl({ orgId, name, status }: { orgId: string; name: stri
       return;
     }
     if (action === "end") toast.warning(`Plan ended for ${name}`);
-    else toast.success(`Plan active for ${name}`);
+    else {
+      const reward = result.data?.referralReward ?? 0;
+      toast.success(
+        reward > 0
+          ? `Plan active for ${name}. Their referrer got ${reward.toLocaleString("en-IN")} bonus AI updates`
+          : `Plan active for ${name}`,
+      );
+    }
     setOpen(false);
     setConfirmEnd(false);
     router.refresh();

@@ -1,10 +1,12 @@
 import { cache } from "react";
 import type { CurrentUser } from "@/lib/auth/session";
+import type { Credits } from "@/lib/credits";
 import { db } from "@/lib/db";
 import { parsePasteProfile } from "@/lib/reportFormat";
 import { listMacros } from "@/lib/macroStore";
 import { loadSubscription } from "@/lib/subscription";
 import { getIdentitySummary } from "@/lib/reportIdentity";
+import { bonusBalance } from "@/lib/referrals";
 import { parseShortcuts } from "@/lib/shortcuts";
 import { loadReportTemplate } from "@/lib/templateStore";
 import { BLANK_TEMPLATE, BLANK_TEMPLATE_ID, CT_BRAIN_PLAIN } from "@/lib/templates";
@@ -37,14 +39,14 @@ export async function loadWorkspace(user: CurrentUser, first: string | null = nu
   };
 }
 
-/** AI updates the account may still make today; `limit` is null on the pilot, which has none. */
-export type Credits = { limit: number | null; used: number };
+export type { Credits };
 
 // Read once per request: the app menu and the report screen both show it.
 export const loadCredits = cache(async (user: CurrentUser): Promise<Credits> => {
-  if (!user.org) return { limit: null, used: 0 };
-  const [subscription, [row]] = await Promise.all([
+  if (!user.org) return { limit: null, used: 0, bonus: 0 };
+  const [subscription, bonus, [row]] = await Promise.all([
     loadSubscription(user.org.id),
+    bonusBalance(user.org.id),
     // A day runs midnight to midnight in India, where the doctors are.
     db()`
       select count(*)::int as used from usage_events
@@ -52,7 +54,7 @@ export const loadCredits = cache(async (user: CurrentUser): Promise<Credits> => 
         and created_at >= (date_trunc('day', now() at time zone 'Asia/Kolkata') at time zone 'Asia/Kolkata')
     `,
   ]);
-  return { limit: subscription.plan?.creditsPerDay ?? null, used: row?.used ?? 0 };
+  return { limit: subscription.plan?.creditsPerDay ?? null, used: row?.used ?? 0, bonus: bonus.remaining };
 });
 
 /** AI updates one person may make in a minute; far above real dictation, so only a runaway is stopped. */
@@ -73,7 +75,7 @@ export async function updateRefusal(user: CurrentUser): Promise<string | null> {
   if ((row?.recent ?? 0) >= UPDATES_PER_MINUTE) {
     return "Too many updates in one minute. Wait a moment and try again.";
   }
-  if (credits.limit !== null && credits.used >= credits.limit) {
+  if (credits.limit !== null && credits.used >= credits.limit && credits.bonus <= 0) {
     return `Today's ${credits.limit} AI updates are used. They start again at midnight, or choose a bigger plan on the Plans page.`;
   }
   return null;

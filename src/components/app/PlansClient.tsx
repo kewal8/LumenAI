@@ -71,9 +71,12 @@ const RULES = [
 export function PlansClient({
   subscription,
   canChoose,
+  referral,
 }: {
   subscription: Subscription;
   canChoose: boolean;
+  /** Where a referral code is typed before paying, when one can still be. */
+  referral?: React.ReactNode;
 }) {
   const router = useRouter();
   const [cycle, setCycle] = useState<Cycle>(subscription.cycle ?? subscription.requested?.cycle ?? "monthly");
@@ -328,6 +331,8 @@ export function PlansClient({
           ? "Choosing a plan sends us your request. We contact you to take payment and start it the same day."
           : "Only the owner or an admin of your organisation can choose a plan."}
       </p>
+
+      {referral}
 
       {/* The rules behind every plan, all visible at once. Same width as the plans. */}
       <section aria-labelledby="plan-rules" className={`${PANEL} overflow-hidden`}>
