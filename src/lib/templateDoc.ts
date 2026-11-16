@@ -174,7 +174,7 @@ type Role =
  * title (centred, bold or a heading) and not a section, is the report title.
  * Lines ending in a colon start sections; what follows is that section's
  * normal wording. The IMPRESSION section is the impression used when
- * everything is normal. Findings written before any heading belong to
+ * everything is normal; a template without one makes reports without one. Findings written before any heading belong to
  * FINDINGS.
  *
  * Also returns the document itself with every line tagged with the same ids
@@ -258,9 +258,7 @@ export function readTemplate(
     return "Add at least one section, such as FINDINGS: with its normal lines under it.";
   const empty = body.find((section) => section.lines.length === 0);
   if (empty) return `Add the normal wording under ${empty.heading}:.`;
-  if (!impression || impression.lines.length === 0) {
-    return "Add IMPRESSION: with the impression used when everything is normal.";
-  }
+  // Some reports have no impression at all; their reports never get one.
 
   // Tag each paragraph. Ids follow toTemplate: s1, s1.l1, in section order.
   const idOf = (section: Section) => `s${body.indexOf(section) + 1}`;
@@ -297,7 +295,8 @@ export function readTemplate(
       name,
       title: title || name.toUpperCase(),
       sections: body,
-      normalImpression: impression.lines,
+      normalImpression: impression?.lines ?? [],
+      ...(impression ? {} : { noImpression: true }),
     },
     reportDoc: tag(doc),
   };

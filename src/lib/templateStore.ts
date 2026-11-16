@@ -51,13 +51,26 @@ export async function nameTaken(user: CurrentUser, name: string, except: string 
   const [row] = await db()`
     select 1 from templates
     where org_id = ${user.org.id} and (owner_id = ${user.id} or shared)
-      and lower(regexp_replace(trim(name), '\s+', ' ', 'g')) = ${templateNameKey(name)}
+      and lower(regexp_replace(trim(name), '[[:space:]]+', ' ', 'g')) = ${templateNameKey(name)}
       and (${except}::uuid is null or id <> ${except}::uuid)
     limit 1
   `;
   return Boolean(row);
 }
 
+
+/** The template this person already has by this name, for offering to replace it. */
+export async function templateNamed(user: CurrentUser, name: string) {
+  if (!user.org) return null;
+  const [row] = await db()`
+    select id from templates
+    where org_id = ${user.org.id} and (owner_id = ${user.id} or shared)
+      and lower(regexp_replace(trim(name), '[[:space:]]+', ' ', 'g')) = ${templateNameKey(name)}
+    order by owner_id = ${user.id} desc
+    limit 1
+  `;
+  return row ? findTemplate(user, row.id) : null;
+}
 
 export async function findTemplate(user: CurrentUser, id: string) {
   if (!user.org) return null;

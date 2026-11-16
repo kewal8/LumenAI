@@ -48,7 +48,7 @@ import {
   buildPrintHtml,
   buildReportHtml,
   buildReportText,
-  type FormattedReport,
+  formatReport,
   type PasteProfile,
 } from "@/lib/reportFormat";
 import type { IdentitySummary, ReportIdentity } from "@/lib/reportIdentity";
@@ -56,6 +56,7 @@ import { useIdentityImages } from "@/lib/useIdentityImages";
 import { expandMacros, removeLastMacro, type Macro } from "@/lib/macros";
 import { comboFromEvent, type ShortcutAction, type Shortcuts } from "@/lib/shortcuts";
 import { FinalizeDialog } from "./FinalizeDialog";
+import { ValidateButton } from "./ValidateButton";
 import { FloatingBox, useFloatingWindow } from "./FloatingBox";
 import { useLineVoice } from "./LineVoice";
 import { useEditorVoice } from "./editor/EditorVoice";
@@ -75,20 +76,6 @@ import { COMMAND_LABELS, appendSpoken, spokenStream, type SpokenPiece } from "@/
 /** A dictation that could not be written into the report, kept so it can be retried. */
 type FailedDictation = { text: string; message: string };
 type CopyState = "empty" | "copied" | "stale";
-
-function formatted(report: Report): FormattedReport {
-  return {
-    title: report.title,
-    sections: [
-      ...report.sections.map((section) => ({
-        heading: section.heading,
-        // A line started by "next line" and left empty is not part of the report.
-        lines: section.lines.map((line) => line.text).filter((text) => text.trim()),
-      })),
-      { heading: "IMPRESSION", lines: report.impression },
-    ],
-  };
-}
 
 const COPY_BLOCKED =
   "The report is ready, but your browser did not let it copy by itself. Press Copy report, then paste into PACS.";
@@ -351,7 +338,7 @@ export function ReportWorkspace({
   function printHtml(from: ReportIdentity = identity) {
     const doc = future ? editorRef.current?.getDoc() : undefined;
     return buildPrintHtml(
-      formatted(report),
+      formatReport(report),
       profile,
       { text: from.signatureText, image: from.signatureImage },
       from.letterheadEnabled ? { header: from.headerImage, footer: from.footerImage } : null,
@@ -364,7 +351,7 @@ export function ReportWorkspace({
     const sign = { text: from.signatureText, image: from.signatureImage };
     const doc = future ? editorRef.current?.getDoc() : undefined;
     if (doc) return { html: docToHtml(doc, profile, sign), text: docToText(doc, sign) };
-    const output = formatted(value);
+    const output = formatReport(value);
     return { html: buildReportHtml(output, profile, sign), text: buildReportText(output, profile, sign) };
   }
 
@@ -578,7 +565,12 @@ export function ReportWorkspace({
 
   // The floating window comes up only when the doctor leaves this tab while
   // the microphone is on, and goes away when they come back.
-  const floating = useFloatingWindow(floatingBox && dictation.recording);
+  const floating = useFloatingWindow(
+    floatingBox && dictation.recording,
+    // Leaving the browser while working in the AI Assistant, or while it listens.
+    () => dictation.recording || Boolean(panelRef.current?.contains(document.activeElement)),
+    floatingBox,
+  );
 
   function toggleMic() {
     setQuiet(false);
@@ -1027,6 +1019,15 @@ export function ReportWorkspace({
                     <span className="hidden @[52rem]:inline">{savedId && !dirty ? "Saved" : "Save"}</span>
                   </button>
                 </Tip>
+                {/* Spelling, grammar and filler words, checked just before finalizing. */}
+                {future && (
+                  <ValidateButton
+                    getLines={() => editorRef.current?.getLines() ?? []}
+                    fixText={(line, find, replace) => editorRef.current?.fixText(line, find, replace) ?? false}
+                    disabled={saving || busy}
+                    onChecked={() => setCredits((current) => ({ ...current, used: current.used + 1 }))}
+                  />
+                )}
                 {/* Finalize opens, and stands out, once the AI Assistant has worked on the report. */}
                 <Tip
                   label={

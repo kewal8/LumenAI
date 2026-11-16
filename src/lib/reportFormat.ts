@@ -1,3 +1,4 @@
+import type { Report } from "./report";
 export type PasteProfile = {
   font: string;
   size: number;
@@ -22,6 +23,22 @@ export type FormattedReport = {
   title: string;
   sections: { heading: string; lines: string[] }[];
 };
+
+/** A report's sections as printed and pasted, the impression last. */
+export function formatReport(report: Report): FormattedReport {
+  return {
+    title: report.title,
+    sections: [
+      ...report.sections.map((section) => ({
+        heading: section.heading,
+        // A line started by "next line" and left empty is not part of the report.
+        lines: section.lines.map((line) => line.text).filter((text) => text.trim()),
+      })),
+      // A report from a template without an impression has none to show.
+      ...(report.impression.length > 0 ? [{ heading: "IMPRESSION", lines: report.impression }] : []),
+    ],
+  };
+}
 
 /** Sign-off under a report. */
 export type Signature = { text: string; image: string | null };
@@ -96,11 +113,13 @@ export function buildPrintHtml(
   letterhead: { header: string | null; footer: string | null } | null,
   /** The report body as HTML, when it comes from the rich editor. */
   bodyHtml?: string,
+  /** The page's name, which a saved PDF is named after; the report title by default. */
+  documentTitle = report.title,
 ) {
   const header = letterhead?.header ? `<img src="${letterhead.header}" alt="">` : "";
   const footer = letterhead?.footer ? `<img src="${letterhead.footer}" alt="">` : "";
   // The table's header and footer groups are what browsers repeat on each sheet.
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(report.title)}</title><style>
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(documentTitle)}</title><style>
 @page{size:A4;margin:0}
 html,body{margin:0;padding:0;background:#fff}
 table{width:100%;border-collapse:collapse}

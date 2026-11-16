@@ -20,23 +20,25 @@ import {
   TextItalic,
   TextUnderline,
 } from "@phosphor-icons/react";
-import Highlight from "@tiptap/extension-highlight";
-import TextAlign from "@tiptap/extension-text-align";
-import { Color, FontFamily, FontSize, TextStyle } from "@tiptap/extension-text-style";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
 import { useImperativeHandle, useSyncExternalStore } from "react";
 import { Select } from "@/components/app/ui";
 import { Tip } from "@/components/Tip";
 import type { DocNode, PatchPlan } from "@/lib/reportDoc";
 import { PASTE_FONTS, type PasteProfile } from "@/lib/reportFormat";
-import { ReportLines, applyPatchToEditor } from "./reportLines";
+import { EDITOR_EXTENSIONS } from "./extensions";
+import { applyPatchToEditor } from "./reportLines";
+import { fixText, readLines } from "./textFixes";
 import "./editor.css";
 
 export type ReportEditorHandle = {
   /** Writes a dictation into the document. */
   applyPatch: (plan: PatchPlan) => void;
   getDoc: () => DocNode;
+  /** The text of each paragraph, for the spelling and grammar check. */
+  getLines: () => string[];
+  /** Applies one accepted fix; false when that text is no longer there. */
+  fixText: (line: number, find: string, replace: string) => boolean;
 };
 
 const SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24];
@@ -436,24 +438,7 @@ export function ReportEditor({
   const editor = useEditor({
     // The page is rendered on the server first; the editor starts in the browser.
     immediatelyRender: false,
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2] },
-        blockquote: false,
-        code: false,
-        codeBlock: false,
-        horizontalRule: false,
-        link: false,
-        strike: false,
-      }),
-      TextStyle,
-      Color,
-      FontFamily,
-      FontSize,
-      Highlight.configure({ multicolor: true }),
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
-      ReportLines,
-    ],
+    extensions: EDITOR_EXTENSIONS,
     content: initialDoc,
     editorProps: {
       attributes: { class: "report-doc", "aria-label": "Report", spellcheck: "true" },
@@ -468,6 +453,8 @@ export function ReportEditor({
         if (editor) applyPatchToEditor(editor, plan);
       },
       getDoc: () => (editor?.getJSON() as DocNode | undefined) ?? initialDoc,
+      getLines: () => (editor ? readLines(editor) : []),
+      fixText: (line, find, replace) => (editor ? fixText(editor, line, find, replace) : false),
     }),
     [editor, initialDoc],
   );

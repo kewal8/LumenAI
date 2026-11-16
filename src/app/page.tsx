@@ -3,7 +3,9 @@ import {
   Browsers,
   Check,
   ClipboardText,
+  DeviceMobile,
   FileDashed,
+  Files,
   Layout,
   ListChecks,
   Microphone,
@@ -68,11 +70,11 @@ function IconTile({
 const PROBLEMS = [
   {
     title: "Most of a report is normal",
-    body: "Yet every normal line is still typed, dictated or checked on each case.",
+    body: "Yet every normal line is still typed, dictated or checked, case after case, until the evening.",
   },
   {
     title: "Dictation software types every word",
-    body: "It hears what you say, not which line of the report a finding belongs to.",
+    body: "Even the “sorry, I mean 15 mm”. It hears what you say, not which line a finding belongs to.",
   },
   {
     title: "The PACS editor is where time goes",
@@ -81,23 +83,25 @@ const PROBLEMS = [
 ];
 
 const STEPS = [
-  { title: "Open a template", body: "Beside your PACS viewer, or on its own. The report starts complete and normal." },
-  { title: "Dictate the abnormal", body: "Speak, stop, and the report updates." },
-  { title: "Review and finalise", body: "Read it once. It is saved with your other reports." },
+  { title: "Open a template, or start blank", body: "Beside your PACS viewer, or on its own. A template starts the report complete and normal." },
+  { title: "Dictate the abnormal", body: "Speak, stop, and the report updates. Correct yourself out loud." },
+  { title: "Review and finalise", body: "Read it once, with anything doubtful flagged. It is saved under the patient." },
   { title: "Into PACS, or printed", body: "Paste it with Ctrl+V, or print it signed on your letterhead. No PACS needed." },
 ];
 
 const OLD_WAY = [
   "Type or dictate every line, normal ones included",
-  "Correct the typist’s or the software’s draft",
+  "Retype a line every time you misspeak",
   "Write the impression from scratch",
+  "Proofread for a wrong side or a lost “no”",
   "Fix headings and spacing in the PACS editor",
 ];
 
 const NEW_WAY = [
   "Say only what is abnormal",
-  "See the words each line came from",
+  "Correct yourself out loud: “sorry, 15 mm”",
   "Impression written from your findings",
+  "Side, numbers and negation checked against your words",
   "Paste into PACS, or print it signed",
 ];
 
@@ -109,19 +113,34 @@ const RESPONSIBILITIES = [
 
 const CENTRE_POINTS = [
   {
-    icon: <Layout className="h-5 w-5" />,
-    title: "One report layout",
-    body: "Every report leaves in the format your centre already uses.",
+    icon: <ShieldCheck className="h-5 w-5" />,
+    title: "Errors caught before signing",
+    body: "A wrong side, a number nobody gave or a missing “no” is flagged before a report is signed.",
   },
   {
-    icon: <Browsers className="h-5 w-5" />,
-    title: "Nothing to install",
-    body: "Runs in the browser, with your PACS or on its own. No server to size.",
+    icon: <Files className="h-5 w-5" />,
+    title: "Templates shared once",
+    body: "Make a template once and every radiologist in the centre reports from it.",
+  },
+  {
+    icon: <Layout className="h-5 w-5" />,
+    title: "One report layout",
+    body: "Every report leaves in the format your centre already uses, pasted or printed on your letterhead.",
   },
   {
     icon: <UsersThree className="h-5 w-5" />,
     title: "Roles for your team",
     body: "Owner, admin and radiologist accounts under one centre.",
+  },
+  {
+    icon: <Browsers className="h-5 w-5" />,
+    title: "Nothing to install",
+    body: "Runs in the browser, beside your PACS or on its own. No server, no IT project.",
+  },
+  {
+    icon: <DeviceMobile className="h-5 w-5" />,
+    title: "On a laptop or a phone",
+    body: "Radiologists can report from the centre, from home or on the move.",
   },
 ];
 
@@ -149,14 +168,30 @@ export default function LandingPage() {
             <br className="hidden sm:inline" />{" "}
             <span className="text-teal">Get the finished report.</span>
           </h1>
-          <p className="hero-in mt-6 max-w-[46ch] text-[1.1rem] leading-relaxed text-ink-soft [--i:1]">
-            Speak your findings. LumenAI writes the full report in your template.
-            Paste it into your PACS, or finalise, sign and print it right here.
+          <p className="hero-in mt-6 max-w-[50ch] text-[1.1rem] leading-relaxed text-ink-soft [--i:1]">
+            Say only your findings. LumenAI writes the full report in your template,
+            checks every line against your words, and hands it to PACS or prints it signed.
+            Less typing, fewer slips, and you finish on time.
           </p>
           <div className="hero-in mt-9 flex flex-wrap items-center justify-center gap-3 [--i:2]">
             <PrimaryButton>Book a demo</PrimaryButton>
             <SecondaryButton href="#features">See how it works</SecondaryButton>
           </div>
+          {/* Three facts doctors and centres ask about first. */}
+          <ul className="hero-in mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[0.95rem] font-semibold text-ink-soft [--i:2]">
+            <li className="flex items-center gap-2">
+              <ShieldCheck weight="fill" className="h-4 w-4 text-teal" />
+              Nothing added that you did not say
+            </li>
+            <li className="flex items-center gap-2">
+              <Browsers weight="fill" className="h-4 w-4 text-teal" />
+              Nothing to install
+            </li>
+            <li className="flex items-center gap-2">
+              <DeviceMobile weight="fill" className="h-4 w-4 text-teal" />
+              Works on your phone too
+            </li>
+          </ul>
 
           {/* TODO: replace with a real screenshot of the report screen (1600x1000). */}
           <div className="hero-in mt-14 w-full max-w-[64rem] [--i:3]">
@@ -221,6 +256,17 @@ export default function LandingPage() {
                     <h3 className="font-semibold leading-snug">With your PACS, or on its own</h3>
                     <p className="mt-1 text-[0.98rem] leading-relaxed text-ink-soft">
                       A browser tab next to your viewer, or a complete reporting desk by itself. Nothing to install.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-4">
+                  <IconTile>
+                    <DeviceMobile className="h-5 w-5" />
+                  </IconTile>
+                  <div>
+                    <h3 className="font-semibold leading-snug">On your phone, like an app</h3>
+                    <p className="mt-1 text-[0.98rem] leading-relaxed text-ink-soft">
+                      Add it to your home screen. Dictate, check and copy a report wherever you are.
                     </p>
                   </div>
                 </li>
@@ -338,12 +384,13 @@ export default function LandingPage() {
 
         <section className={`${SHELL} pb-20 lg:pb-28`}>
           <Reveal>
-            <h2 className={`${H2} mx-auto max-w-[18ch] text-center`}>
-              Built so you can <span className="text-teal">sign it.</span>
+            <h2 className={`${H2} mx-auto max-w-[20ch] text-center`}>
+              Nothing in the report <span className="text-teal">that you did not say.</span>
             </h2>
-            <p className="mx-auto mt-5 max-w-[50ch] text-center text-[1.05rem] leading-relaxed text-ink-soft">
-              Every line is tied to what you said. The finished report goes into
-              PACS without retyping, or leaves LumenAI signed, on your letterhead.
+            <p className="mx-auto mt-5 max-w-[54ch] text-center text-[1.05rem] leading-relaxed text-ink-soft">
+              LumenAI writes up your findings. It does not add a diagnosis, a stage or a
+              differential of its own, and every line is checked against your words before you
+              sign. The finished report goes into PACS without retyping, or leaves signed, on your letterhead.
             </p>
           </Reveal>
 
@@ -369,17 +416,17 @@ export default function LandingPage() {
 
             <Item as="article" lift className="flex flex-col justify-between gap-10 rounded-3xl bg-teal-tint p-7 sm:p-9 lg:col-span-2">
               <p className="text-[clamp(1.6rem,2.4vw,2.1rem)] font-semibold leading-[1.15] tracking-[-0.03em] text-teal-deep">
-                “Change the size to 18&nbsp;mm.”
+                “18&nbsp;mm… sorry, 15&nbsp;mm.”
               </p>
               <div>
                 <IconTile onTint>
                   <ArrowsLeftRight className="h-5 w-5" />
                 </IconTile>
                 <h3 className="mt-4 text-[1.4rem] font-semibold leading-snug tracking-[-0.03em]">
-                  Corrections are spoken too
+                  Edit by talking
                 </h3>
                 <p className="mt-2 leading-relaxed text-ink-soft">
-                  Say the change. Only that line is rewritten.
+                  Correct yourself the way you speak. Only 15&nbsp;mm is written, in the line you meant.
                 </p>
               </div>
             </Item>
@@ -556,13 +603,14 @@ export default function LandingPage() {
           <Item as="article" lift className="flex flex-col gap-8 rounded-3xl bg-teal-tint p-8 sm:p-10 lg:col-span-3">
             <div>
               <h2 className="text-[clamp(1.7rem,3vw,2.25rem)] font-semibold leading-tight tracking-[-0.03em]">
-                For diagnostic centres
+                For radiology centres
               </h2>
-              <p className="mt-3 max-w-[46ch] text-[1.05rem] leading-relaxed text-ink-soft">
-                One way of reporting across every radiologist who reads for you.
+              <p className="mt-3 max-w-[50ch] text-[1.05rem] leading-relaxed text-ink-soft">
+                Faster turnaround from every radiologist who reads for you, one way of
+                reporting, and every report checked before it is signed.
               </p>
             </div>
-            <ul className="grid gap-5 sm:grid-cols-3">
+            <ul className="grid gap-x-5 gap-y-6 sm:grid-cols-2 xl:grid-cols-3">
               {CENTRE_POINTS.map((point) => (
                 <li key={point.title}>
                   <IconTile onTint>{point.icon}</IconTile>
@@ -611,8 +659,17 @@ export default function LandingPage() {
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
             <PrimaryButton>Book a demo</PrimaryButton>
-            <SecondaryButton href="/login">Sign in</SecondaryButton>
+            <SecondaryButton href="/signup">Create an account</SecondaryButton>
           </div>
+          {/* The price, in the open. */}
+          <p className="mt-8 max-w-[52ch] text-[0.98rem] leading-relaxed text-ink-soft">
+            <span className="font-semibold text-ink">From ₹1,700 a month</span> + GST for 100 AI report
+            updates a day. Editing, copying and printing are always free. Centres:{" "}
+            <a href="/book-a-demo" className="font-semibold text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
+              talk to us
+            </a>
+            .
+          </p>
         </Reveal>
       </section>
 

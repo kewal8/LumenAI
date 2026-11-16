@@ -56,7 +56,7 @@ said: the new dictation as the radiologist meant it, shown back to them in the c
 
 revised: when the new dictation corrects something said in an earlier dictation of this report (listed in earlier_dictations), rewrite that earlier dictation as it should now read, with the correction applied, so the conversation reads as the radiologist finally meant it. Give its id and the full rewritten text, under the same rules as said. Include only earlier dictations whose content changes; usually none.
 
-impression: the complete impression after your edits, one item per line, most significant first, concise. Base it only on the abnormal lines now in the report. Do not add differentials, causes or recommendations that were not dictated. If the report has no abnormal lines, return the template's normal impression unchanged.`;
+impression: the complete impression after your edits, one item per line, most significant first, concise. If the template has "noImpression": true, its reports have no impression section: return an empty list and never write one. Base it only on the abnormal lines now in the report. Do not add differentials, causes or recommendations that were not dictated. If the report has no abnormal lines, return the template's normal impression unchanged.`;
 
 type GenerateRequest = {
   template: Template;
@@ -157,7 +157,8 @@ export async function POST(request: Request) {
 
     return Response.json({
       ops,
-      impression: response.parsed_output.impression,
+      // A template without an impression section never gets one, whatever the model returned.
+      impression: template.noImpression ? [] : response.parsed_output.impression,
       said: response.parsed_output.said.trim(),
       // Only rewrites of dictations that were actually sent.
       revised: response.parsed_output.revised

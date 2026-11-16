@@ -72,7 +72,8 @@ function Skeleton({ layout }: { layout: NonNullable<Props["layout"]> }) {
         <Bar order={13} w="80%" />
         <Bar order={14} w="55%" />
       </div>
-      <span className="mt-auto h-9 rounded-full bg-btn/85" />
+      {/* The main button, in the accent: the button colour turns near-white in dark mode and glared. */}
+      <span className="mt-auto h-9 rounded-full bg-teal/70" />
     </div>
   );
 

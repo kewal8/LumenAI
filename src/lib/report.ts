@@ -12,6 +12,8 @@ export type Template = {
   title: string;
   sections: TemplateSection[];
   normalImpression: string[];
+  /** No IMPRESSION section: its reports have no impression, and none is written. */
+  noImpression?: boolean;
   /** The template's own page, tagged with these line ids. A new report starts from it. */
   doc?: unknown;
   /** The study type it is for, such as CT; suggested for a new report's details. */

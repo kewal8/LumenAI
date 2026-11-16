@@ -1,7 +1,11 @@
 "use client";
 
-import { SealCheck, Trash } from "@phosphor-icons/react";
+import { DownloadSimple, SealCheck, Trash } from "@phosphor-icons/react";
 import Link from "next/link";
+import { useState } from "react";
+import { Spinner } from "@/components/Spinner";
+import { Tip } from "@/components/Tip";
+import { toast } from "@/components/Toast";
 import type { ListParams } from "@/lib/listQuery";
 import type { SavedReportSummary } from "@/lib/reportStore";
 import { ageSex } from "@/lib/patient";
@@ -19,9 +23,48 @@ import { Badge, EmptyState, LIST_HEAD, PANEL, formatDate } from "./ui";
 const PATH = "/reports";
 // Every row, and the headings above them, share these columns so values line up.
 const COLUMNS =
-  "grid grid-cols-[minmax(0,1fr)_7.5rem] items-center gap-x-4 md:grid-cols-[minmax(0,1fr)_6.5rem_7rem_9rem_7.5rem]";
+  "grid grid-cols-[minmax(0,1fr)_11rem] items-center gap-x-4 md:grid-cols-[minmax(0,1fr)_6.5rem_7rem_9rem_11rem]";
 const ICON =
   "grid h-9 w-9 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.08]";
+
+/**
+ * Saves the report as a PDF: its print page, letterhead included, opens in the
+ * browser's print window with "Save as PDF", named after the patient.
+ */
+function DownloadButton({ id, label }: { id: string; label: string }) {
+  const [busy, setBusy] = useState(false);
+
+  async function download() {
+    setBusy(true);
+    const html = await fetch(`/api/reports/${id}/print`)
+      .then((response) => (response.ok ? response.text() : null))
+      .catch(() => null);
+    if (!html) {
+      setBusy(false);
+      toast.error("The report could not be prepared. Try again.");
+      return;
+    }
+    const frame = document.createElement("iframe");
+    frame.setAttribute("aria-hidden", "true");
+    frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+    frame.srcdoc = html;
+    frame.onload = () => {
+      setBusy(false);
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+      setTimeout(() => frame.remove(), 60_000);
+    };
+    document.body.append(frame);
+  }
+
+  return (
+    <Tip label="Download PDF">
+      <button type="button" onClick={download} disabled={busy} aria-label={`Download ${label} as PDF`} className={ICON}>
+        {busy ? <Spinner /> : <DownloadSimple weight="bold" className="h-[1.1rem] w-[1.1rem]" />}
+      </button>
+    </Tip>
+  );
+}
 
 const time = (iso: string) =>
   new Date(iso).toLocaleTimeString("en-IN", {
@@ -172,6 +215,9 @@ export function ReportList({
                       >
                         Open
                       </Link>
+                      <DownloadButton id={report.id} label={report.patient?.name ?? report.templateName} />
+                      {/* Kept apart from Open and Download, so it is not pressed by mistake. */}
+                      <span aria-hidden="true" className="mx-1.5 h-5 w-px bg-ink/15" />
                       <ConfirmAction
                         label={`Delete report ${report.templateName}`}
                         icon={

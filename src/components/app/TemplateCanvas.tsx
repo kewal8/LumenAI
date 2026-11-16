@@ -30,9 +30,9 @@ import { buttonClass } from "./ui";
 
 const EMPTY: DocNode = { type: "doc", content: [{ type: "paragraph" }] };
 
-// Round icon tools with no outline, the same as the report header; a soft grey circle shows on hover.
+// Round outlined icon tools; the report header keeps its plain icons.
 const TOOL =
-  "grid h-11 w-11 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.07]";
+  "grid h-11 w-11 place-items-center rounded-full border border-ink/40 text-ink transition-colors hover:bg-ink/[0.06]";
 const FIELD_LABEL = "text-[0.85rem] font-semibold text-ink-soft";
 const FIELD =
   "flex h-[4.25rem] flex-col justify-center gap-0.5 rounded-[1.6rem] border border-ink/30 bg-surface px-5 transition-colors focus-within:border-teal hover:border-ink/50";

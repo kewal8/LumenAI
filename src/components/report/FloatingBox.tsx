@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowUp, CircleNotch, Microphone, Stop } from "@phosphor-icons/react";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { setFloatingWindow } from "@/lib/clipboard";
 
@@ -21,20 +21,25 @@ const nothing = () => () => {};
  * provides it (Chrome and Edge on a computer); it shares this page's styles
  * and state, and closes with the page.
  */
-export function useFloatingWindow(whenAway = false) {
+export function useFloatingWindow(
+  whenAway = false,
+  /** Whether leaving the browser now should bring the window up, such as when the dictation box has focus. */
+  onLeave: () => boolean = () => false,
+  enabled = true,
+) {
   const [win, setWin] = useState<Window | null>(null);
   // Set when the browser refuses to open the window.
   const [refused, setRefused] = useState(false);
   // Known only in the browser, so the first paint matches the server's.
   const supported = useSyncExternalStore(nothing, () => api() !== undefined, () => false);
 
-  const open = useCallback(async () => {
+  const open = useCallback(async (quiet = false) => {
     setRefused(false);
     const pip = await api()
       ?.requestWindow({ width: 440, height: 300 })
       .catch(() => null);
     if (!pip) {
-      setRefused(true);
+      if (!quiet) setRefused(true);
       return;
     }
 
@@ -76,6 +81,31 @@ export function useFloatingWindow(whenAway = false) {
       } catch {}
     };
   }, [whenAway, supported, open]);
+
+  // Switching to another app, such as PACS, gives no such request. But for a
+  // few seconds after a click the browser still lets the page open a window,
+  // so leaving right after clicking into the dictation box brings it up.
+  const leaveCheck = useRef(onLeave);
+  useEffect(() => {
+    leaveCheck.current = onLeave;
+  });
+  useEffect(() => {
+    if (!enabled || !supported || win) return;
+    const left = () => {
+      const activation = (navigator as { userActivation?: { isActive: boolean } }).userActivation;
+      if (activation && !activation.isActive) return;
+      if (leaveCheck.current()) void open(true);
+    };
+    window.addEventListener("blur", left);
+    return () => window.removeEventListener("blur", left);
+  }, [enabled, supported, win, open]);
+  // Back in the browser window, the report is in view again.
+  useEffect(() => {
+    if (!win) return;
+    const back = () => win.close();
+    window.addEventListener("focus", back);
+    return () => window.removeEventListener("focus", back);
+  }, [win]);
 
   // Back on the tab, the report itself is in view, so the window is not needed.
   useEffect(() => {

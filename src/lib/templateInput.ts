@@ -8,6 +8,8 @@ export type TemplateDraft = {
   title: string;
   sections: { heading: string; lines: string[] }[];
   normalImpression: string[];
+  /** The template has no IMPRESSION section, so its reports have none either. */
+  noImpression?: boolean;
 };
 
 export const TEMPLATE_LIMITS = { sections: 20, lines: 60, lineLength: 600, impression: 10 };
@@ -42,7 +44,7 @@ export function parseTemplateBody(body: unknown):
   if (!doc || doc.type !== "doc" || JSON.stringify(doc).length > 300_000) return "This template could not be read.";
   const read = docToDraft(doc, name);
   if (typeof read === "string") return read;
-  const draft = parseTemplateDraft(read);
+  const draft = parseTemplateDraft({ ...read, fromDoc: true });
   if (typeof draft === "string") return draft;
   return { draft, modality: parseModality(input.modality), doc };
 }
@@ -70,9 +72,13 @@ export function parseTemplateDraft(body: unknown): TemplateDraft | string {
   }
 
   const normalImpression = lines(input.normalImpression, TEMPLATE_LIMITS.impression);
-  if (normalImpression.length === 0) return "Add the impression used when everything is normal.";
+  // Read from a document, an impression may be left out or left empty on purpose.
+  if (normalImpression.length === 0 && input.fromDoc !== true) {
+    return "Add the impression used when everything is normal.";
+  }
+  const noImpression = input.noImpression === true;
 
-  return { name, title, sections, normalImpression };
+  return { name, title, sections, normalImpression, ...(noImpression ? { noImpression } : {}) };
 }
 
 /** Gives a stored draft the section and line ids the report engine works with. */
@@ -90,6 +96,7 @@ export function toTemplate(id: string, draft: TemplateDraft): Template {
       })),
     })),
     normalImpression: draft.normalImpression,
+    ...(draft.noImpression ? { noImpression: true } : {}),
   };
 }
 
@@ -102,5 +109,6 @@ export function toDraft(template: Template): TemplateDraft {
       lines: section.lines.map((line) => line.text),
     })),
     normalImpression: template.normalImpression,
+    ...(template.noImpression ? { noImpression: true } : {}),
   };
 }

@@ -81,27 +81,30 @@ body {
   caret-color: var(--c-teal);
 }
 
-/* Dark is opt-in through the toggle in the navigation, never automatic. */
+/* Dark is opt-in through the toggle in the navigation, never automatic.
+   The surfaces are a near-neutral charcoal with only a hint of the brand
+   green, in clear steps (canvas < card < tinted block), so a card never
+   melts into the page and the teal accent is the only strong colour. */
 html[data-landing-theme="dark"] {
-  --c-canvas: #071a18;
-  --c-surface: #0d2623;
-  --c-ink: #e9f4f2;
-  --c-ink-soft: #abc7c2;
-  --c-ink-quiet: #84a19c;
-  --c-line: #1e3d39;
-  --c-teal: #5fd4c3;
-  --c-teal-deep: #9be5da;
-  --c-teal-tint: #12383a;
-  --c-amber: #f0b556;
-  --c-amber-deep: #f6cf8d;
-  --c-amber-tint: #33290f;
-  --c-flag: #f39a86;
-  --c-btn: #e9f4f2;
-  --c-btn-text: #071a18;
-  --c-night: #0e3a36;
-  --c-night-line: #2a5f5a;
-  --c-grid: rgb(233 244 242 / 0.035);
-  --c-glow-strength: 0.5;
+  --c-canvas: #0a100f;
+  --c-surface: #121a18;
+  --c-ink: #e8eeec;
+  --c-ink-soft: #a8b6b2;
+  --c-ink-quiet: #7f8e8a;
+  --c-line: #23302d;
+  --c-teal: #5ccbb9;
+  --c-teal-deep: #94dccf;
+  --c-teal-tint: #13241f;
+  --c-amber: #e7ad4f;
+  --c-amber-deep: #f2cb88;
+  --c-amber-tint: #241d0e;
+  --c-flag: #f09a86;
+  --c-btn: #e8eeec;
+  --c-btn-text: #0a100f;
+  --c-night: #0f201d;
+  --c-night-line: #253834;
+  --c-grid: rgb(232 238 236 / 0.025);
+  --c-glow-strength: 0.32;
 }
 
 .landing ::selection {
@@ -253,22 +256,39 @@ html[data-landing-theme="dark"] {
 }
 
 html[data-landing-theme="dark"] :is(.app, .app-layer) {
-  --c-canvas: #061412;
-  --c-surface: #0e2421;
-  --c-ink: #f6faf9;
-  --c-ink-soft: #b9c7c4;
-  --c-ink-quiet: #93a5a1;
-  --c-line: #24443f;
+  /* The same calm charcoal steps as the public pages: page, then panels a
+     clear step lighter, then lines, so panels never merge with the page. */
+  --c-canvas: #0b1110;
+  --c-surface: #141c1a;
+  --c-ink: #f2f6f5;
+  --c-ink-soft: #b4c1be;
+  --c-ink-quiet: #8e9b98;
+  --c-line: #27332f;
   /* Deep teal, not mint: white text on it is 4.9:1, and as an icon on the
      dark panels it is 3.4:1. teal-deep stays light because it is used for
      teal text on dark backgrounds. */
   --c-teal: #0f7f73;
   --c-teal-deep: #8fdccf;
-  --c-teal-tint: #12302d;
+  --c-teal-tint: #142a25;
   --c-amber-deep: #f6d28f;
-  --c-amber-tint: #3a2c0c;
+  --c-amber-tint: #2c230c;
   --c-flag: #ffb3a1;
-  --c-btn: #f6faf9;
+  /* Main buttons are teal in dark mode: a near-white block on a dark page
+     glares more than it guides. White text on it is 4.9:1. */
+  --c-btn: #0f7f73;
+  --c-btn-text: #ffffff;
+}
+
+/* In dark mode teal-deep is a light mint (it is used for text), so a dark
+   button hovering to it would turn pale; it brightens a step instead. */
+html[data-landing-theme="dark"] :is(.app, .app-layer) .hover\:bg-teal-deep:hover {
+  background-color: color-mix(in oklab, var(--c-btn) 86%, white);
+}
+
+/* The current screen in the menu: a soft tint, not a solid white pill. */
+html[data-landing-theme="dark"] .app [aria-current="page"].bg-ink {
+  background-color: color-mix(in oklab, var(--c-ink) 12%, transparent);
+  color: var(--c-ink);
 }
 
 .app {
