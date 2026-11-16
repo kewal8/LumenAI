@@ -15,6 +15,7 @@ import { Spinner } from "@/components/Spinner";
 import { toast } from "@/components/Toast";
 import { FormError, send } from "@/components/auth/fields";
 import { Tip } from "@/components/Tip";
+import { KeyCombo } from "@/components/KeyCombo";
 import {
   HeadTick,
   ListMenu,
@@ -430,7 +431,7 @@ function MacroForm({
             <FormError message={error} />
           ) : (
             <span className="t-meta hidden sm:inline">
-              Ctrl + Enter to save
+              <KeyCombo combo="Ctrl+Enter" join=" + " /> to save
             </span>
           )}
         </span>

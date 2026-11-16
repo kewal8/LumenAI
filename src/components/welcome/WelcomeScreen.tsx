@@ -11,6 +11,7 @@ import {
 } from "@phosphor-icons/react";
 import { MotionConfig, motion, type Variants } from "motion/react";
 import Link from "next/link";
+import { KeyCombo } from "@/components/KeyCombo";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -37,7 +38,12 @@ const STEPS = [
   {
     icon: <ClipboardText weight="fill" className="h-5 w-5" />,
     title: "Into PACS, or signed right here",
-    body: "Paste it into your PACS with Ctrl+V, or finalise it here and print it on your letterhead with your signature.",
+    body: (
+      <>
+        Paste it into your PACS with <KeyCombo combo="Ctrl+V" />, or finalise it here and print it on your letterhead with your
+        signature.
+      </>
+    ),
   },
 ];
 
@@ -209,7 +215,7 @@ function DemoPanel() {
         className="inline-flex items-center gap-2 self-end rounded-full bg-teal-glow px-4 py-2 text-[0.95rem] font-bold text-[#08302d]"
       >
         <SealCheck weight="fill" className="h-5 w-5" />
-        Copied for PACS. Press Ctrl+V
+        Copied for PACS. Press <KeyCombo combo="Ctrl+V" />
       </motion.p>
     </motion.aside>
   );

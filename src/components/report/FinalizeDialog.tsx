@@ -12,6 +12,7 @@ import {
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { buttonClass, formatDateTime } from "@/components/app/ui";
+import { KeyCombo } from "@/components/KeyCombo";
 
 /**
  * Shown after a report is finalized: the report exactly as it will print,
@@ -82,7 +83,7 @@ export function FinalizeDialog({
                 ) : (
                   <Copy weight="bold" className="h-5 w-5" />
                 )}
-                {copied ? "Copied. Press Ctrl+V" : "Copy for PACS"}
+                {copied ? <>Copied. Press <KeyCombo combo="Ctrl+V" /></> : "Copy for PACS"}
               </button>
             </div>
           </header>

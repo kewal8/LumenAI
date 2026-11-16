@@ -28,6 +28,7 @@ import {
   Stagger,
 } from "@/components/landing/motion";
 import { ScreenshotFrame } from "@/components/landing/ScreenshotFrame";
+import { KeyCombo } from "@/components/KeyCombo";
 import {
   PrimaryButton,
   SHELL,
@@ -86,7 +87,7 @@ const STEPS = [
   { title: "Open a template, or start blank", body: "Beside your PACS viewer, or on its own. A template starts the report complete and normal." },
   { title: "Dictate the abnormal", body: "Speak, stop, and the report updates. Correct yourself out loud." },
   { title: "Review and finalise", body: "Read it once, with anything doubtful flagged. It is saved under the patient." },
-  { title: "Into PACS, or printed", body: "Paste it with Ctrl+V, or print it signed on your letterhead. No PACS needed." },
+  { title: "Into PACS, or printed", body: <>Paste it with <KeyCombo combo="Ctrl+V" />, or print it signed on your letterhead. No PACS needed.</> },
 ];
 
 const OLD_WAY = [
@@ -456,7 +457,7 @@ export default function LandingPage() {
                     Already copied, formatted for PACS
                   </h3>
                   <p className="mt-2 max-w-[50ch] leading-relaxed text-ink-soft">
-                    Press Ctrl+V in your report editor. Bold headings, Arial 10
+                    Press <KeyCombo combo="Ctrl+V" /> in your report editor. Bold headings, Arial 10
                     and spacing survive the paste.
                   </p>
                 </div>

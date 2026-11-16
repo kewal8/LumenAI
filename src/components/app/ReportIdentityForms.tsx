@@ -21,6 +21,7 @@ import {
   type Shortcuts,
 } from "@/lib/shortcuts";
 import { buttonClass } from "./ui";
+import { keyCaps, keyText, modifierNames, useIsMac } from "@/lib/keys";
 
 function useSave() {
   const router = useRouter();
@@ -410,9 +411,10 @@ export function FloatingBoxSetting({ enabled: initial }: { enabled: boolean }) {
 }
 
 function Keys({ combo }: { combo: string }) {
+  const mac = useIsMac();
   return (
     <span className="flex flex-wrap items-center gap-1">
-      {combo.split("+").map((key) => (
+      {keyCaps(combo, mac).map((key) => (
         <kbd
           key={key}
           className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-ink/35 bg-ink/[0.05] px-2 font-[inherit] text-[0.9rem] font-bold"
@@ -428,6 +430,7 @@ export function ShortcutsForm({ shortcuts: initial }: { shortcuts: Shortcuts }) 
   const [shortcuts, setShortcuts] = useState(initial);
   // The action whose next key press becomes its shortcut.
   const [recording, setRecording] = useState<ShortcutAction | null>(null);
+  const mac = useIsMac();
   const { busy, error, saved, save, setError, touch } = useSave();
   const same = (a: Shortcuts, b: Shortcuts) => SHORTCUT_ACTIONS.every(({ id }) => a[id] === b[id]);
 
@@ -440,13 +443,13 @@ export function ShortcutsForm({ shortcuts: initial }: { shortcuts: Shortcuts }) 
     if (!combo) {
       // Still holding only Ctrl, Alt or Shift.
       if (!["Control", "Alt", "Shift", "Meta"].includes(event.key)) {
-        setError("Hold Ctrl or Alt, then press a letter, a number or a function key.");
+        setError(`Hold ${modifierNames(mac)}, then press a letter, a number or a function key.`);
       }
       return;
     }
     const taken = SHORTCUT_ACTIONS.find((action) => action.id !== id && shortcuts[action.id] === combo);
     if (taken) {
-      setError(`${combo} is already used for “${taken.label}”.`);
+      setError(`${keyText(combo, mac)} is already used for “${taken.label}”.`);
       return;
     }
     touch();
@@ -471,7 +474,7 @@ export function ShortcutsForm({ shortcuts: initial }: { shortcuts: Shortcuts }) 
               onClick={() => (setRecording(recording === id ? null : id), setError(""))}
               onKeyDown={(event) => record(id, event)}
               onBlur={() => recording === id && setRecording(null)}
-              aria-label={`${label}: ${shortcuts[id].split("+").join(" ")}. Press to change.`}
+              aria-label={`${label}: ${keyText(shortcuts[id], mac, " ")}. Press to change.`}
               className={`flex w-full flex-col gap-2.5 rounded-2xl border px-5 py-4 text-left transition-colors ${
                 recording === id ? "border-teal bg-teal/[0.08]" : "border-ink/25 hover:border-ink/60"
               }`}
@@ -487,7 +490,7 @@ export function ShortcutsForm({ shortcuts: initial }: { shortcuts: Shortcuts }) 
         ))}
       </ul>
       <p className="text-[0.9rem] text-ink-soft">
-        Press a box, then the keys you want. Each shortcut needs Ctrl or Alt. Escape cancels.
+        Press a box, then the keys you want. Each shortcut needs {modifierNames(mac)}. Escape cancels.
       </p>
       <FormError message={error} />
       <SaveRow busy={busy} saved={saved} disabled={same(shortcuts, initial)}>

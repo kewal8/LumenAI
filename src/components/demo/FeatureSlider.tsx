@@ -8,6 +8,7 @@ import {
   WarningCircle,
 } from "@phosphor-icons/react";
 import { useState } from "react";
+import { KeyCombo } from "@/components/KeyCombo";
 
 function Spoken({ children }: { children: React.ReactNode }) {
   return (
@@ -79,12 +80,16 @@ const SLIDES = [
   },
   {
     title: "Already copied for PACS",
-    body: "Press Ctrl+V in your report editor. Headings and spacing survive the paste.",
+    body: (
+      <>
+        Press <KeyCombo combo="Ctrl+V" /> in your report editor. Headings and spacing survive the paste.
+      </>
+    ),
     visual: (
       <>
         <p className="flex items-center gap-2 self-start rounded-full bg-teal-glow px-4 py-2 text-[0.92rem] font-bold text-[#08302d]">
           <CheckCircle weight="fill" className="h-4 w-4" />
-          Copied. Press Ctrl+V in PACS
+          Copied. Press <KeyCombo combo="Ctrl+V" /> in PACS
         </p>
         <Paper>
           <p className="font-bold">FINDINGS:</p>

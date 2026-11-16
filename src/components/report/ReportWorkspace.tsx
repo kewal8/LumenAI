@@ -55,6 +55,7 @@ import type { IdentitySummary, ReportIdentity } from "@/lib/reportIdentity";
 import { useIdentityImages } from "@/lib/useIdentityImages";
 import { expandMacros, removeLastMacro, type Macro } from "@/lib/macros";
 import { comboFromEvent, type ShortcutAction, type Shortcuts } from "@/lib/shortcuts";
+import { isMac, keyText, useIsMac } from "@/lib/keys";
 import { FinalizeDialog } from "./FinalizeDialog";
 import { ValidateButton } from "./ValidateButton";
 import { FloatingBox, useFloatingWindow } from "./FloatingBox";
@@ -88,7 +89,7 @@ export function ReportWorkspace({
   profile,
   identity: identitySummary,
   shortcuts,
-  floatingBox,
+  floatingBox: initialFloatingBox,
   macros: initialMacros,
   credits: initialCredits,
   design = "classic",
@@ -114,6 +115,7 @@ export function ReportWorkspace({
   saved?: { id: string; template: Template; report: Report; finalizedAt?: string | null; patient?: Patient | null };
 }) {
   const router = useRouter();
+  const mac = useIsMac();
   // The page arrives without the signature and letterhead images; they are
   // fetched once and kept by the browser. Copy and print wait for them.
   const { identity, ready: identityReady } = useIdentityImages(identitySummary);
@@ -424,7 +426,7 @@ export function ReportWorkspace({
     try {
       await copyReport(html, text);
       setCopyState("copied");
-      toast.success("Report copied. Press Ctrl+V in PACS");
+      toast.success(`Report copied. Press ${keyText("Ctrl+V", isMac())} in PACS`);
     } catch {
       setCopyState("stale");
       setError(COPY_BLOCKED);
@@ -562,6 +564,8 @@ export function ReportWorkspace({
 
   // True when the microphone is on but no voice has been heard for a few seconds.
   const [quiet, setQuiet] = useState(false);
+  // Starts from the Settings choice; the assistant's Options can change it here.
+  const [floatingBox, setFloatingBox] = useState(initialFloatingBox);
 
   // The floating window comes up only when the doctor leaves this tab while
   // the microphone is on, and goes away when they come back.
@@ -795,7 +799,7 @@ export function ReportWorkspace({
         win={floating.win}
         status={status}
         words={shownWords}
-        note={copyState === "copied" ? "Report updated and copied. Press Ctrl+V in PACS." : ""}
+        note={copyState === "copied" ? `Report updated and copied. Press ${keyText("Ctrl+V", mac)} in PACS.` : ""}
         problem={failed?.message || error || dictation.error}
         onType={setDraft}
         onMic={toggleMic}
@@ -990,12 +994,12 @@ export function ReportWorkspace({
 
               <div className="ml-auto flex shrink-0 items-center gap-1">
                 {/* Output: any time, nothing asked. */}
-                <Tip label="Print or PDF" shortcut={shortcuts.print.replace(/\+/g, " + ")}>
+                <Tip label="Print or PDF" shortcut={keyText(shortcuts.print, mac, " + ")}>
                   <button type="button" onClick={print} disabled={busy} aria-label="Print or PDF" className={TOOL}>
                     <Printer weight="bold" className="h-5 w-5" />
                   </button>
                 </Tip>
-                <Tip label="Copy report" shortcut={shortcuts.copy.replace(/\+/g, " + ")}>
+                <Tip label="Copy report" shortcut={keyText(shortcuts.copy, mac, " + ")}>
                   <button
                     type="button"
                     onClick={() => copy(report)}
@@ -1008,7 +1012,7 @@ export function ReportWorkspace({
                 </Tip>
                 <span aria-hidden="true" className="mx-1 h-6 w-px bg-ink/20" />
                 {/* Keeping it: the patient's details are asked for here. */}
-                <Tip label={savedId ? "Save changes" : "Save"} shortcut={shortcuts.save.replace(/\+/g, " + ")}>
+                <Tip label={savedId ? "Save changes" : "Save"} shortcut={keyText(shortcuts.save, mac, " + ")}>
                   <button
                     type="button"
                     onClick={() => requestSave()}
@@ -1164,6 +1168,8 @@ export function ReportWorkspace({
                   suggestedName={`${template.name} copy`}
                   canClear={log.length > 0}
                   onClear={() => setLog([])}
+                  floatingBox={floatingBox}
+                  onFloatingBoxChange={setFloatingBox}
                 />
               </div>
             </header>
@@ -1645,7 +1651,7 @@ export function ReportWorkspace({
               {[
                 ["Press the button and speak", "Say only what is abnormal, in any order."],
                 ["Check the report", "Everything you did not mention stays normal."],
-                ["Paste into PACS", "The report is copied for you. Press Ctrl+V."],
+                ["Paste into PACS", `The report is copied for you. Press ${keyText("Ctrl+V", mac)}.`],
               ].map(([title, body], index) => (
                 <li key={title} className="flex gap-3">
                   <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-ink text-[0.9rem] font-bold text-surface">

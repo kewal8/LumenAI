@@ -2,7 +2,8 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { Menu } from "@base-ui/react/menu";
-import { ChatCircleSlash, DotsThree, FilePlus } from "@phosphor-icons/react";
+import { Switch } from "@base-ui/react/switch";
+import { ChatCircleSlash, DotsThree, FilePlus, SlidersHorizontal, X } from "@phosphor-icons/react";
 import { useState } from "react";
 import { Spinner } from "@/components/Spinner";
 import { toast } from "@/components/Toast";
@@ -19,14 +20,17 @@ const FIELD =
   "h-11 w-full rounded-full border border-ink/40 bg-surface px-4 text-[0.98rem] font-semibold text-ink outline-none transition-colors hover:border-ink/60 focus:border-teal";
 
 /**
- * The ⋯ menu at the top of the AI Assistant panel: keep the report as it now
- * reads as a template of its own, or clear the conversation beside it.
+ * The ⋯ menu at the top of the AI Assistant panel: the assistant's options,
+ * keep the report as it now reads as a template of its own, or clear the
+ * conversation beside it.
  */
 export function AssistantMenu({
   getDoc,
   suggestedName,
   canClear,
   onClear,
+  floatingBox,
+  onFloatingBoxChange,
 }: {
   /** The report as it now reads. */
   getDoc: () => DocNode | undefined;
@@ -34,7 +38,10 @@ export function AssistantMenu({
   /** False when there is nothing in the chat to clear. */
   canClear: boolean;
   onClear: () => void;
+  floatingBox: boolean;
+  onFloatingBoxChange: (next: boolean) => void;
 }) {
+  const [options, setOptions] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clearing, setClearing] = useState(false);
 
@@ -52,6 +59,10 @@ export function AssistantMenu({
         <Menu.Portal>
           <Menu.Positioner side="bottom" align="end" sideOffset={6} className="z-50">
             <Menu.Popup className="app-layer w-72 origin-[var(--transform-origin)] rounded-3xl border border-ink/20 bg-surface p-2 shadow-[0_18px_50px_-18px_rgb(15_38_36/0.45)] outline-none">
+              <Menu.Item className={MENU_ITEM} onClick={() => setOptions(true)}>
+                <SlidersHorizontal className="h-5 w-5" />
+                Options
+              </Menu.Item>
               <Menu.Item className={MENU_ITEM} onClick={() => setSaving(true)}>
                 <FilePlus className="h-5 w-5" />
                 Save this report as a template
@@ -64,6 +75,13 @@ export function AssistantMenu({
           </Menu.Positioner>
         </Menu.Portal>
       </Menu.Root>
+
+      <AssistantOptions
+        open={options}
+        onOpenChange={setOptions}
+        floatingBox={floatingBox}
+        onFloatingBoxChange={onFloatingBoxChange}
+      />
 
       {saving && (
         <SaveAsTemplate getDoc={getDoc} suggestedName={suggestedName} onClose={() => setSaving(false)} />
@@ -95,6 +113,78 @@ export function AssistantMenu({
         </Dialog.Portal>
       </Dialog.Root>
     </>
+  );
+}
+
+/**
+ * How the AI Assistant behaves for this doctor. Each choice is saved to their
+ * account as soon as it changes, the same setting as in Settings.
+ */
+function AssistantOptions({
+  open,
+  onOpenChange,
+  floatingBox,
+  onFloatingBoxChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  floatingBox: boolean;
+  onFloatingBoxChange: (next: boolean) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function setFloating(next: boolean) {
+    onFloatingBoxChange(next);
+    setBusy(true);
+    const result = await send("PATCH", "/api/account", { floatingBox: next });
+    setBusy(false);
+    if (result.error) {
+      onFloatingBoxChange(!next);
+      toast.error(result.error);
+      return;
+    }
+    toast.success(next ? "Floating window turned on" : "Floating window turned off");
+  }
+
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Backdrop className={BACKDROP} />
+        <Dialog.Popup className={POPUP}>
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <Dialog.Title className="text-[1.3rem] font-semibold tracking-[-0.02em]">Assistant options</Dialog.Title>
+              <Dialog.Description className="mt-1 text-ink-soft">Changes are saved straight away.</Dialog.Description>
+            </div>
+            <Dialog.Close
+              aria-label="Close"
+              className="-mr-2 -mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-full text-ink-soft transition-colors hover:bg-ink/[0.07] hover:text-ink"
+            >
+              <X weight="bold" className="h-5 w-5" />
+            </Dialog.Close>
+          </div>
+
+          <div className="mt-5 flex flex-col gap-3">
+            <label className="flex cursor-pointer items-center justify-between gap-5 rounded-2xl border border-ink/25 px-4 py-3.5">
+              <span>
+                <span className="block font-semibold">Floating window</span>
+                <span className="mt-0.5 block text-[0.9rem] leading-snug text-ink-soft">
+                  Keeps the assistant on top of PACS when you leave.
+                </span>
+              </span>
+              <Switch.Root
+                checked={floatingBox}
+                disabled={busy}
+                onCheckedChange={setFloating}
+                className="flex h-7 w-12 shrink-0 items-center rounded-full bg-ink/30 p-0.5 transition-colors data-[checked]:bg-teal data-[disabled]:opacity-60"
+              >
+                <Switch.Thumb className="h-6 w-6 rounded-full bg-[#fff] shadow transition-transform data-[checked]:translate-x-5" />
+              </Switch.Root>
+            </label>
+          </div>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
