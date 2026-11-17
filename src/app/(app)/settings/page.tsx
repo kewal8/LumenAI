@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  BookOpenText,
   Buildings,
   ClipboardText,
   FileText,
@@ -21,12 +22,14 @@ import {
   PasteFormatForm,
   ProfileForm,
 } from "@/components/app/SettingsForms";
+import { DictionaryManager } from "@/components/app/DictionaryManager";
 import { MacrosManager } from "@/components/app/MacrosManager";
 import { Page, PageHeader, Section } from "@/components/app/ui";
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { parsePasteProfile } from "@/lib/reportFormat";
 import { listMacros } from "@/lib/macroStore";
+import { listDictionaryWords } from "@/lib/spelling/dictionary";
 import { getIdentity } from "@/lib/reportIdentity";
 import { parseShortcuts } from "@/lib/shortcuts";
 
@@ -42,6 +45,7 @@ const TABS = [
   { id: "format", label: "Paste format", icon: ClipboardText },
   { id: "dictation", label: "Dictation", icon: Microphone },
   { id: "macros", label: "Macros", icon: Lightning },
+  { id: "dictionary", label: "Dictionary", icon: BookOpenText },
   { id: "shortcuts", label: "Shortcuts", icon: Keyboard },
 ] as const;
 
@@ -51,10 +55,11 @@ type Tab = (typeof TABS)[number]["id"];
 export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   const [user, { tab: wanted }] = await Promise.all([requireUser(), searchParams]);
   const tab: Tab = TABS.find((item) => item.id === wanted)?.id ?? "profile";
-  const [[row], identity, macros] = await Promise.all([
-    db()`select paste_profile, shortcuts, floating_box from users where id = ${user.id}`,
+  const [[row], identity, macros, words] = await Promise.all([
+    db()`select paste_profile, shortcuts, floating_box, macro_mode from users where id = ${user.id}`,
     getIdentity(user.id),
     tab === "macros" ? listMacros(user.id) : [],
+    tab === "dictionary" && user.org ? listDictionaryWords(user.org.id) : [],
   ]);
 
   return (
@@ -149,7 +154,17 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           title="Macros"
           description="Short forms for sentences you use often. They work the same when you speak or type."
         >
-          <MacrosManager macros={macros} />
+          <MacrosManager macros={macros} mode={row?.macro_mode === "keep" ? "keep" : "expand"} />
+        </Section>
+      )}
+
+      {tab === "dictionary" && (
+        <Section
+          icon={<BookOpenText weight="fill" className="h-5 w-5" />}
+          title="Dictionary"
+          description="Reports are checked against British English and a radiology word list. Words added here are never underlined, for everyone on your account."
+        >
+          <DictionaryManager initialWords={words} />
         </Section>
       )}
 

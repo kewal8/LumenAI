@@ -98,3 +98,17 @@
 .report-doc:focus-visible {
   outline: none !important;
 }
+
+/* A word not in the dictionary. Red and wavy, as in a word processor; only on screen. */
+.report-doc .spell-miss {
+  text-decoration: underline wavy #d92d20;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  text-decoration-skip-ink: none;
+}
+
+@media print {
+  .report-doc .spell-miss {
+    text-decoration: none;
+  }
+}

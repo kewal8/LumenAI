@@ -53,7 +53,8 @@ import {
 } from "@/lib/reportFormat";
 import type { IdentitySummary, ReportIdentity } from "@/lib/reportIdentity";
 import { useIdentityImages } from "@/lib/useIdentityImages";
-import { expandMacros, removeLastMacro, type Macro } from "@/lib/macros";
+import { expandMacros, removeLastMacro, tidyShortForms, type Macro, type MacroMode } from "@/lib/macros";
+import { MacroHighlights } from "./MacroHighlights";
 import { comboFromEvent, type ShortcutAction, type Shortcuts } from "@/lib/shortcuts";
 import { isMac, keyText, useIsMac } from "@/lib/keys";
 import { FinalizeDialog } from "./FinalizeDialog";
@@ -63,6 +64,7 @@ import { useLineVoice } from "./LineVoice";
 import { useEditorVoice } from "./editor/EditorVoice";
 import { TemplatePicker } from "./TemplatePicker";
 import { ReportEditor, type ReportEditorHandle } from "./editor/ReportEditor";
+import { pageBodyHeight, useImageSize } from "./editor/PageBreaks";
 import { docToHtml, docToReport, docToText, reportToDoc, type DocNode } from "@/lib/reportDoc";
 import { afterOneUpdate, updatesLeft, type Credits } from "@/lib/credits";
 import { setUpdatesLeft } from "@/lib/updatesLeft";
@@ -72,7 +74,14 @@ import { AssistantMenu } from "./AssistantMenu";
 import { PatientDialog } from "./PatientDialog";
 import { VoiceButton } from "./VoiceButton";
 import { MICROPHONE_MESSAGES, useDictation, type Word } from "@/lib/useDictation";
-import { COMMAND_LABELS, appendSpoken, spokenStream, type SpokenPiece } from "@/lib/voiceCommands";
+import {
+  COMMAND_LABELS,
+  appendSpoken,
+  hasCorrection,
+  resolveCorrections,
+  spokenStream,
+  type SpokenPiece,
+} from "@/lib/voiceCommands";
 
 /** A dictation that could not be written into the report, kept so it can be retried. */
 type FailedDictation = { text: string; message: string };
@@ -90,6 +99,7 @@ export function ReportWorkspace({
   identity: identitySummary,
   shortcuts,
   floatingBox: initialFloatingBox,
+  macroMode = "expand",
   macros: initialMacros,
   credits: initialCredits,
   design = "classic",
@@ -103,6 +113,8 @@ export function ReportWorkspace({
   shortcuts: Shortcuts;
   /** Whether the floating dictation window opens by itself, from Settings. */
   floatingBox: boolean;
+  /** How a spoken macro shows in the dictation box; set in Settings → Macros. */
+  macroMode?: MacroMode;
   /** The doctor's short forms, expanded in everything they dictate or type. */
   macros: Macro[];
   /** AI updates left today for the account. */
@@ -119,6 +131,10 @@ export function ReportWorkspace({
   // The page arrives without the signature and letterhead images; they are
   // fetched once and kept by the browser. Copy and print wait for them.
   const { identity, ready: identityReady } = useIdentityImages(identitySummary);
+  // How much report fits on one printed A4 page, under this doctor's letterhead.
+  const headerSize = useImageSize(identity.letterheadEnabled ? identity.headerImage : null);
+  const footerSize = useImageSize(identity.letterheadEnabled ? identity.footerImage : null);
+  const pageHeightMm = pageBodyHeight(headerSize, footerSize);
   const signature = { text: identity.signatureText, image: identity.signatureImage };
   /** The identity with its images, or null (with a message) when they could not be loaded. */
   async function fullIdentity(): Promise<ReportIdentity | null> {
@@ -203,6 +219,8 @@ export function ReportWorkspace({
   const spokenHistory = useRef<{ before: string; after: string }[]>([]);
   // The spoken command just carried out, shown for a moment so the doctor knows it was heard.
   const [heard, setHeard] = useState("");
+  // Goes up when the doctor says "change this macro", which opens it in the box.
+  const [macroEditRequest, setMacroEditRequest] = useState(0);
   const heardTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   /**
@@ -219,7 +237,26 @@ export function ReportWorkspace({
     for (const piece of pieces) {
       const before = text;
       if (piece.kind === "text") {
-        text = appendSpoken(text, piece.text);
+        // A spoken macro shows as its full text, or keeps its short form, as
+        // the doctor chose in Settings. Short forms left are expanded on send.
+        const words =
+          macroMode === "expand"
+            ? expandMacros(piece.text, macrosRef.current)
+            : tidyShortForms(piece.text, macrosRef.current);
+        text = appendSpoken(text, words);
+        // "18 cm stone… sorry, 15 cm": the correction replaces what it corrects,
+        // so the box shows what will be written. Unclear ones go to the report
+        // writer as said, which works them out from the whole sentence.
+        if (hasCorrection(piece.text)) {
+          const corrected = resolveCorrections(text);
+          text = corrected.text;
+          if (corrected.changes.length) message = `Corrected: ${corrected.changes.join(", ")}`;
+        }
+      } else if (piece.command === "editMacro") {
+        // The last macro in the box opens to be changed for this report.
+        setMacroEditRequest((count) => count + 1);
+        message = "Change the macro, then press Use this text";
+        continue;
       } else if (piece.command === "newLine" || piece.command === "newParagraph") {
         text = text.trimEnd() + (piece.command === "newLine" ? "\n" : "\n\n");
         message = COMMAND_LABELS[piece.command];
@@ -351,12 +388,14 @@ export function ReportWorkspace({
 
   function printHtml(from: ReportIdentity = identity) {
     const doc = future ? editorRef.current?.getDoc() : undefined;
+    const sign = { text: from.signatureText, image: from.signatureImage };
     return buildPrintHtml(
       formatReport(report),
       profile,
-      { text: from.signatureText, image: from.signatureImage },
+      sign,
       from.letterheadEnabled ? { header: from.headerImage, footer: from.footerImage } : null,
-      doc ? docToHtml(doc, profile) : undefined,
+      // The sign-off is printed under the report, as the sheet shows it.
+      doc ? docToHtml(doc, profile, sign) : undefined,
     );
   }
 
@@ -608,11 +647,10 @@ export function ReportWorkspace({
     );
   }
 
-  // After 5 seconds with no voice the microphone switches off by itself and
-  // goes back to Start. What was said stays in the box as a draft: nothing is
-  // sent to the report until the doctor presses Enter or the send button.
-  // Escape does the same on request: microphone off, nothing written.
-  function pauseMic(message = "Paused after 5 seconds of silence. Press Enter or Send when ready.") {
+  // Escape switches the microphone off without writing. What was said stays
+  // in the box as a draft: nothing is sent to the report until the doctor
+  // presses Enter or the send button.
+  function pauseMic(message: string) {
     if (!dictation.recording) return;
     setQuiet(false);
     dictation
@@ -625,9 +663,10 @@ export function ReportWorkspace({
       })
       .catch(() => {});
   }
+  // Silence never switches the microphone off: it stays on, holding what was
+  // said, until the doctor speaks again or stops it.
   function onSilence(silent: boolean) {
     setQuiet(silent);
-    if (silent) pauseMic();
   }
 
   // Keyboard shortcuts. The handlers are read through a ref so the listener
@@ -1104,6 +1143,7 @@ export function ReportWorkspace({
             key={editorSeed}
             ref={editorRef}
             variant="embedded"
+            pageHeightMm={pageHeightMm}
             initialDoc={initialDoc}
             profile={profile}
             onChange={editorChanged}
@@ -1350,30 +1390,41 @@ export function ReportWorkspace({
                 }`}
               >
                 <div className="rounded-[calc(1.5rem-2px)] bg-surface p-2">
-                  <textarea
-                    ref={messageRef}
-                    value={shownWords}
-                    onChange={(event) => setDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        if (!busy && !dictation.recording && draft.trim()) send(Promise.resolve(draft));
-                      }
-                    }}
-                    readOnly={dictation.recording || dictation.starting}
-                    aria-label="What you said"
-                    placeholder={
-                        status === "starting"
-                          ? "Please wait…"
-                          : status === "listening"
-                            ? "Talk now. Your words appear here."
-                            : "Speak your findings, or type them here"
-                      }
-                    // The rounded box around it shows focus; the app-wide ring would draw a second box.
-                    style={{ outline: "none" }}
-                    // Grows with the words, up to a few lines, then scrolls.
-                    className="max-h-40 min-h-16 w-full resize-none bg-transparent px-3 pt-2 [field-sizing:content] text-[1.02rem] leading-relaxed text-ink outline-none placeholder:text-ink-quiet"
-                  />
+                  <div className="relative">
+                    <textarea
+                      ref={messageRef}
+                      value={shownWords}
+                      onChange={(event) => setDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !event.shiftKey) {
+                          event.preventDefault();
+                          if (!busy && !dictation.recording && draft.trim()) send(Promise.resolve(draft));
+                        }
+                      }}
+                      readOnly={dictation.recording || dictation.starting}
+                      aria-label="What you said"
+                      placeholder={
+                          status === "starting"
+                            ? "Please wait…"
+                            : status === "listening"
+                              ? "Talk now. Your words appear here."
+                              : "Speak your findings, or type them here"
+                        }
+                      // The rounded box around it shows focus; the app-wide ring would draw a second box.
+                      style={{ outline: "none" }}
+                      // Grows with the words, up to a few lines, then scrolls.
+                      className="max-h-40 min-h-16 w-full resize-none bg-transparent px-3 pt-2 [field-sizing:content] text-[1.02rem] leading-relaxed text-ink outline-none placeholder:text-ink-quiet"
+                    />
+                    {/* Macros in the box are marked; pointing at one shows it. */}
+                    <MacroHighlights
+                      fieldRef={messageRef}
+                      text={shownWords}
+                      draft={draft}
+                      macros={macros}
+                      onChange={setDraft}
+                      editRequest={macroEditRequest}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1885,24 +1936,35 @@ export function ReportWorkspace({
             </p>
           )}
 
-          <textarea
-            ref={boxRef}
-            value={shownWords}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                if (!busy && !dictation.recording && draft.trim()) send(Promise.resolve(draft));
-              }
-            }}
-            readOnly={dictation.recording || dictation.starting}
-            style={{ height: BOX_MIN }}
-            aria-label="What you said"
-            placeholder="Press Start speaking and say your findings. Your words appear here. You can also type."
-            className={`w-full resize-none rounded-2xl border-2 bg-surface px-4 py-3 text-[1.02rem] leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-quiet ${
-              dictation.recording ? "border-flag" : "border-ink/35 focus:border-teal"
-            }`}
-          />
+          <div className="relative">
+            <textarea
+              ref={boxRef}
+              value={shownWords}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  if (!busy && !dictation.recording && draft.trim()) send(Promise.resolve(draft));
+                }
+              }}
+              readOnly={dictation.recording || dictation.starting}
+              style={{ height: BOX_MIN }}
+              aria-label="What you said"
+              placeholder="Press Start speaking and say your findings. Your words appear here. You can also type."
+              className={`w-full resize-none rounded-2xl border-2 bg-surface px-4 py-3 text-[1.02rem] leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-quiet ${
+                dictation.recording ? "border-flag" : "border-ink/35 focus:border-teal"
+              }`}
+            />
+            {/* Macros in the box are marked; pointing at one shows it. */}
+            <MacroHighlights
+              fieldRef={boxRef}
+              text={shownWords}
+              draft={draft}
+              macros={macros}
+              onChange={setDraft}
+              editRequest={macroEditRequest}
+            />
+          </div>
 
           {/* Says what is happening while something is. Nothing to say when idle:
               the box above already tells a newcomer what to do. */}
@@ -1919,7 +1981,7 @@ export function ReportWorkspace({
             className={`flex min-h-6 items-center justify-center gap-2 text-center text-[0.98rem] font-bold ${
               status === "listening"
                 ? quiet
-                  ? "text-amber-deep"
+                  ? "text-ink-soft"
                   : "text-flag"
                 : status === "ready"
                   ? "text-ink-quiet"
@@ -1928,7 +1990,7 @@ export function ReportWorkspace({
           >
             {status === "starting" && "Please wait. Turning on the microphone."}
             {status === "listening" && !quiet && "Speak now. I am listening."}
-            {status === "listening" && quiet && "I cannot hear you. Speak closer to the microphone."}
+            {status === "listening" && quiet && "Still listening. Speak when you are ready."}
             {status === "writing" && "Please wait. Writing your report."}
           </p>
           {status === "listening" && !heard && (

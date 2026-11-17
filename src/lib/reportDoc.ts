@@ -195,8 +195,10 @@ function blockHtml(node: DocNode, base: string, heading: string): string {
   const inner = () => (node.content ?? []).map(inlineHtml).join("");
   switch (node.type) {
     case "heading": {
-      const margin = node.attrs?.role === "title" ? "0 0 8pt 0" : "8pt 0 0 0";
-      return `<p style="${heading}${align(node)}margin:${margin};">${inner()}</p>`;
+      const title = node.attrs?.role === "title";
+      const margin = title ? "0 0 8pt 0" : "8pt 0 0 0";
+      // The class is for the printed page only, which lays headings out as the editor does; a paste ignores it.
+      return `<p class="${title ? "doc-title" : "doc-heading"}" style="${heading}${align(node)}margin:${margin};">${inner()}</p>`;
     }
     case "paragraph":
       // No space between lines: a blank line in the document is the gap, as written.

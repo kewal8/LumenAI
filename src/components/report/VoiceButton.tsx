@@ -7,7 +7,7 @@ export type VoiceStatus = "ready" | "starting" | "listening" | "writing";
 
 /** Below this the microphone is picking up room noise, not a voice. */
 const SPEECH_LEVEL = 0.06;
-/** Silence this long while listening switches the microphone off (see onQuiet). */
+/** Silence this long while listening is reported through onQuiet; the microphone stays on. */
 const QUIET_AFTER_MS = 5000;
 
 const WAVES = [

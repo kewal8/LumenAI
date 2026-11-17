@@ -9,7 +9,7 @@
  * deliberately narrow so a finding is never changed in meaning.
  */
 
-export type VoiceCommand = "newLine" | "newParagraph" | "deleteMacro" | "undo";
+export type VoiceCommand = "newLine" | "newParagraph" | "deleteMacro" | "editMacro" | "undo";
 
 export type SpokenPiece = { kind: "text"; text: string } | { kind: "command"; command: VoiceCommand };
 
@@ -18,6 +18,7 @@ export const COMMAND_LABELS: Record<VoiceCommand, string> = {
   newLine: "Next line",
   newParagraph: "New paragraph",
   deleteMacro: "Delete last macro",
+  editMacro: "Change this macro",
   undo: "Undo that",
 };
 
@@ -28,7 +29,8 @@ const LEAD = ",?";
 const TRAIL = "[,.;:!?]?";
 
 const COMMANDS: { command: VoiceCommand; pattern: string }[] = [
-  { command: "deleteMacro", pattern: "(?:delete|remove|undo) (?:the )?last (?:macro|shortcut)" },
+  { command: "deleteMacro", pattern: "(?:delete|remove|undo) (?:the |this |that )?(?:last )?(?:macro|shortcut)" },
+  { command: "editMacro", pattern: "(?:change|edit) (?:the |this |that )?(?:last )?(?:macro|shortcut)" },
   { command: "undo", pattern: "(?:undo|scratch|delete) that" },
   { command: "newParagraph", pattern: "(?:new|next) paragraph" },
   { command: "newLine", pattern: "(?:new|next) line" },
@@ -140,7 +142,7 @@ export function tidySpoken(spoken: string) {
 // paused, so "full stop" or "12.5 centimeters" can arrive split in two. A piece
 // that ends on what may be the start of one is held until the next arrives.
 const OPEN_END = new RegExp(
-  `(?:^|\\s)((?:full|question|exclamation|semi|next|new|delete|remove|undo|scratch)(?: (?:the )?last)?|\\d+(?:\\.\\d+)?(?: point)?|${NUMBER_WORDS}(?: point)?)[.,]?\\s*$`,
+  `(?:^|\\s)((?:full|question|exclamation|semi|next|new|delete|remove|undo|scratch|change|edit)(?: (?:the|this|that))?(?: last)?|\\d+(?:\\.\\d+)?(?: point)?|${NUMBER_WORDS}(?: point)?)[.,]?\\s*$`,
   "i",
 );
 // Words that finish a held start: the full stop speech recognition put before them is not meant.

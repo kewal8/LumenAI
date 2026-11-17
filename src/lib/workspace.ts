@@ -4,6 +4,7 @@ import type { Credits } from "@/lib/credits";
 import { db } from "@/lib/db";
 import { parsePasteProfile } from "@/lib/reportFormat";
 import { listMacros } from "@/lib/macroStore";
+import type { MacroMode } from "@/lib/macros";
 import { loadSubscription } from "@/lib/subscription";
 import { getIdentitySummary } from "@/lib/reportIdentity";
 import { bonusBalance } from "@/lib/referrals";
@@ -18,7 +19,7 @@ import { BLANK_TEMPLATE, BLANK_TEMPLATE_ID, CT_BRAIN_PLAIN } from "@/lib/templat
  */
 export async function loadWorkspace(user: CurrentUser, first: string | null = null) {
   const [[row], stored, identity, macros, credits] = await Promise.all([
-    db()`select paste_profile, shortcuts, floating_box from users where id = ${user.id}`,
+    db()`select paste_profile, shortcuts, floating_box, macro_mode from users where id = ${user.id}`,
     first === BLANK_TEMPLATE_ID ? null : loadReportTemplate(user, first),
     getIdentitySummary(user.id),
     listMacros(user.id),
@@ -32,6 +33,7 @@ export async function loadWorkspace(user: CurrentUser, first: string | null = nu
     profile: parsePasteProfile(row?.paste_profile),
     shortcuts: parseShortcuts(row?.shortcuts),
     floatingBox: row?.floating_box !== false,
+    macroMode: (row?.macro_mode === "keep" ? "keep" : "expand") as MacroMode,
     template,
     identity,
     macros,

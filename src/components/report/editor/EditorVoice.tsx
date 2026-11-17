@@ -160,6 +160,9 @@ export function useEditorVoice({ macros }: { macros: Macro[] }) {
         tell(COMMAND_LABELS[piece.command]);
       } else if (piece.command === "deleteMacro") {
         deleteMacro(editor);
+      } else if (piece.command === "editMacro") {
+        // Macros are changed in the dictation box, where they are highlighted.
+        tell("Change macros in the dictation box");
       } else if (steps.current > 0) {
         editor.commands.undo();
         steps.current -= 1;

@@ -84,3 +84,56 @@ export function expandMacros(text: string, macros: Macro[]) {
   }
   return result;
 }
+
+/** How a spoken macro shows in the dictation box: its full text, or its short form kept as said. */
+export type MacroMode = "expand" | "keep";
+
+/**
+ * Writes every short form the way the doctor saved it, however it was heard
+ * ("c s v", "c.s.v." → "CSV"), so it can be found and expanded later.
+ */
+export function tidyShortForms(text: string, macros: Macro[]) {
+  const ordered = [...macros].sort((a, b) => b.shortForm.length - a.shortForm.length);
+  let result = text;
+  for (const macro of ordered) {
+    const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${shortFormPattern(macro.shortForm)}(?![\\p{L}\\p{N}])`, "giu");
+    result = result.replace(pattern, macro.shortForm);
+  }
+  return result;
+}
+
+/** One macro in the dictation box: as its full text, or as its short form waiting to be expanded. */
+export type MacroSpan = { start: number; end: number; macro: Macro; kind: "full" | "short" };
+
+/** Every macro in the text, in order, none overlapping. Longer matches win. */
+export function findMacros(text: string, macros: Macro[]): MacroSpan[] {
+  const found: MacroSpan[] = [];
+  for (const macro of macros) {
+    const patterns: [RegExp, MacroSpan["kind"]][] = [
+      [new RegExp(escape(macro.body), "giu"), "full"],
+      [new RegExp(`(?<![\\p{L}\\p{N}])${shortFormPattern(macro.shortForm)}(?![\\p{L}\\p{N}])`, "giu"), "short"],
+    ];
+    for (const [pattern, kind] of patterns) {
+      for (const match of text.matchAll(pattern)) {
+        found.push({ start: match.index, end: match.index + match[0].length, macro, kind });
+      }
+    }
+  }
+  found.sort((a, b) => a.start - b.start || b.end - a.end);
+  const spans: MacroSpan[] = [];
+  for (const span of found) {
+    if (!spans.length || span.start >= spans[spans.length - 1].end) spans.push(span);
+  }
+  return spans;
+}
+
+/** The text with one part replaced, keeping single spaces around it. */
+export function replaceSpan(text: string, span: { start: number; end: number }, replacement: string) {
+  const before = text.slice(0, span.start);
+  const after = text.slice(span.end);
+  if (replacement) return before + replacement + after;
+  // Removing: the space that joined it goes too, and a full stop left on its own.
+  const trimmedBefore = before.replace(/[ \t]+$/, "");
+  const trimmedAfter = after.replace(/^[ \t]*\.?[ \t]*/, "");
+  return trimmedBefore && trimmedAfter ? `${trimmedBefore} ${trimmedAfter}` : trimmedBefore + trimmedAfter;
+}

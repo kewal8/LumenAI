@@ -30,12 +30,14 @@ export const GET = handle<Context>(async (_request, context) => {
   const name = [patient?.name, patient?.study || report.title, day(saved.finalizedAt ?? saved.updatedAt)]
     .filter(Boolean)
     .join(" - ");
+  const sign = { text: identity.signatureText, image: identity.signatureImage };
   const html = buildPrintHtml(
     formatReport(report),
     profile,
-    { text: identity.signatureText, image: identity.signatureImage },
+    sign,
     identity.letterheadEnabled ? { header: identity.headerImage, footer: identity.footerImage } : null,
-    report.doc ? docToHtml(report.doc as DocNode, profile) : undefined,
+    // The sign-off is printed under the report, as the report screen shows it.
+    report.doc ? docToHtml(report.doc as DocNode, profile, sign) : undefined,
     name,
   );
   return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });

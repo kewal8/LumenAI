@@ -4,7 +4,6 @@ import { Dialog } from "@base-ui/react/dialog";
 import {
   ArrowDown,
   Lightning,
-  Microphone,
   PencilSimple,
   Plus,
   Trash,
@@ -25,7 +24,8 @@ import {
 } from "./Selection";
 import { SearchField } from "./Search";
 import { ConfirmAction } from "./TeamClient";
-import { MACRO_BODY_LIMIT, SHORT_FORM_LIMIT, type Macro } from "@/lib/macros";
+import { MACRO_BODY_LIMIT, SHORT_FORM_LIMIT, type Macro, type MacroMode } from "@/lib/macros";
+import { MACRO_MARK } from "@/components/report/macroMark";
 import { BACKDROP } from "./TeamClient";
 import { IconTile, buttonClass } from "./ui";
 
@@ -36,7 +36,7 @@ const byShortForm = (a: Macro, b: Macro) =>
  * Every macro in one place, with room to read and change the full text. The
  * panel on the report screen is for using them mid-report; this is for keeping them.
  */
-export function MacrosManager({ macros: initial }: { macros: Macro[] }) {
+export function MacrosManager({ macros: initial, mode }: { macros: Macro[]; mode: MacroMode }) {
   const [macros, setMacros] = useState(initial);
   const [query, setQuery] = useState("");
   // "new" while adding, a macro's id while changing it, null otherwise.
@@ -62,29 +62,7 @@ export function MacrosManager({ macros: initial }: { macros: Macro[] }) {
   return (
     <Selectable>
       <div className="flex flex-col gap-6">
-        {/* How macros are used, in one line each, since most doctors meet them here first. */}
-        <ul className="grid gap-3 sm:grid-cols-2">
-          <li className="flex items-start gap-3 rounded-2xl bg-ink/[0.04] px-4 py-3.5">
-            <Microphone
-              weight="fill"
-              className="mt-0.5 h-5 w-5 shrink-0 text-teal"
-            />
-            <span className="leading-relaxed text-ink">
-              Say or type the <strong>short form</strong> while dictating. The
-              full text goes into the report.
-            </span>
-          </li>
-          <li className="flex items-start gap-3 rounded-2xl bg-ink/[0.04] px-4 py-3.5">
-            <Lightning
-              weight="fill"
-              className="mt-0.5 h-5 w-5 shrink-0 text-teal"
-            />
-            <span className="leading-relaxed text-ink">
-              Added one by mistake? Say <strong>“delete last macro”</strong> and
-              it is taken out.
-            </span>
-          </li>
-        </ul>
+        <MacroModeChoice mode={mode} />
 
         <div className="flex flex-wrap items-center gap-3">
           <SearchField
@@ -448,5 +426,100 @@ function MacroForm({
         </button>
       </footer>
     </form>
+  );
+}
+
+const MODES: { value: MacroMode; title: string; body: string }[] = [
+  {
+    value: "expand",
+    title: "Full text",
+    body: "Say the short form and its full text appears in the dictation box straight away.",
+  },
+  {
+    value: "keep",
+    title: "Short form",
+    body: "The short form stays as you said it. Point at it to read the full text, click to use it. Any left are written in full in the report.",
+  },
+];
+
+/**
+ * How a spoken macro shows in the dictation box. Each choice carries a small
+ * picture of the box, so the difference is seen rather than read.
+ */
+function MacroModeChoice({ mode: initial }: { mode: MacroMode }) {
+  const [mode, setMode] = useState(initial);
+  const [saving, setSaving] = useState<MacroMode | null>(null);
+
+  async function choose(next: MacroMode) {
+    if (next === mode || saving) return;
+    setSaving(next);
+    const result = await send("PATCH", "/api/account", { macroMode: next });
+    setSaving(null);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    setMode(next);
+    toast.success(next === "expand" ? "Macros now show as full text" : "Macros now stay as short forms");
+  }
+
+  return (
+    <section aria-labelledby="macro-mode" className="flex flex-col gap-3">
+      <div>
+        <h3 id="macro-mode" className="text-[1.05rem] font-bold">
+          When you say a macro
+        </h3>
+        <p className="mt-0.5 text-[0.95rem] text-ink-soft">
+          Either way, say <strong className="text-ink">“delete this macro”</strong> to take it out, or{" "}
+          <strong className="text-ink">“change this macro”</strong> to edit it for this report.
+        </p>
+      </div>
+      <div role="radiogroup" aria-labelledby="macro-mode" className="grid gap-3 md:grid-cols-2">
+        {MODES.map((option) => {
+          const chosen = mode === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={chosen}
+              onClick={() => choose(option.value)}
+              disabled={saving !== null}
+              className={`flex flex-col gap-3 rounded-2xl border-2 p-4 text-left transition-colors disabled:cursor-progress ${
+                chosen ? "border-teal bg-teal/[0.05]" : "border-ink/20 hover:border-ink/45"
+              }`}
+            >
+              <span className="flex items-center gap-2.5">
+                <span
+                  aria-hidden="true"
+                  className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 ${
+                    chosen ? "border-teal" : "border-ink/40"
+                  }`}
+                >
+                  {chosen && <span className="h-2.5 w-2.5 rounded-full bg-teal" />}
+                </span>
+                <span className="font-bold">{option.title}</span>
+                {saving === option.value && <Spinner className="ml-auto h-4 w-4" />}
+              </span>
+              {/* A little dictation box showing the result. */}
+              <span className="rounded-xl border border-ink/15 bg-surface px-3.5 py-3 text-[0.95rem] leading-relaxed text-ink">
+                Left frontal infarct.{" "}
+                {option.value === "expand" ? (
+                  <span className={MACRO_MARK.full}>Chronic small vessel ischaemic changes.</span>
+                ) : (
+                  <span className="relative">
+                    <span className={MACRO_MARK.short}>CSV</span>
+                    <span className="ml-2 inline-block rounded-lg bg-ink px-2 py-0.5 align-middle text-[0.78rem] font-semibold text-surface">
+                      Chronic small vessel ischaemic changes.
+                    </span>
+                  </span>
+                )}
+              </span>
+              <span className="text-[0.92rem] leading-relaxed text-ink-soft">{option.body}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }

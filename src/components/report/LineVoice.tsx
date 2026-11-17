@@ -291,6 +291,9 @@ export function useLineVoice({ macros, onStart }: { macros: Macro[]; onStart?: (
         } else {
           tell("No macro in this line to remove");
         }
+      } else if (piece.command === "editMacro") {
+        // Macros are changed in the dictation box, where they are highlighted.
+        tell("Change macros in the dictation box");
       } else {
         const last = history.current.pop();
         const lastField = last ? fields.current.get(last.key) : undefined;

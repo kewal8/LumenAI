@@ -21,13 +21,16 @@ import {
   TextUnderline,
 } from "@phosphor-icons/react";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
-import { useImperativeHandle, useSyncExternalStore } from "react";
+import { A4, PAGE_MARGIN, PageBreaks } from "./PageBreaks";
+import { useEffect, useImperativeHandle, useState, useSyncExternalStore } from "react";
 import { Select } from "@/components/app/ui";
 import { Tip } from "@/components/Tip";
 import type { DocNode, PatchPlan } from "@/lib/reportDoc";
 import { PASTE_FONTS, type PasteProfile } from "@/lib/reportFormat";
 import { EDITOR_EXTENSIONS } from "./extensions";
 import { applyPatchToEditor } from "./reportLines";
+import { SpellCheck, type SpellTarget } from "./spelling/SpellCheck";
+import { SpellMenu } from "./spelling/SpellMenu";
 import { fixText, readLines } from "./textFixes";
 import "./editor.css";
 
@@ -416,6 +419,7 @@ export function ReportEditor({
   profile,
   onChange,
   variant = "card",
+  pageHeightMm,
   overlay,
   footer,
 }: {
@@ -433,15 +437,37 @@ export function ReportEditor({
    * and the report scrolls underneath it.
    */
   variant?: "card" | "embedded";
+  /**
+   * Report height per printed A4 page, in millimetres. When given, the sheet
+   * takes the printed text width and shows where each page will end.
+   */
+  pageHeightMm?: number;
 }) {
   const zoom = useZoom();
+  // The sheet, for measuring where pages end; state so the breaks draw once it exists.
+  const [sheet, setSheet] = useState<HTMLDivElement | null>(null);
+  // Room for the sheet, so an A4 sheet shrinks to fit instead of rewrapping its lines.
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  const [room, setRoom] = useState(0);
+  useEffect(() => {
+    if (!scroller || !pageHeightMm) return;
+    const observer = new ResizeObserver(([entry]) => setRoom(entry.contentRect.width));
+    observer.observe(scroller);
+    return () => observer.disconnect();
+  }, [scroller, pageHeightMm]);
+  // The printed text width in CSS pixels (96 to the inch), plus the 0.6em lines pad on each side.
+  const sheetWidth = ((A4.width - 2 * A4.side) / 25.4) * 96 + 1.2 * profile.size * (4 / 3);
+  // A margin each side holds the page labels, as on a printed sheet.
+  const scale = pageHeightMm && room > 0 ? Math.min(zoom / 100, (room - 2 * PAGE_MARGIN) / sheetWidth) : zoom / 100;
+  const [misspelt, setMisspelt] = useState<SpellTarget | null>(null);
   const editor = useEditor({
     // The page is rendered on the server first; the editor starts in the browser.
     immediatelyRender: false,
-    extensions: EDITOR_EXTENSIONS,
+    extensions: [...EDITOR_EXTENSIONS, SpellCheck.configure({ onMenu: setMisspelt })],
     content: initialDoc,
     editorProps: {
-      attributes: { class: "report-doc", "aria-label": "Report", spellcheck: "true" },
+      // Our own check knows radiology words; the browser's would underline them.
+      attributes: { class: "report-doc", "aria-label": "Report", spellcheck: "false" },
     },
     onUpdate: ({ editor: current }) => onChange?.(current.getJSON() as DocNode),
   });
@@ -467,16 +493,25 @@ export function ReportEditor({
             <Toolbar editor={editor} profile={profile} flat />
           </div>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-9">
+        <div ref={setScroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-9">
           <div
-            className="mx-auto max-w-[46rem]"
-            style={{ fontFamily: `'${profile.font}', Arial, sans-serif`, fontSize: `${profile.size}pt`, zoom: zoom / 100 }}
+            ref={setSheet}
+            className={`relative mx-auto ${pageHeightMm ? "" : "max-w-[46rem]"}`}
+            style={{
+              fontFamily: `'${profile.font}', Arial, sans-serif`,
+              fontSize: `${profile.size}pt`,
+              zoom: scale,
+              // The printed text width; lines here pad 0.6em each side, which print does not.
+              ...(pageHeightMm ? { width: sheetWidth } : {}),
+            }}
           >
             <EditorContent editor={editor} />
             {footer}
+            {editor && pageHeightMm && <PageBreaks editor={editor} column={sheet} heightMm={pageHeightMm} />}
           </div>
         </div>
         {editor && overlay?.(editor)}
+        {editor && <SpellMenu editor={editor} target={misspelt} onClose={() => setMisspelt(null)} />}
       </div>
     );
   }
@@ -496,6 +531,7 @@ export function ReportEditor({
         {footer}
       </div>
       {editor && overlay?.(editor)}
+      {editor && <SpellMenu editor={editor} target={misspelt} onClose={() => setMisspelt(null)} />}
     </div>
   );
 }

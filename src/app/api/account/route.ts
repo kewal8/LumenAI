@@ -33,6 +33,10 @@ export const PATCH = handle(async (request) => {
     await sql`update users set floating_box = ${body.floatingBox} where id = ${user.id}`;
   }
 
+  if (body.macroMode === "expand" || body.macroMode === "keep") {
+    await sql`update users set macro_mode = ${body.macroMode} where id = ${user.id}`;
+  }
+
   if (body.shortcuts !== undefined) {
     const shortcuts = JSON.stringify(parseShortcuts(body.shortcuts));
     await sql`update users set shortcuts = ${shortcuts}::jsonb where id = ${user.id}`;

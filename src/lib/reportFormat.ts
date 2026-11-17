@@ -128,6 +128,11 @@ img{display:block}
 thead img,tfoot img{width:100%;height:auto}
 .body{padding:${header ? "6mm" : "18mm"} 18mm ${footer ? "6mm" : "18mm"}}
 tfoot td{vertical-align:bottom}
+.body p,.body li{line-height:1.35;orphans:1;widows:1}
+.body ul,.body ol{padding-left:2em}
+.body li{padding-left:.3em}
+.body .doc-title{font-size:1.1em!important;margin:0 0 .75em!important}
+.body .doc-heading{margin:.9em 0 .1em!important}
 </style></head><body><table><thead><tr><td>${header}</td></tr></thead><tfoot><tr><td>${footer}</td></tr></tfoot><tbody><tr><td><div class="body">${bodyHtml ?? buildReportHtml(report, profile, signature)}</div></td></tr></tbody></table></body></html>`;
 }
 
