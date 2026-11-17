@@ -99,7 +99,7 @@ export function ReportWorkspace({
   identity: identitySummary,
   shortcuts,
   floatingBox: initialFloatingBox,
-  macroMode = "expand",
+  macroMode: initialMacroMode = "expand",
   macros: initialMacros,
   credits: initialCredits,
   design = "classic",
@@ -219,6 +219,13 @@ export function ReportWorkspace({
   const spokenHistory = useRef<{ before: string; after: string }[]>([]);
   // The spoken command just carried out, shown for a moment so the doctor knows it was heard.
   const [heard, setHeard] = useState("");
+  // How spoken macros show; can be switched from the assistant's options mid-report.
+  const [macroMode, setMacroMode] = useState<MacroMode>(initialMacroMode);
+  // Read by the speech callback, which outlives a render.
+  const macroModeRef = useRef(macroMode);
+  useEffect(() => {
+    macroModeRef.current = macroMode;
+  }, [macroMode]);
   // Goes up when the doctor says "change this macro", which opens it in the box.
   const [macroEditRequest, setMacroEditRequest] = useState(0);
   const heardTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -240,7 +247,7 @@ export function ReportWorkspace({
         // A spoken macro shows as its full text, or keeps its short form, as
         // the doctor chose in Settings. Short forms left are expanded on send.
         const words =
-          macroMode === "expand"
+          macroModeRef.current === "expand"
             ? expandMacros(piece.text, macrosRef.current)
             : tidyShortForms(piece.text, macrosRef.current);
         text = appendSpoken(text, words);
@@ -1223,6 +1230,8 @@ export function ReportWorkspace({
                   onClear={() => setLog([])}
                   floatingBox={floatingBox}
                   onFloatingBoxChange={setFloatingBox}
+                  macroMode={macroMode}
+                  onMacroModeChange={setMacroMode}
                 />
               </div>
             </header>

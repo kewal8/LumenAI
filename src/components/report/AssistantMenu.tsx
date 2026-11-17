@@ -12,6 +12,9 @@ import { BACKDROP, POPUP } from "@/components/app/TeamClient";
 import { buttonClass } from "@/components/app/ui";
 import { Tip } from "@/components/Tip";
 import type { DocNode } from "@/lib/reportDoc";
+import type { MacroMode } from "@/lib/macros";
+import Link from "next/link";
+import { MACRO_MARK } from "./macroMark";
 import { MODALITIES } from "@/lib/templateDoc";
 
 const MENU_ITEM =
@@ -31,6 +34,8 @@ export function AssistantMenu({
   onClear,
   floatingBox,
   onFloatingBoxChange,
+  macroMode,
+  onMacroModeChange,
 }: {
   /** The report as it now reads. */
   getDoc: () => DocNode | undefined;
@@ -40,6 +45,8 @@ export function AssistantMenu({
   onClear: () => void;
   floatingBox: boolean;
   onFloatingBoxChange: (next: boolean) => void;
+  macroMode: MacroMode;
+  onMacroModeChange: (next: MacroMode) => void;
 }) {
   const [options, setOptions] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -81,6 +88,8 @@ export function AssistantMenu({
         onOpenChange={setOptions}
         floatingBox={floatingBox}
         onFloatingBoxChange={onFloatingBoxChange}
+        macroMode={macroMode}
+        onMacroModeChange={onMacroModeChange}
       />
 
       {saving && (
@@ -125,13 +134,33 @@ function AssistantOptions({
   onOpenChange,
   floatingBox,
   onFloatingBoxChange,
+  macroMode,
+  onMacroModeChange,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   floatingBox: boolean;
   onFloatingBoxChange: (next: boolean) => void;
+  macroMode: MacroMode;
+  onMacroModeChange: (next: MacroMode) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [savingMode, setSavingMode] = useState(false);
+
+  async function setMode(next: MacroMode) {
+    if (next === macroMode || savingMode) return;
+    const previous = macroMode;
+    onMacroModeChange(next);
+    setSavingMode(true);
+    const result = await send("PATCH", "/api/account", { macroMode: next });
+    setSavingMode(false);
+    if (result.error) {
+      onMacroModeChange(previous);
+      toast.error(result.error);
+      return;
+    }
+    toast.success(next === "expand" ? "Macros now show as full text" : "Macros now stay as short forms");
+  }
 
   async function setFloating(next: boolean) {
     onFloatingBoxChange(next);
@@ -181,6 +210,58 @@ function AssistantOptions({
                 <Switch.Thumb className="h-6 w-6 rounded-full bg-[#fff] shadow transition-transform data-[checked]:translate-x-5" />
               </Switch.Root>
             </label>
+
+            {/* The same choice as Settings → Macros, here so it can change mid-report. */}
+            <div className="rounded-2xl border border-ink/25 px-4 py-3.5">
+              <div className="flex items-start justify-between gap-4">
+                <span id="macro-mode-label" className="font-semibold">
+                  When you say a macro
+                </span>
+                <Link
+                  href="/settings?tab=macros"
+                  className="shrink-0 text-[0.88rem] font-semibold text-ink underline decoration-ink/35 underline-offset-4 hover:decoration-ink"
+                >
+                  Manage macros
+                </Link>
+              </div>
+              <div
+                role="radiogroup"
+                aria-labelledby="macro-mode-label"
+                className="mt-2.5 grid grid-cols-2 gap-1 rounded-full bg-ink/[0.06] p-1"
+              >
+                {(
+                  [
+                    ["expand", "Full text"],
+                    ["keep", "Short form"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={macroMode === value}
+                    onClick={() => setMode(value)}
+                    disabled={savingMode}
+                    className={`h-9 rounded-full text-[0.92rem] font-bold transition-colors disabled:cursor-progress ${
+                      macroMode === value ? "bg-surface text-ink shadow-[0_1px_3px_rgb(6_17_15/0.18)]" : "text-ink-soft hover:text-ink"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-[0.9rem] leading-snug text-ink-soft">
+                {macroMode === "expand" ? (
+                  <>
+                    Say <span className={MACRO_MARK.short}>CSV</span> and its full text appears in the box.
+                  </>
+                ) : (
+                  <>
+                    <span className={MACRO_MARK.short}>CSV</span> stays as said. Point at it to read or use the full text.
+                  </>
+                )}
+              </p>
+            </div>
           </div>
         </Dialog.Popup>
       </Dialog.Portal>
