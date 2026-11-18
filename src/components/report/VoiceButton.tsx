@@ -106,7 +106,9 @@ function InnerWave({
 /**
  * The wide speaking button under the message box. Start, then Please wait
  * while the microphone switches on, then Talk now with the voice rolling
- * through it, then Writing report while the AI updates the report.
+ * through it. Pressing it again only stops the microphone; the words wait in
+ * the message box to be checked and sent. Writing report shows while the AI
+ * updates the report.
  */
 export function VoiceButton({
   status,
@@ -133,7 +135,7 @@ export function VoiceButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      title={status === "listening" ? `Stop and write report (${shortcut})` : `Start speaking (${shortcut})`}
+      title={status === "listening" ? `Stop speaking (${shortcut})` : `Start speaking (${shortcut})`}
       aria-keyshortcuts={keyShortcut}
       className={`group relative flex h-14 items-center justify-center gap-2.5 overflow-hidden rounded-full px-5 text-[1rem] font-bold transition-colors duration-200 active:scale-[0.99] disabled:cursor-progress ${
         status === "ready"

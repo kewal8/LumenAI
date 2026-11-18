@@ -648,29 +648,27 @@ export function ReportWorkspace({
       dictation.start();
       return;
     }
-    // Stop, wait for the last words, then update the report in one step.
-    send(
-      dictation.stop().then(() => {
-        // Words held back in case a phrase carried on are written now.
-        apply(listener.current.flush());
-        return draftRef.current;
-      }),
-    );
+    stopMic();
   }
 
-  // Escape switches the microphone off without writing. What was said stays
-  // in the box as a draft: nothing is sent to the report until the doctor
-  // presses Enter or the send button.
-  function pauseMic(message: string) {
+  // Stopping the microphone (the button, its shortcut or Escape) never writes
+  // the report. What was said stays in the box, ready to be read and corrected
+  // by typing; it is sent only with Enter or the send button.
+  function stopMic() {
     if (!dictation.recording) return;
     setQuiet(false);
     dictation
       .stop()
       .then(() => {
+        // Words held back in case a phrase carried on are written now.
         apply(listener.current.flush());
-        if (draftRef.current.trim()) {
-          toast.warning(message);
-        }
+        // The cursor goes to the end of the words, so a fix can be typed at once.
+        requestAnimationFrame(() => {
+          const box = messageRef.current ?? boxRef.current;
+          if (!box) return;
+          box.focus();
+          box.setSelectionRange(box.value.length, box.value.length);
+        });
       })
       .catch(() => {});
   }
@@ -696,7 +694,7 @@ export function ReportWorkspace({
     };
     stopListening.current = () => {
       if (!dictation.recording) return false;
-      pauseMic("Microphone stopped. Nothing was written. Press Enter or Send when ready.");
+      stopMic();
       return true;
     };
   });
@@ -1483,12 +1481,12 @@ export function ReportWorkspace({
                     </button>
                   </Tip>
                 ) : (
-                  <Tip label="Update report from typed text">
+                  <Tip label="Update report">
                     <button
                       type="button"
                       onClick={() => send(Promise.resolve(draft))}
                       disabled={dictation.recording || dictation.starting || draft.trim() === ""}
-                      aria-label="Update report from typed text"
+                      aria-label="Update report"
                       className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-teal text-white transition-[opacity,filter] hover:brightness-110 disabled:cursor-default disabled:opacity-25 disabled:hover:brightness-100"
                     >
                       <ArrowUp weight="bold" className="h-5 w-5" />
@@ -1507,8 +1505,11 @@ export function ReportWorkspace({
                   <p className="t-meta -mt-1 text-center">
                     Say “next line”, “full stop”, “comma”, “delete last macro” or “undo that”.
                   </p>
-                  <p className="t-meta -mt-2 text-center">Press Esc to stop without writing.</p>
                 </>
+              ) : status === "ready" && draft.trim() ? (
+                <p className="t-meta -mt-1 text-center">
+                  Check the words and correct any mistake. Then press Enter or the arrow to update the report.
+                </p>
               ) : null}
             </div>
           </section>
@@ -2040,8 +2041,8 @@ export function ReportWorkspace({
             className="w-full"
           />
 
-          {/* Only for typed words. Speech is sent by the button above, so this
-              stays out of the way until there is something typed to send. */}
+          {/* Typed or spoken, the words are sent only from here (or with Enter),
+              so it stays out of the way until there is something to send. */}
           {busy && (
             <button
               type="button"
@@ -2059,7 +2060,7 @@ export function ReportWorkspace({
               disabled={busy}
               className="h-11 rounded-full border border-ink/35 text-[0.95rem] font-bold text-ink transition-colors hover:border-ink/60 hover:bg-ink/[0.06] disabled:opacity-60"
             >
-              Update report from typed text
+              Update report
             </button>
           )}
         </div>

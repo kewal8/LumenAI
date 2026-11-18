@@ -125,7 +125,7 @@ export type FloatingStatus = "ready" | "starting" | "listening" | "writing";
 const STATUS_TEXT: Record<FloatingStatus, string> = {
   ready: "Ready. Press the microphone and speak.",
   starting: "Turning on the microphone.",
-  listening: "Listening. Press stop when you finish.",
+  listening: "Listening. Press stop when you finish, then check and send.",
   writing: "Writing your report.",
 };
 
@@ -185,8 +185,8 @@ export function FloatingBox({
           type="button"
           onClick={onMic}
           disabled={status === "starting" || status === "writing"}
-          aria-label={status === "listening" ? "Stop and write report" : "Start speaking"}
-          title={status === "listening" ? "Stop and write report" : "Start speaking"}
+          aria-label={status === "listening" ? "Stop speaking" : "Start speaking"}
+          title={status === "listening" ? "Stop speaking" : "Start speaking"}
           className={`grid h-12 w-12 shrink-0 place-items-center rounded-full text-white transition-colors disabled:cursor-progress ${
             status === "listening" ? "bg-flag hover:bg-flag/90" : idle ? "bg-teal hover:brightness-110" : "bg-[#8a5a0c]"
           }`}
@@ -203,8 +203,8 @@ export function FloatingBox({
           type="button"
           onClick={onSend}
           disabled={!canSend}
-          aria-label="Update report from typed text"
-          title="Update report from typed text"
+          aria-label="Update report"
+          title="Update report"
           className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-btn text-btn-text transition-colors hover:bg-teal-deep disabled:cursor-not-allowed disabled:opacity-40"
         >
           <ArrowUp weight="bold" className="h-5 w-5" />
