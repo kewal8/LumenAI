@@ -739,6 +739,19 @@ export function ReportWorkspace({
     else edited(next);
   }
 
+  // Accept or Ignore on a warned line: the doctor has looked, so the warning goes.
+  function clearWarnings(sectionId: string, lineId: string, done: string) {
+    edited({
+      ...report,
+      sections: report.sections.map((section) =>
+        section.id !== sectionId
+          ? section
+          : { ...section, lines: section.lines.map((line) => (line.id !== lineId ? line : { ...line, warnings: [] })) },
+      ),
+    });
+    toast.success(done);
+  }
+
   function editLine(sectionId: string, lineId: string, text: string) {
     edited({
       ...report,
@@ -1643,7 +1656,7 @@ export function ReportWorkspace({
                             )}
                           />
                           {lineVoice.button(voiceKey, lineVoiceBlocked)}
-                          {(line.source || flagged) && (
+                          {flagged && (
                             <div className="px-2.5 pb-2 font-[family-name:var(--font-brand)] text-[0.85rem] leading-snug">
                               {line.warnings.map((warning) => (
                                 <p key={warning} className="flex items-start gap-1.5 font-semibold text-flag">
@@ -1651,9 +1664,22 @@ export function ReportWorkspace({
                                   {warning}
                                 </p>
                               ))}
-                              {line.source && (
-                                <p className="text-ink-soft">You said: “{line.source}”</p>
-                              )}
+                              <div className="mt-1.5 flex gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => clearWarnings(section.id, line.id, "Line accepted")}
+                                  className="h-8 rounded-full bg-btn px-3.5 text-[0.82rem] font-bold text-btn-text transition-colors hover:bg-teal-deep"
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => clearWarnings(section.id, line.id, "Warning ignored")}
+                                  className="h-8 rounded-full border border-ink/40 px-3.5 text-[0.82rem] font-bold text-ink transition-colors hover:border-ink/60 hover:bg-ink/[0.07]"
+                                >
+                                  Ignore
+                                </button>
+                              </div>
                             </div>
                           )}
                         </li>

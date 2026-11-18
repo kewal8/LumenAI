@@ -1,7 +1,8 @@
 import { Extension, type Editor } from "@tiptap/react";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, type Transaction } from "@tiptap/pm/state";
-import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
+import { toast } from "@/components/Toast";
 import { newLineId, type PatchPlan } from "@/lib/reportDoc";
 
 /** Marks a change made by a dictation, so it is not mistaken for typing. */
@@ -27,23 +28,55 @@ function lineTexts(doc: PMNode) {
   return texts;
 }
 
-/** Small note under a line: what to check, and the words it was written from. */
-function noteFor(node: PMNode) {
+/**
+ * Small note under a line: what to check before signing. The words the line
+ * was written from are shown in the chat only, not here.
+ */
+function noteFor(node: PMNode, view: EditorView, getPos: () => number | undefined) {
   const warnings: string[] = node.attrs.warnings ?? [];
   const note = document.createElement("div");
   note.className = "report-note";
   note.contentEditable = "false";
+  const text = document.createElement("div");
+  text.className = "report-note-text";
   for (const warning of warnings) {
     const row = document.createElement("p");
     row.className = "report-note-flag";
     row.textContent = warning;
-    note.append(row);
+    text.append(row);
   }
-  if (node.attrs.source) {
-    const row = document.createElement("p");
-    row.textContent = `You said: “${node.attrs.source}”`;
-    note.append(row);
-  }
+  note.append(text);
+  // A finalized report is read only: the warning shows, but cannot be answered.
+  if (!view.editable) return note;
+
+  // Accept: the line is right as written. Ignore: the warning is not needed.
+  // Either way the doctor has looked at it, so the warning goes.
+  const answer = (label: string, className: string, done: string) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = className;
+    button.textContent = label;
+    // Keeps the cursor where it was in the report.
+    button.addEventListener("mousedown", (event) => event.preventDefault());
+    button.addEventListener("click", () => {
+      // The widget sits just after its line.
+      const after = getPos();
+      if (after === undefined) return;
+      const pos = after - node.nodeSize;
+      const line = view.state.doc.nodeAt(pos);
+      if (!line || !isLine(line)) return;
+      view.dispatch(view.state.tr.setNodeMarkup(pos, undefined, { ...line.attrs, warnings: [] }));
+      toast.success(done);
+    });
+    return button;
+  };
+  const actions = document.createElement("div");
+  actions.className = "report-note-actions";
+  actions.append(
+    answer("Accept", "report-note-accept", "Line accepted"),
+    answer("Ignore", "report-note-ignore", "Warning ignored"),
+  );
+  note.append(actions);
   return note;
 }
 
@@ -160,11 +193,11 @@ export const ReportLines = Extension.create({
               if (flagged) {
                 decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: "report-line-flagged" }));
               }
-              if (flagged || node.attrs.source) {
+              if (flagged) {
                 decorations.push(
-                  Decoration.widget(pos + node.nodeSize, () => noteFor(node), {
+                  Decoration.widget(pos + node.nodeSize, (view, getPos) => noteFor(node, view, getPos), {
                     side: -1,
-                    key: `${node.attrs.lineId}|${node.attrs.source}|${node.attrs.warnings.join("|")}`,
+                    key: `${node.attrs.lineId}|${node.attrs.warnings.join("|")}`,
                   }),
                 );
               }
