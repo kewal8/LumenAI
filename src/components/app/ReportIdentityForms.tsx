@@ -375,6 +375,34 @@ export function LetterheadForm({ identity }: { identity: ReportIdentity }) {
   );
 }
 
+/** A4 pages or an open canvas on the report screen. Saved as soon as it is changed. */
+export function CanvasSetting({ a4: initial }: { a4: boolean }) {
+  const [a4, setA4] = useState(initial);
+  const { error, save } = useSave();
+
+  return (
+    <div className="flex max-w-2xl flex-col gap-3">
+      <label className="flex items-center justify-between gap-6 rounded-2xl border border-ink/25 px-5 py-4">
+        <span>
+          <span className="block font-semibold">A4 pages</span>
+          <span className="block text-[0.92rem] text-ink-soft">
+            On: the report sits on A4 pages, as it will print, with a mark where each page ends.
+            Off: an open canvas, one continuous sheet with no page marks. Printing is always on A4.
+          </span>
+        </span>
+        <Switch.Root
+          checked={a4}
+          onCheckedChange={(next) => (setA4(next), save({ a4Canvas: next }))}
+          className="flex h-7 w-12 shrink-0 items-center rounded-full bg-ink/30 p-0.5 transition-colors data-[checked]:bg-teal"
+        >
+          <Switch.Thumb className="h-6 w-6 rounded-full bg-[#fff] shadow transition-transform data-[checked]:translate-x-5" />
+        </Switch.Root>
+      </label>
+      <FormError message={error} />
+    </div>
+  );
+}
+
 /** Turns the floating dictation window on or off. Saved as soon as it is changed. */
 export function FloatingBoxSetting({ enabled: initial }: { enabled: boolean }) {
   const [enabled, setEnabled] = useState(initial);
@@ -387,7 +415,7 @@ export function FloatingBoxSetting({ enabled: initial }: { enabled: boolean }) {
           <span className="block font-semibold">Floating box</span>
           <span className="block text-[0.92rem] text-ink-soft">
             While the microphone is on, switching to another tab opens a small dictation window
-            that stays on top of PACS. It closes when you come back. Works in Chrome and Edge on a
+            that stays on top of your other windows. It closes when you come back. Works in Chrome and Edge on a
             computer.
           </span>
         </span>

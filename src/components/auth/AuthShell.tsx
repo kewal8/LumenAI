@@ -5,7 +5,7 @@ import { ThemeToggle } from "@/components/landing/ThemeToggle";
 const REASONS = [
   "Speak only the abnormal findings",
   "Every line checked against your words",
-  "Into PACS, or printed and signed",
+  "Copied to paste, or printed and signed",
 ];
 
 /** Shared frame for sign-in, invite and password screens. */

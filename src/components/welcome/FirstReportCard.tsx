@@ -64,7 +64,7 @@ export function FirstReportCard({
                   From the first word to final in <span className="font-bold text-ink">{took}</span>.{" "}
                 </>
               )}
-              It is saved under the patient and ready for PACS.
+              It is saved under the patient and ready to paste.
             </p>
           </div>
         </div>

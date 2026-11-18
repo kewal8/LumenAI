@@ -35,7 +35,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { buttonClass, formatDateTime, tidyHeading } from "@/components/app/ui";
 import { send as sendJson } from "@/components/auth/fields";
 import { Tip } from "@/components/Tip";
-import { copyReport, writeClipboard } from "@/lib/clipboard";
+import { copyReport } from "@/lib/clipboard";
 import {
   applyPatch,
   logEntryFor,
@@ -57,7 +57,7 @@ import { useIdentityImages } from "@/lib/useIdentityImages";
 import { expandMacros, removeLastMacro, tidyShortForms, type Macro, type MacroMode } from "@/lib/macros";
 import { MacroHighlights } from "./MacroHighlights";
 import { comboFromEvent, type ShortcutAction, type Shortcuts } from "@/lib/shortcuts";
-import { isMac, keyText, useIsMac } from "@/lib/keys";
+import { keyText, useIsMac } from "@/lib/keys";
 import { FinalizeDialog } from "./FinalizeDialog";
 import { STEP, STEP_DONE, STEP_ICON, ValidateButton } from "./ValidateButton";
 import { FloatingBox, useFloatingWindow } from "./FloatingBox";
@@ -86,20 +86,15 @@ import {
 
 /** A dictation that could not be written into the report, kept so it can be retried. */
 type FailedDictation = { text: string; message: string };
-type CopyState = "empty" | "copied" | "stale";
 
-const COPY_BLOCKED =
-  "The report is ready, but your browser did not let it copy by itself. Press Copy report, then paste into PACS.";
-
-function toBlob(text: string, type: string) {
-  return new Blob([text], { type });
-}
+const COPY_BLOCKED = "Your browser did not let the report copy. Press Copy again.";
 
 export function ReportWorkspace({
   profile,
   identity: identitySummary,
   shortcuts,
   floatingBox: initialFloatingBox,
+  a4Canvas = true,
   macroMode: initialMacroMode = "expand",
   macros: initialMacros,
   credits: initialCredits,
@@ -114,6 +109,8 @@ export function ReportWorkspace({
   shortcuts: Shortcuts;
   /** Whether the floating dictation window opens by itself, from Settings. */
   floatingBox: boolean;
+  /** A4 pages with page marks, or (false) an open canvas; set in Settings → Letterhead. */
+  a4Canvas?: boolean;
   /** How a spoken macro shows in the dictation box; set in Settings → Macros. */
   macroMode?: MacroMode;
   /** The doctor's short forms, expanded in everything they dictate or type. */
@@ -174,7 +171,6 @@ export function ReportWorkspace({
   const [draft, setDraftState] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [copyState, setCopyState] = useState<CopyState>("empty");
   // The last check: null when not validated (or changed since), else the suggestions still open; 0 is validated.
   const [validation, setValidation] = useState<number | null>(null);
   const [credits, setCredits] = useState(initialCredits);
@@ -360,10 +356,6 @@ export function ReportWorkspace({
     }
   }
 
-  // Finalizing is the end of the AI work, so it opens once the AI Assistant has
-  // updated this report (a reopened report with its history counts too).
-  const readyToFinalize = log.length > 0 || Boolean(finalizedAt);
-
   // The last step: the details are confirmed, the report is saved as final and shown as it will print.
   function finalize() {
     afterSave.current = null;
@@ -434,6 +426,56 @@ export function ReportWorkspace({
     newCase(result.data.template);
   }
 
+  // A finalized report is clean: the highlighter over the AI's words goes.
+  const finalClean = Boolean(finalizedAt) && !dirty;
+  useEffect(() => {
+    const root = document.documentElement;
+    if (finalClean) root.dataset.reportFinal = "";
+    else delete root.dataset.reportFinal;
+    return () => {
+      delete root.dataset.reportFinal;
+    };
+  }, [finalClean]);
+
+  // Leaving with unsaved work. Refresh, closing the tab or typing another
+  // address: the browser shows its own "Leave site?" question (a page cannot
+  // draw its own there). Unsent words in the message box count too.
+  const unsentWords = draft.trim() !== "";
+  useEffect(() => {
+    if (!dirty && !unsentWords) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty, unsentWords]);
+
+  // A click on any link to another screen (the menu, Reports, Settings): the
+  // move is held and the doctor is asked to save, leave or stay.
+  const [leaveTo, setLeaveTo] = useState<string | null>(null);
+  useEffect(() => {
+    if (!dirty) return;
+    function hold(event: MouseEvent) {
+      if (event.defaultPrevented || event.button !== 0) return;
+      // A new tab or window keeps this screen as it is.
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = (event.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
+      const to = new URL(link.href, window.location.href);
+      if (to.origin !== window.location.origin) return;
+      if (to.pathname === window.location.pathname && to.search === window.location.search) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setLeaveTo(to.pathname + to.search + to.hash);
+    }
+    // Before the link's own handler, so the move never starts.
+    document.addEventListener("click", hold, true);
+    return () => document.removeEventListener("click", hold, true);
+  }, [dirty]);
+  function leave(to: string) {
+    setLeaveTo(null);
+    setDirty(false);
+    router.push(to);
+  }
+
   // Asks first when there is work that has not been saved.
   function newCase(next = template) {
     if (dirty) setPending(next);
@@ -461,7 +503,6 @@ export function ReportWorkspace({
     setFailed(null);
     setDraft("");
     setError("");
-    setCopyState("empty");
     setValidation(null);
   }
 
@@ -488,12 +529,10 @@ export function ReportWorkspace({
     const { html, text } = clipboardParts(next, from);
     try {
       await copyReport(html, text);
-      setCopyState("copied");
-      toast.success(`Report copied. Press ${keyText("Ctrl+V", isMac())} in PACS`);
+      toast.success("Report copied");
     } catch {
-      setCopyState("stale");
       setError(COPY_BLOCKED);
-      toast.warning("The browser did not let the report copy. Press Copy report again.");
+      toast.warning("The browser did not let the report copy. Press Copy again.");
     }
   }
 
@@ -557,16 +596,14 @@ export function ReportWorkspace({
     return next;
   }
 
-  // Must be called from a click or key press. The clipboard write starts now,
-  // while the browser still counts it as user-initiated, and is filled in when
-  // the report arrives a few seconds later.
+  // Writes the words into the report. Nothing is copied by itself: the doctor
+  // copies with the Copy button when the report is ready.
   async function send(textPromise: Promise<string>) {
     const stopper = new AbortController();
     writingStop.current = stopper;
     setBusy(true);
     setError("");
     setFailed(null);
-    setCopyState("stale");
 
     // Known once the words have arrived; used to show the failed dictation in the log.
     let dictated = "";
@@ -580,28 +617,10 @@ export function ReportWorkspace({
       setDraft("");
       return next;
     });
-    // Waits for the signature image too, so a copy is never made without it.
-    const output = nextReport.then(async (value) => clipboardParts(value, await identityReady()));
-
-    const asHtml = output.then((value) => toBlob(value.html, "text/html"));
-    const asText = output.then((value) => toBlob(value.text, "text/plain"));
-    // A stopped or failed update is reported below, not as a stray browser error.
-    asHtml.catch(() => {});
-    asText.catch(() => {});
-    const copied = writeClipboard(asHtml, asText).then(
-        () => true,
-        () => false,
-      );
 
     try {
       await nextReport;
-      const done = await copied;
-      setCopyState(done ? "copied" : "stale");
-      if (done) toast.success("Report updated and copied");
-      else {
-        setError(COPY_BLOCKED);
-        toast.warning("Report updated, but not copied. Press Copy report.");
-      }
+      toast.success("Report updated");
     } catch (cause) {
       if (stopper.signal.aborted) {
         // Stopped by the doctor: the report is as it was and the words stay in the box.
@@ -720,14 +739,10 @@ export function ReportWorkspace({
     };
   }, [shortcuts, floatingWindow]);
 
-  // Typed edits: recopy shortly after the radiologist stops typing.
-  const editTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // Typed edits.
   function edited(next: Report) {
     setReport(next);
     setDirty(true);
-    setCopyState("stale");
-    clearTimeout(editTimer.current);
-    editTimer.current = setTimeout(() => copy(next), 500);
   }
 
   function editorChanged(doc: DocNode) {
@@ -875,7 +890,7 @@ export function ReportWorkspace({
         win={floating.win}
         status={status}
         words={shownWords}
-        note={copyState === "copied" ? `Report updated and copied. Press ${keyText("Ctrl+V", mac)} in PACS.` : ""}
+        note=""
         problem={failed?.message || error || dictation.error}
         onType={setDraft}
         onMic={toggleMic}
@@ -893,7 +908,6 @@ export function ReportWorkspace({
         hasLetterhead={identity.letterheadEnabled && Boolean(identity.headerImage || identity.footerImage)}
         hasSignature={Boolean(identity.signatureText.trim() || identity.signatureImage)}
         flaggedLines={flaggedLines}
-        copied={copyState === "copied"}
         onPrint={print}
         onCopy={() => copy(report)}
       />
@@ -945,6 +959,47 @@ export function ReportWorkspace({
                 <FloppyDisk weight="bold" className="h-5 w-5" />
                 {saving && <Spinner />}
                 {saving ? "Saving" : "Save first"}
+              </button>
+              <Dialog.Close className={`${buttonClass.quiet} h-12`}>Keep editing</Dialog.Close>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      <Dialog.Root open={leaveTo !== null} onOpenChange={(open) => !open && setLeaveTo(null)}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="app-backdrop fixed inset-0 z-50 bg-[#06110f]/50" />
+          <Dialog.Popup className="app-layer sheet fixed left-1/2 top-1/2 z-50 w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/20 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(6_17_15/0.55)] outline-none sm:p-8">
+            <Dialog.Title className="text-[1.4rem] font-semibold tracking-[-0.02em]">
+              Save this report before leaving?
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-[1.02rem] leading-relaxed text-ink-soft">
+              {savedId
+                ? "You changed this report after saving it. Leaving now loses those changes."
+                : "This report is not saved. Leaving now loses it."}
+            </Dialog.Description>
+            <div className="mt-6 flex flex-col gap-2.5">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => {
+                  const to = leaveTo;
+                  if (!to) return;
+                  setLeaveTo(null);
+                  requestSave(() => leave(to));
+                }}
+                className={`${buttonClass.primary} h-12`}
+              >
+                <FloppyDisk weight="bold" className="h-5 w-5" />
+                Save and leave
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => leaveTo && leave(leaveTo)}
+                className={`${buttonClass.danger} h-12`}
+              >
+                Leave without saving
               </button>
               <Dialog.Close className={`${buttonClass.quiet} h-12`}>Keep editing</Dialog.Close>
             </div>
@@ -1112,31 +1167,16 @@ export function ReportWorkspace({
                     onChecked={() => setCredits(afterOneUpdate)}
                     onIssues={setValidation}
                   />
-                  {/* Opens once the AI Assistant has worked on the report. */}
-                  <Tip
-                    label={
-                      finalizedAt && !dirty
-                        ? "Finalized: view it as it prints"
-                        : readyToFinalize
-                          ? "Finalize: check details, save as final"
-                          : "Finalize opens once the AI Assistant has updated the report"
-                    }
-                  >
+                  {/* Always open: a report typed by hand, or a normal study, is finalized the same way. */}
+                  <Tip label={finalizedAt && !dirty ? "Finalized: view it as it prints" : "Finalize: check details, save as final"}>
                     <button
                       type="button"
                       onClick={() => {
                         if (finalizedAt && !dirty) setShowFinal(true);
-                        else if (readyToFinalize) finalize();
+                        else finalize();
                       }}
                       disabled={saving || busy}
-                      aria-disabled={!readyToFinalize}
-                      className={`${STEP} ${
-                        finalizedAt && !dirty
-                          ? STEP_DONE
-                          : readyToFinalize
-                            ? "font-bold text-ink"
-                            : "cursor-default font-bold text-ink-quiet hover:bg-transparent active:scale-100"
-                      }`}
+                      className={`${STEP} ${finalizedAt && !dirty ? STEP_DONE : "font-bold text-ink"}`}
                     >
                       {saving && patientAsk === "finalize" ? (
                         <Spinner />
@@ -1160,8 +1200,9 @@ export function ReportWorkspace({
                     disabled={busy}
                     className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-ink/35 px-4 text-[0.95rem] font-bold text-ink transition-colors hover:bg-ink/[0.05] active:scale-[0.98] disabled:opacity-50"
                   >
-                    {copyState === "copied" ? <Check weight="bold" className="h-[18px] w-[18px]" /> : <Copy weight="bold" className="h-[18px] w-[18px]" />}
-                    {copyState === "copied" ? "Copied" : "Copy"}
+                    {/* Always the same: the report can be copied at any time, as it reads now. */}
+                    <Copy weight="bold" className="h-[18px] w-[18px]" />
+                    Copy
                   </button>
                 </Tip>
               </div>
@@ -1183,7 +1224,7 @@ export function ReportWorkspace({
             key={editorSeed}
             ref={editorRef}
             variant="embedded"
-            pageHeightMm={pageHeightMm}
+            pageHeightMm={a4Canvas ? pageHeightMm : undefined}
             initialDoc={initialDoc}
             profile={profile}
             onChange={editorChanged}
@@ -1773,7 +1814,7 @@ export function ReportWorkspace({
               {[
                 ["Press the button and speak", "Say only what is abnormal, in any order."],
                 ["Check the report", "Everything you did not mention stays normal."],
-                ["Paste into PACS", `The report is copied for you. Press ${keyText("Ctrl+V", mac)}.`],
+                ["Copy or print", "Press Copy report, then paste it where you need it."],
               ].map(([title, body], index) => (
                 <li key={title} className="flex gap-3">
                   <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-ink text-[0.9rem] font-bold text-surface">

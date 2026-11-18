@@ -33,7 +33,7 @@ function shareLink(code: string, origin: string) {
 
 /** What a doctor sends a colleague: short, in their voice, with the link that fills in the code. */
 function shareMessage(code: string, origin: string) {
-  return `I use LumenAI for my radiology reports. I speak only what is abnormal and the report is ready for PACS. Sign up with my code ${code}: ${shareLink(code, origin)}`;
+  return `I use LumenAI for my radiology reports. I speak only what is abnormal and the report is ready to paste or print. Sign up with my code ${code}: ${shareLink(code, origin)}`;
 }
 
 const number = (value: number) => value.toLocaleString("en-IN");

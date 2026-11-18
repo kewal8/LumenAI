@@ -3,6 +3,7 @@ import {
   BookOpenText,
   Buildings,
   ClipboardText,
+  File,
   FileText,
   Keyboard,
   Lightning,
@@ -11,6 +12,7 @@ import {
   UserCircle,
 } from "@phosphor-icons/react/dist/ssr";
 import {
+  CanvasSetting,
   FloatingBoxSetting,
   LetterheadForm,
   ShortcutsForm,
@@ -56,7 +58,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const [user, { tab: wanted }] = await Promise.all([requireUser(), searchParams]);
   const tab: Tab = TABS.find((item) => item.id === wanted)?.id ?? "profile";
   const [[row], identity, macros, words] = await Promise.all([
-    db()`select paste_profile, shortcuts, floating_box, macro_mode from users where id = ${user.id}`,
+    db()`select paste_profile, shortcuts, floating_box, macro_mode, a4_canvas from users where id = ${user.id}`,
     getIdentity(user.id),
     tab === "macros" ? listMacros(user.id) : [],
     tab === "dictionary" && user.org ? listDictionaryWords(user.org.id) : [],
@@ -122,9 +124,19 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         <Section
           icon={<FileText weight="fill" className="h-5 w-5" />}
           title="Report letterhead"
-          description="Header and footer for reports you print or save as PDF. A report copied for PACS never carries it."
+          description="Header and footer for reports you print or save as PDF. A copied report never carries it."
         >
           <LetterheadForm identity={identity} />
+        </Section>
+      )}
+
+      {tab === "letterhead" && (
+        <Section
+          icon={<File weight="fill" className="h-5 w-5" />}
+          title="Working canvas"
+          description="The sheet you write a report on."
+        >
+          <CanvasSetting a4={row?.a4_canvas !== false} />
         </Section>
       )}
 
@@ -132,7 +144,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         <Section
           icon={<ClipboardText weight="fill" className="h-5 w-5" />}
           title="Report paste format"
-          description="How a report is formatted when it is copied for your PACS editor. Change it if the paste loses its font or headings."
+          description="How a report is formatted when it is copied. Change it if the paste loses its font or headings."
         >
           <PasteFormatForm profile={parsePasteProfile(row?.paste_profile)} />
         </Section>

@@ -42,7 +42,7 @@ const PLAN_ICONS: Record<Plan["id"], React.ReactNode> = {
 };
 
 // The same in every plan: plans differ only in how many AI updates a day they hold.
-const INCLUDED = ["Your own templates", "Every line checked against your words", "Copy for PACS, print and PDF"];
+const INCLUDED = ["Your own templates", "Every line checked against your words", "Copy, print and PDF"];
 
 const RULES = [
   {

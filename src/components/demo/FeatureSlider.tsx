@@ -79,7 +79,7 @@ const SLIDES = [
     ),
   },
   {
-    title: "Already copied for PACS",
+    title: "Copy in one press",
     body: (
       <>
         Press <KeyCombo combo="Ctrl+V" /> in your report editor. Headings and spacing survive the paste.
@@ -89,7 +89,7 @@ const SLIDES = [
       <>
         <p className="flex items-center gap-2 self-start rounded-full bg-teal-glow px-4 py-2 text-[0.92rem] font-bold text-[#08302d]">
           <CheckCircle weight="fill" className="h-4 w-4" />
-          Copied. Press <KeyCombo combo="Ctrl+V" /> in PACS
+          Copied. Press <KeyCombo combo="Ctrl+V" /> to paste
         </p>
         <Paper>
           <p className="font-bold">FINDINGS:</p>

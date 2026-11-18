@@ -2,7 +2,6 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import {
-  CheckCircle,
   Copy,
   FolderOpen,
   PencilSimpleLine,
@@ -12,7 +11,6 @@ import {
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { buttonClass, formatDateTime } from "@/components/app/ui";
-import { KeyCombo } from "@/components/KeyCombo";
 
 /**
  * Shown after a report is finalized: the report exactly as it will print,
@@ -27,7 +25,6 @@ export function FinalizeDialog({
   hasLetterhead,
   hasSignature,
   flaggedLines,
-  copied,
   onPrint,
   onCopy,
 }: {
@@ -40,7 +37,6 @@ export function FinalizeDialog({
   hasSignature: boolean;
   /** Lines still marked to check when it was finalized. */
   flaggedLines: number;
-  copied: boolean;
   onPrint: () => void;
   onCopy: () => void;
 }) {
@@ -76,14 +72,10 @@ export function FinalizeDialog({
               <button
                 type="button"
                 onClick={onCopy}
-                className={copied ? `${buttonClass.secondary} !border-teal !text-teal-deep` : buttonClass.primary}
+                className={buttonClass.primary}
               >
-                {copied ? (
-                  <CheckCircle weight="fill" className="h-5 w-5" />
-                ) : (
-                  <Copy weight="bold" className="h-5 w-5" />
-                )}
-                {copied ? <>Copied. Press <KeyCombo combo="Ctrl+V" /></> : "Copy for PACS"}
+                <Copy weight="bold" className="h-5 w-5" />
+                Copy report
               </button>
             </div>
           </header>

@@ -33,6 +33,10 @@ export const PATCH = handle(async (request) => {
     await sql`update users set floating_box = ${body.floatingBox} where id = ${user.id}`;
   }
 
+  if (typeof body.a4Canvas === "boolean") {
+    await sql`update users set a4_canvas = ${body.a4Canvas} where id = ${user.id}`;
+  }
+
   if (body.macroMode === "expand" || body.macroMode === "keep") {
     await sql`update users set macro_mode = ${body.macroMode} where id = ${user.id}`;
   }

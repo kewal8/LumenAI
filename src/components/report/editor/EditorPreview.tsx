@@ -154,13 +154,13 @@ export function EditorPreview() {
 
           <section className={`${PANEL} flex flex-col gap-3 p-5`}>
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-[1.1rem] font-semibold">What PACS will receive</h2>
+              <h2 className="text-[1.1rem] font-semibold">What gets pasted</h2>
               <button type="button" onClick={copy} className={buttonClass.primary}>
                 <Copy weight="bold" className="h-5 w-5" />
                 Copy
               </button>
             </div>
-            {copied === "yes" && <p className="font-semibold text-teal-deep">Copied. Paste into PACS to check.</p>}
+            {copied === "yes" && <p className="font-semibold text-teal-deep">Copied.</p>}
             {copied === "no" && (
               <p className="flex items-center gap-2 font-semibold text-flag">
                 <WarningCircle weight="fill" className="h-5 w-5" />

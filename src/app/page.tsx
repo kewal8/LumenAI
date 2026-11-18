@@ -78,16 +78,16 @@ const PROBLEMS = [
     body: "Even the “sorry, I mean 15 mm”. It hears what you say, not which line a finding belongs to.",
   },
   {
-    title: "The PACS editor is where time goes",
+    title: "The report editor is where time goes",
     body: "Headings, spacing and the impression get fixed by hand after the reading is done.",
   },
 ];
 
 const STEPS = [
-  { title: "Open a template, or start blank", body: "Beside your PACS viewer, or on its own. A template starts the report complete and normal." },
+  { title: "Open a template, or start blank", body: "Beside your image viewer, or on its own. A template starts the report complete and normal." },
   { title: "Dictate the abnormal", body: "Speak, stop, and the report updates. Correct yourself out loud." },
   { title: "Review and finalise", body: "Read it once, with anything doubtful flagged. It is saved under the patient." },
-  { title: "Into PACS, or printed", body: <>Paste it with <KeyCombo combo="Ctrl+V" />, or print it signed on your letterhead. No PACS needed.</> },
+  { title: "Pasted, or printed", body: <>Paste it with <KeyCombo combo="Ctrl+V" /> into your reporting software, or print it signed on your letterhead.</> },
 ];
 
 const OLD_WAY = [
@@ -95,7 +95,7 @@ const OLD_WAY = [
   "Retype a line every time you misspeak",
   "Write the impression from scratch",
   "Proofread for a wrong side or a lost “no”",
-  "Fix headings and spacing in the PACS editor",
+  "Fix headings and spacing in the report editor",
 ];
 
 const NEW_WAY = [
@@ -103,7 +103,7 @@ const NEW_WAY = [
   "Correct yourself out loud: “sorry, 15 mm”",
   "Impression written from your findings",
   "Side, numbers and negation checked against your words",
-  "Paste into PACS, or print it signed",
+  "Paste it in one press, or print it signed",
 ];
 
 const RESPONSIBILITIES = [
@@ -136,7 +136,7 @@ const CENTRE_POINTS = [
   {
     icon: <Browsers className="h-5 w-5" />,
     title: "Nothing to install",
-    body: "Runs in the browser, beside your PACS or on its own. No server, no IT project.",
+    body: "Runs in the browser, beside your viewer or on its own. No server, no IT project.",
   },
   {
     icon: <DeviceMobile className="h-5 w-5" />,
@@ -171,7 +171,7 @@ export default function LandingPage() {
           </h1>
           <p className="hero-in mt-6 max-w-[50ch] text-[1.1rem] leading-relaxed text-ink-soft [--i:1]">
             Say only your findings. LumenAI writes the full report in your template,
-            checks every line against your words, and hands it to PACS or prints it signed.
+            checks every line against your words, and gives it to you ready to paste, or prints it signed.
             Less typing, fewer slips, and you finish on time.
           </p>
           <div className="hero-in mt-9 flex flex-wrap items-center justify-center gap-3 [--i:2]">
@@ -254,7 +254,7 @@ export default function LandingPage() {
                     <Browsers className="h-5 w-5" />
                   </IconTile>
                   <div>
-                    <h3 className="font-semibold leading-snug">With your PACS, or on its own</h3>
+                    <h3 className="font-semibold leading-snug">With your own software, or on its own</h3>
                     <p className="mt-1 text-[0.98rem] leading-relaxed text-ink-soft">
                       A browser tab next to your viewer, or a complete reporting desk by itself. Nothing to install.
                     </p>
@@ -391,7 +391,7 @@ export default function LandingPage() {
             <p className="mx-auto mt-5 max-w-[54ch] text-center text-[1.05rem] leading-relaxed text-ink-soft">
               LumenAI writes up your findings. It does not add a diagnosis, a stage or a
               differential of its own, and every line is checked against your words before you
-              sign. The finished report goes into PACS without retyping, or leaves signed, on your letterhead.
+              sign. The finished report pastes into your reporting software without retyping, or leaves signed, on your letterhead.
             </p>
           </Reveal>
 
@@ -454,7 +454,7 @@ export default function LandingPage() {
                 </IconTile>
                 <div>
                   <h3 className="text-[1.4rem] font-semibold leading-snug tracking-[-0.03em]">
-                    Already copied, formatted for PACS
+                    Copy in one press, formatting kept
                   </h3>
                   <p className="mt-2 max-w-[50ch] leading-relaxed text-ink-soft">
                     Press <KeyCombo combo="Ctrl+V" /> in your report editor. Bold headings, Arial 10
@@ -463,14 +463,14 @@ export default function LandingPage() {
                 </div>
               </div>
               {/* TODO: real screenshot, report pasted into a PACS editor. */}
-              <ScreenshotFrame label="Pasted into PACS" layout="paste" />
+              <ScreenshotFrame label="Pasted into your editor" layout="paste" />
             </Item>
 
             {/* The other way out: no PACS needed to finish a report. */}
             <Item as="article" lift className="on-night flex flex-col gap-8 rounded-3xl bg-night p-7 text-on-night sm:p-9 lg:col-span-6 lg:flex-row lg:items-center lg:gap-12">
               <div className="lg:max-w-[24rem]">
                 <h3 className="text-[1.4rem] font-semibold leading-snug tracking-[-0.03em]">
-                  No PACS? It finishes the report itself.
+                  Nothing to paste into? It finishes the report itself.
                 </h3>
                 <p className="mt-2 leading-relaxed text-on-night-soft">
                   Finalise, sign and print from LumenAI. Every report is kept, ready to open again.

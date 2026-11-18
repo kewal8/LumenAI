@@ -198,7 +198,7 @@ function AssistantOptions({
               <span>
                 <span className="block font-semibold">Floating window</span>
                 <span className="mt-0.5 block text-[0.9rem] leading-snug text-ink-soft">
-                  Keeps the assistant on top of PACS when you leave.
+                  Keeps the assistant on top when you leave this tab.
                 </span>
               </span>
               <Switch.Root

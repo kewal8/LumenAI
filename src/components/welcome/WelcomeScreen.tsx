@@ -37,10 +37,10 @@ const STEPS = [
   },
   {
     icon: <ClipboardText weight="fill" className="h-5 w-5" />,
-    title: "Into PACS, or signed right here",
+    title: "Paste it, or sign it right here",
     body: (
       <>
-        Paste it into your PACS with <KeyCombo combo="Ctrl+V" />, or finalise it here and print it on your letterhead with your
+        Paste it into your reporting software with <KeyCombo combo="Ctrl+V" />, or finalise it here and print it on your letterhead with your
         signature.
       </>
     ),
@@ -79,7 +79,7 @@ export function WelcomeScreen({ firstName, locked }: { firstName: string; locked
             Welcome to Lumen<span className="text-teal">AI</span>, {firstName}.
           </motion.h1>
           <motion.p variants={rise} className="mt-5 max-w-[46ch] text-[1.15rem] leading-relaxed text-ink-soft">
-            From your voice to a signed report in PACS, in less than a minute. Here is how every report gets done.
+            From your voice to a signed report, in less than a minute. Here is how every report gets done.
           </motion.p>
 
           <motion.ol variants={group} className="mt-9 flex flex-col">
@@ -215,7 +215,7 @@ function DemoPanel() {
         className="inline-flex items-center gap-2 self-end rounded-full bg-teal-glow px-4 py-2 text-[0.95rem] font-bold text-[#08302d]"
       >
         <SealCheck weight="fill" className="h-5 w-5" />
-        Copied for PACS. Press <KeyCombo combo="Ctrl+V" />
+        Copied. Press <KeyCombo combo="Ctrl+V" />
       </motion.p>
     </motion.aside>
   );

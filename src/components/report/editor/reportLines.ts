@@ -28,6 +28,62 @@ function lineTexts(doc: PMNode) {
   return texts;
 }
 
+/** A paragraph's text with one character per position, so offsets match the document. */
+function plainText(node: PMNode) {
+  return node.textBetween(0, node.content.size, "", "\ufffc");
+}
+
+function words(text: string) {
+  const found: { word: string; from: number; to: number }[] = [];
+  for (const match of text.matchAll(/\S+/g)) {
+    found.push({ word: match[0], from: match.index, to: match.index + match[0].length });
+  }
+  return found;
+}
+
+/**
+ * The stretches of a line the AI wrote: the words that are not in the wording
+ * the line had before. A line with no earlier wording is new from end to end.
+ */
+function addedRanges(base: string | null, text: string): [number, number][] {
+  const now = words(text);
+  if (now.length === 0) return [];
+  const before = base ? words(base).map((item) => item.word) : [];
+  if (before.length === 0) return [[now[0].from, now[now.length - 1].to]];
+
+  // Longest run of words the two share, in order; the rest of `now` was added.
+  const rows = before.length + 1;
+  const cols = now.length + 1;
+  const table = new Uint16Array(rows * cols);
+  for (let i = before.length - 1; i >= 0; i--) {
+    for (let j = now.length - 1; j >= 0; j--) {
+      table[i * cols + j] =
+        before[i] === now[j].word
+          ? table[(i + 1) * cols + j + 1] + 1
+          : Math.max(table[(i + 1) * cols + j], table[i * cols + j + 1]);
+    }
+  }
+  const kept = new Set<number>();
+  for (let i = 0, j = 0; i < before.length && j < now.length; ) {
+    if (before[i] === now[j].word) {
+      kept.add(j);
+      i++;
+      j++;
+    } else if (table[(i + 1) * cols + j] >= table[i * cols + j + 1]) i++;
+    else j++;
+  }
+
+  // Neighbouring added words join into one stroke of the highlighter.
+  const ranges: [number, number][] = [];
+  now.forEach((item, index) => {
+    if (kept.has(index)) return;
+    const last = ranges[ranges.length - 1];
+    if (last && !kept.has(index - 1)) last[1] = item.to;
+    else ranges.push([item.from, item.to]);
+  });
+  return ranges;
+}
+
 /**
  * Small note under a line: what to check before signing. The words the line
  * was written from are shown in the chat only, not here.
@@ -97,6 +153,8 @@ export const ReportLines = Extension.create({
           sectionId: attribute("sectionId", "data-section-id"),
           status: attribute("status", "data-status"),
           source: attribute("source", "data-source"),
+          // The wording a dictated line had before the AI rewrote it.
+          base: attribute("base", "data-base"),
           role: attribute("role", "data-role"),
           impression: {
             default: null,
@@ -124,6 +182,22 @@ export const ReportLines = Extension.create({
   },
 
   addProseMirrorPlugins() {
+    // Wording this report has held as a normal or dictated line, with how it
+    // was marked. A line cut and pasted somewhere else, or typed back to what
+    // it said, is that same line again: it keeps its marking and is not shown
+    // as changed by hand.
+    const known = new Map<string, { status: string; source: string | null }>();
+    const remember = (doc: PMNode) => {
+      doc.descendants((node) => {
+        if (!isLine(node)) return;
+        const text = node.textContent.trim();
+        const status = node.attrs.status;
+        if (text && (status === "normal" || status === "spoken")) {
+          known.set(text, { status, source: node.attrs.source ?? null });
+        }
+      });
+    };
+
     return [
       new Plugin({
         key: new PluginKey("reportLines"),
@@ -135,6 +209,9 @@ export const ReportLines = Extension.create({
           // Dictation updates and undo/redo already carry the right details.
           if (transactions.some((tr) => tr.getMeta(PATCH) || tr.getMeta("history$"))) return null;
 
+          // Only the settled document is trusted: a paragraph just split or
+          // pasted still carries the marking of the line it came from.
+          remember(oldState.doc);
           const before = lineTexts(oldState.doc);
           const seen = new Set<string>();
           let section: string | null = null;
@@ -166,8 +243,15 @@ export const ReportLines = Extension.create({
               section = node.attrs.sectionId ?? section;
               inImpression = false;
               const changed = before.has(id) && before.get(id) !== node.textContent;
-              if (changed && (node.attrs.status !== "edited" || node.attrs.warnings.length > 0)) {
-                set(pos, { ...node.attrs, status: "edited", warnings: [] });
+              if (changed) {
+                const same = known.get(node.textContent.trim());
+                if (same) {
+                  if (node.attrs.status !== same.status || node.attrs.warnings.length > 0) {
+                    set(pos, { ...node.attrs, status: same.status, source: same.source, warnings: [] });
+                  }
+                } else if (node.attrs.status !== "edited" || node.attrs.warnings.length > 0) {
+                  set(pos, { ...node.attrs, status: "edited", warnings: [] });
+                }
               }
               return;
             }
@@ -178,7 +262,15 @@ export const ReportLines = Extension.create({
             } else {
               const fresh = newLineId(section);
               seen.add(fresh);
-              set(pos, { ...node.attrs, lineId: fresh, sectionId: section, status: "edited", source: null, warnings: [] });
+              const same = known.get(node.textContent.trim());
+              set(pos, {
+                ...node.attrs,
+                lineId: fresh,
+                sectionId: section,
+                status: same?.status ?? "edited",
+                source: same?.source ?? null,
+                warnings: [],
+              });
             }
           });
           return fix;
@@ -192,6 +284,13 @@ export const ReportLines = Extension.create({
               const flagged = node.attrs.warnings.length > 0;
               if (flagged) {
                 decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: "report-line-flagged" }));
+              }
+              // What the AI wrote is run over with a highlighter, word by word.
+              // A decoration, not part of the report: never copied or printed.
+              if (node.attrs.status === "spoken") {
+                for (const [from, to] of addedRanges(node.attrs.base, plainText(node))) {
+                  decorations.push(Decoration.inline(pos + 1 + from, pos + 1 + to, { class: "ai-mark" }));
+                }
               }
               if (flagged) {
                 decorations.push(
@@ -265,7 +364,7 @@ export function applyPatchToEditor(editor: Editor, { template, ops, impression }
   for (const op of ops) {
     if (op.op === "add") {
       const created = paragraph.create(
-        { lineId: newLineId(op.sectionId), sectionId: op.sectionId, status: "spoken", source: op.source, warnings: op.warnings },
+        { lineId: newLineId(op.sectionId), sectionId: op.sectionId, status: "spoken", source: op.source, base: null, warnings: op.warnings },
         op.text ? schema.text(op.text) : undefined,
       );
       const last =
@@ -279,7 +378,10 @@ export function applyPatchToEditor(editor: Editor, { template, ops, impression }
     if (!line) continue;
 
     if (op.op === "replace") {
-      tr.setNodeMarkup(line.pos, undefined, { ...line.node.attrs, status: "spoken", source: op.source, warnings: op.warnings });
+      // Kept from the first rewrite, so a second dictation is still compared with the normal wording.
+      const base =
+        line.node.attrs.status === "spoken" ? (line.node.attrs.base ?? null) : line.node.textContent;
+      tr.setNodeMarkup(line.pos, undefined, { ...line.node.attrs, status: "spoken", source: op.source, base, warnings: op.warnings });
       setText(line.pos, line.node, op.text);
       continue;
     }
@@ -289,7 +391,7 @@ export function applyPatchToEditor(editor: Editor, { template, ops, impression }
       .find((section) => section.id === line.node.attrs.sectionId)
       ?.lines.find((candidate) => candidate.id === op.lineId);
     if (normal) {
-      tr.setNodeMarkup(line.pos, undefined, { ...line.node.attrs, status: "normal", source: null, warnings: [] });
+      tr.setNodeMarkup(line.pos, undefined, { ...line.node.attrs, status: "normal", source: null, base: null, warnings: [] });
       setText(line.pos, line.node, normal.text);
     } else {
       removeBlock(line.pos, line.node);

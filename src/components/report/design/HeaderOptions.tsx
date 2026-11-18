@@ -254,7 +254,7 @@ function OptionOnePress({ stage }: { stage: Stage }) {
           </span>
           <span className={stage === 0 ? WAITING : stage === 4 ? DONE : FILLED}>
             {stage === 4 ? <Check weight="bold" className="h-[18px] w-[18px]" /> : <SealCheck weight="bold" className="h-[18px] w-[18px]" />}
-            {stage === 4 ? "Copied for PACS" : stage === 3 ? "Copy again" : "Finalize & copy"}
+            {stage === 4 ? "Copied" : stage === 3 ? "Copy again" : "Finalize & copy"}
             {stage > 0 && stage < 3 && <kbd className="ml-1 hidden font-[inherit] text-[0.8rem] font-semibold opacity-60 @[40rem]:inline">⌘↵</kbd>}
           </span>
           <span className={TOOL}><DotsThree weight="bold" className="h-5 w-5" /></span>
@@ -638,7 +638,7 @@ function OptionHandOff() {
     }
     setSent({ how, at: now() });
     setChangedAfter(false);
-    toast.success(how === "Copied" ? "Report copied. Press Ctrl+V in PACS" : "Sent to the printer");
+    toast.success(how === "Copied" ? "Report copied" : "Sent to the printer");
   }
 
   function reset() {
@@ -709,7 +709,7 @@ function OptionHandOff() {
             )}
             <button type="button" onClick={() => handOff("Copied")} className={FILLED}>
               <Copy weight="bold" className="h-[18px] w-[18px]" />
-              Copy for PACS
+              Copy report
             </button>
           </div>
         </header>
@@ -771,7 +771,7 @@ const OPTIONS = [
   {
     key: "B",
     name: "Finalize & copy, one press",
-    why: "The goal of the screen is text in PACS. Finalize and copy happen together in one press (⌘↵). Validate is the only other button, outlined because it is optional. Print, save and full screen go into ⋯.",
+    why: "The goal of the screen is a report ready to paste. Finalize and copy happen together in one press (⌘↵). Validate is the only other button, outlined because it is optional. Print, save and full screen go into ⋯.",
     cost: "Fewest presses and least on screen. Print is one more click away, which is a problem for centres that print every report.",
     View: OptionOnePress,
   },
@@ -792,7 +792,7 @@ const OPTIONS = [
   {
     key: "E",
     name: "No Finalize: copying or printing marks it done",
-    why: "No Save and no Finalize. The draft saves itself. Validate stays optional. Copy for PACS or Print is the hand-off, so it marks the report done with the time; an edit after that is flagged in amber and switches Validated off. Turn on the approval step to see a centre where a senior must approve first. Try it: these buttons work.",
+    why: "No Save and no Finalize. The draft saves itself. Validate stays optional. Copy or Print is the hand-off, so it marks the report done with the time; an edit after that is flagged in amber and switches Validated off. Turn on the approval step to see a centre where a senior must approve first. Try it: these buttons work.",
     cost: "Two buttons in the header. A report copied just to check the paste counts as sent until it is changed.",
     View: OptionHandOff,
   },
