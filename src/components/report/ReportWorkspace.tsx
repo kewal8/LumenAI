@@ -8,6 +8,7 @@ import {
   CaretDown,
   Check,
   CheckCircle,
+  Circle,
   CircleNotch,
   Copy,
   DotsSixVertical,
@@ -58,7 +59,7 @@ import { MacroHighlights } from "./MacroHighlights";
 import { comboFromEvent, type ShortcutAction, type Shortcuts } from "@/lib/shortcuts";
 import { isMac, keyText, useIsMac } from "@/lib/keys";
 import { FinalizeDialog } from "./FinalizeDialog";
-import { ValidateButton } from "./ValidateButton";
+import { STEP, STEP_DONE, STEP_ICON, ValidateButton } from "./ValidateButton";
 import { FloatingBox, useFloatingWindow } from "./FloatingBox";
 import { useLineVoice } from "./LineVoice";
 import { useEditorVoice } from "./editor/EditorVoice";
@@ -174,6 +175,8 @@ export function ReportWorkspace({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [copyState, setCopyState] = useState<CopyState>("empty");
+  // The last check: null when not validated (or changed since), else the suggestions still open; 0 is validated.
+  const [validation, setValidation] = useState<number | null>(null);
   const [credits, setCredits] = useState(initialCredits);
 
   // The new design writes into the rich report editor. Its document is the
@@ -459,6 +462,7 @@ export function ReportWorkspace({
     setDraft("");
     setError("");
     setCopyState("empty");
+    setValidation(null);
   }
 
   // Prints through a hidden frame, so the report page itself stays as it is.
@@ -729,6 +733,8 @@ export function ReportWorkspace({
   }
 
   function editorChanged(doc: DocNode) {
+    // A change after a clean check means the report needs validating again.
+    setValidation((current) => (current === 0 ? null : current));
     const next = { ...docToReport(doc, reportRef.current), doc };
     reportRef.current = next;
     if (applying.current) setReport(next);
@@ -971,9 +977,6 @@ export function ReportWorkspace({
   // Both halves are the same kind of object: a white card on the grey canvas.
   const CARD =
     "flex min-h-0 flex-col overflow-clip rounded-[28px] border border-line bg-surface shadow-[0_1px_2px_rgb(10_13_12/0.05),0_22px_60px_-34px_rgb(10_13_12/0.4)]";
-  // Round icon tools with no outline; a soft grey circle shows on hover.
-  const TOOL =
-    "grid h-10 w-10 shrink-0 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.07] disabled:opacity-40";
   const ICON_BUTTON =
     "grid h-10 w-10 shrink-0 place-items-center rounded-full text-ink-soft transition-colors hover:bg-ink/[0.06] hover:text-ink disabled:opacity-40";
 
@@ -987,148 +990,167 @@ export function ReportWorkspace({
           aria-label="Report"
           className={`${CARD} order-2 min-h-[70dvh] min-w-0 flex-1 lg:order-1 lg:min-h-0 ${fullScreen ? "lg:mx-auto lg:max-w-[72rem]" : ""}`}
         >
-          {/* A draft document: who it is for on the left, with the template it
-              started from as a quiet detail; actions on the right in two groups,
-              output (print, copy) and keeping it (save, finalize). */}
-          <header className="@container shrink-0 border-b border-line px-4 py-2">
-            <div className="flex items-center gap-3">
-              {/* New report first, then the document's label. */}
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <Tip label="New report">
-                  <button type="button" onClick={() => newCase()} aria-label="New report" className={`${ICON_BUTTON} shrink-0`}>
-                    <Plus weight="bold" className="h-5 w-5" />
-                  </button>
-                </Tip>
-                {/* The document's label: who it is for, and beneath it the draft state
-                    and the template it started from, as small details. */}
-                <div className="flex min-w-0 flex-1 flex-col leading-tight">
-                  {/* The patient: a label on the document, not its headline. */}
-                  <Tip label={hasPatient(patient) ? "Change patient details" : "Add patient details"}>
-                    <button
-                      type="button"
-                      onClick={() => setPatientAsk("edit")}
-                      className="-mx-1.5 flex min-w-0 max-w-full items-baseline gap-2 self-start rounded-md px-1.5 text-left transition-colors hover:bg-ink/[0.05]"
-                    >
-                      {hasPatient(patient) ? (
-                        <>
-                          <span className="truncate text-[0.95rem] font-semibold text-ink">{patient.name}</span>
-                          {ageSex(patient) && (
-                            <span className="shrink-0 text-[0.88rem] text-ink-soft">{ageSex(patient)}</span>
-                          )}
-                        </>
-                      ) : (
-                        <span className="whitespace-nowrap text-[0.95rem] font-semibold text-ink-quiet">New patient</span>
-                      )}
-                    </button>
-                  </Tip>
-                  <div className="flex min-w-0 items-center gap-1.5">
-                    <span
-                      className={`shrink-0 rounded px-1.5 py-px text-[0.68rem] font-bold uppercase tracking-[0.06em] ${
-                        savedId && !dirty ? "bg-teal/[0.12] text-teal-deep" : "bg-ink/[0.07] text-ink-soft"
-                      }`}
-                      title={
-                        finalizedAt && !dirty
-                          ? "Finalized"
-                          : finalizedAt
-                            ? "Changed after finalizing"
-                            : savedId && !dirty
-                              ? "Saved as a draft"
-                              : savedId
-                                ? "Changes not saved"
-                                : "Not saved yet"
-                      }
-                    >
-                      {/* Draft until saved; changes after a save make it a draft again until saved. */}
-                      {finalizedAt && !dirty ? "Final" : savedId && !dirty ? "Saved" : "Draft"}
-                    </span>
-                    <TemplatePicker
-                      current={template}
-                      onPick={pickTemplate}
-                      // Where the draft started: a small detail under the patient, not its name.
-                      className="!h-6 min-w-0 max-w-[14rem] !gap-1 !rounded-md !border-transparent !bg-transparent !px-1 !text-[0.82rem] !font-medium !text-ink-soft hover:!bg-ink/[0.05] hover:!text-ink data-[popup-open]:!bg-ink/[0.06] [&>svg]:!h-3 [&>svg]:!w-3"
-                    />
-                  </div>
-                </div>
-              </div>
+          {/* Two rows. First: whose report, where it stands, and the tools used
+              less often. Second: the template it started from, then the pair
+              of closing steps (Validate, Finalize), then Copy on its own. */}
+          <header className="@container shrink-0 border-b border-line">
+            <div className="flex h-12 items-center gap-2 border-b border-line bg-ink/[0.02] pl-[11px] pr-4">
+              <Tip label="New report">
+                <button type="button" onClick={() => newCase()} aria-label="New report" className={`${ICON_BUTTON} shrink-0`}>
+                  <Plus weight="bold" className="h-5 w-5" />
+                </button>
+              </Tip>
+              {/* The patient: a label on the document, not its headline. */}
+              <Tip label={hasPatient(patient) ? "Change patient details" : "Add patient details"}>
+                <button
+                  type="button"
+                  onClick={() => setPatientAsk("edit")}
+                  className="-mx-1 flex min-w-0 items-baseline gap-2 rounded-md px-1.5 py-0.5 text-left transition-colors hover:bg-ink/[0.05]"
+                >
+                  {hasPatient(patient) ? (
+                    <>
+                      <span className="truncate text-[0.95rem] font-semibold text-ink">{patient.name}</span>
+                      {ageSex(patient) && <span className="shrink-0 text-[0.88rem] text-ink-soft">{ageSex(patient)}</span>}
+                    </>
+                  ) : (
+                    <span className="whitespace-nowrap text-[0.95rem] font-semibold text-ink-quiet">New patient</span>
+                  )}
+                </button>
+              </Tip>
+              {/* Where the report stands, beside whose it is. */}
+              <span className="ml-1 flex shrink-0 items-center gap-1.5">
+                <span
+                  className={`shrink-0 rounded px-1.5 py-px text-[0.68rem] font-bold uppercase tracking-[0.06em] ${finalizedAt && !dirty ? "bg-teal/[0.12] text-teal-deep" : "bg-ink/[0.07] text-ink-soft"}`}
+                  title={
+                    finalizedAt && !dirty
+                      ? "Finalized"
+                      : finalizedAt
+                        ? "Changed after finalizing"
+                        : savedId && !dirty
+                          ? "Saved as a draft"
+                          : savedId
+                            ? "Changes not saved"
+                            : "Not saved yet"
+                  }
+                >
+                  {finalizedAt && !dirty ? "Final" : "Draft"}
+                </span>
+                <span
+                  className={`shrink-0 rounded px-1.5 py-px text-[0.68rem] font-bold uppercase tracking-[0.06em] ${
+                    validation === 0
+                      ? "bg-teal/[0.12] text-teal-deep"
+                      : validation
+                        ? "bg-amber-tint text-amber-deep"
+                        : "bg-ink/[0.07] text-ink-soft"
+                  }`}
+                >
+                  {validation === 0 ? "Validated" : validation ? `${validation} to fix` : "Not validated"}
+                </span>
+              </span>
 
-              <div className="ml-auto flex shrink-0 items-center gap-1">
-                {/* Output: any time, nothing asked. */}
+              <div className="ml-auto flex shrink-0 items-center gap-0.5">
                 <Tip label="Print or PDF" shortcut={keyText(shortcuts.print, mac, " + ")}>
-                  <button type="button" onClick={print} disabled={busy} aria-label="Print or PDF" className={TOOL}>
+                  <button type="button" onClick={print} disabled={busy} aria-label="Print or PDF" className={ICON_BUTTON}>
                     <Printer weight="bold" className="h-5 w-5" />
                   </button>
                 </Tip>
-                <Tip label="Copy report" shortcut={keyText(shortcuts.copy, mac, " + ")}>
-                  <button
-                    type="button"
-                    onClick={() => copy(report)}
-                    disabled={busy}
-                    aria-label="Copy report"
-                    className={TOOL}
-                  >
-                    <Copy weight="bold" className="h-5 w-5" />
-                  </button>
-                </Tip>
-                <span aria-hidden="true" className="mx-1 h-6 w-px bg-ink/20" />
-                {/* Keeping it: the patient's details are asked for here. */}
-                <Tip label={savedId ? "Save changes" : "Save"} shortcut={keyText(shortcuts.save, mac, " + ")}>
+                <Tip
+                  label={savedId && !dirty ? "Saved" : savedId ? "Save changes" : "Save"}
+                  shortcut={keyText(shortcuts.save, mac, " + ")}
+                >
                   <button
                     type="button"
                     onClick={() => requestSave()}
                     disabled={saving || busy || (savedId !== null && !dirty)}
-                    className="inline-flex h-10 items-center gap-2 rounded-full px-3.5 text-[0.95rem] font-semibold text-ink transition-colors hover:bg-ink/[0.07] disabled:text-ink-quiet disabled:hover:bg-transparent"
+                    aria-label={savedId && !dirty ? "Saved" : "Save"}
+                    className={ICON_BUTTON}
                   >
                     {saving && patientAsk === null ? <Spinner /> : <FloppyDisk weight="bold" className="h-5 w-5" />}
-                    <span className="hidden @[52rem]:inline">{savedId && !dirty ? "Saved" : "Save"}</span>
                   </button>
                 </Tip>
-                {/* Spelling, grammar and filler words, checked just before finalizing. */}
-                {future && (
-                  <ValidateButton
-                    getLines={() => editorRef.current?.getLines() ?? []}
-                    fixText={(line, find, replace) => editorRef.current?.fixText(line, find, replace) ?? false}
-                    disabled={saving || busy}
-                    onChecked={() => setCredits(afterOneUpdate)}
-                  />
-                )}
-                {/* Finalize opens, and stands out, once the AI Assistant has worked on the report. */}
-                <Tip
-                  label={
-                    finalizedAt && !dirty
-                      ? "Finalized: view it as it prints"
-                      : readyToFinalize
-                        ? "Finalize: check details, save as final"
-                        : "Finalize opens once the AI Assistant has updated the report"
-                  }
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (finalizedAt && !dirty) setShowFinal(true);
-                      else if (readyToFinalize) finalize();
-                    }}
-                    disabled={saving || busy}
-                    aria-disabled={!readyToFinalize}
-                    className={`inline-flex h-10 items-center gap-2 rounded-full px-3 text-[0.95rem] font-bold transition-colors disabled:opacity-60 @[40rem]:px-4 ${
-                      readyToFinalize
-                        ? "bg-btn text-btn-text hover:bg-teal-deep"
-                        : "cursor-default bg-ink/[0.06] text-ink-quiet"
-                    }`}
-                  >
-                    <SealCheck weight={finalizedAt && !dirty ? "fill" : "bold"} className="h-5 w-5" />
-                    <span className="hidden @[40rem]:inline">{finalizedAt && !dirty ? "Finalized" : "Finalize"}</span>
-                  </button>
-                </Tip>
-                <span aria-hidden="true" className="mx-1 hidden h-6 w-px bg-ink/20 lg:block" />
                 <Tip label={fullScreen ? "Exit full screen" : "Full screen"}>
                   <button
                     type="button"
                     onClick={toggleFullScreen}
                     aria-pressed={fullScreen}
                     aria-label={fullScreen ? "Exit full screen" : "Full screen"}
-                    className={`${TOOL} hidden lg:grid`}
+                    className={`${ICON_BUTTON} hidden lg:grid`}
                   >
                     {fullScreen ? <CornersIn weight="bold" className="h-5 w-5" /> : <CornersOut weight="bold" className="h-5 w-5" />}
+                  </button>
+                </Tip>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2 pl-[11px] pr-4">
+              {/* Where the draft started: a quiet detail. Its text, the + above and the undo arrow below share one left edge. */}
+              <TemplatePicker
+                current={template}
+                onPick={pickTemplate}
+                className="!h-8 min-w-0 max-w-[18rem] !gap-1 !rounded-md !border-transparent !bg-transparent !px-[9px] !text-[0.85rem] !font-medium !text-ink-soft hover:!bg-ink/[0.05] hover:!text-ink data-[popup-open]:!bg-ink/[0.06] [&>svg]:!h-3 [&>svg]:!w-3"
+              />
+
+              <div className="ml-auto flex shrink-0 items-center gap-3">
+                {/* One family: the two closing steps on a shared track. */}
+                <div className="flex items-center gap-0.5 rounded-full bg-ink/[0.05] p-0.5">
+                  <ValidateButton
+                    getLines={() => editorRef.current?.getLines() ?? []}
+                    fixText={(line, find, replace) => editorRef.current?.fixText(line, find, replace) ?? false}
+                    disabled={saving || busy}
+                    validated={validation === 0}
+                    onChecked={() => setCredits(afterOneUpdate)}
+                    onIssues={setValidation}
+                  />
+                  {/* Opens once the AI Assistant has worked on the report. */}
+                  <Tip
+                    label={
+                      finalizedAt && !dirty
+                        ? "Finalized: view it as it prints"
+                        : readyToFinalize
+                          ? "Finalize: check details, save as final"
+                          : "Finalize opens once the AI Assistant has updated the report"
+                    }
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (finalizedAt && !dirty) setShowFinal(true);
+                        else if (readyToFinalize) finalize();
+                      }}
+                      disabled={saving || busy}
+                      aria-disabled={!readyToFinalize}
+                      className={`${STEP} ${
+                        finalizedAt && !dirty
+                          ? STEP_DONE
+                          : readyToFinalize
+                            ? "font-bold text-ink"
+                            : "cursor-default font-bold text-ink-quiet hover:bg-transparent active:scale-100"
+                      }`}
+                    >
+                      {saving && patientAsk === "finalize" ? (
+                        <Spinner />
+                      ) : finalizedAt && !dirty ? (
+                        <CheckCircle weight="fill" className={`${STEP_ICON} text-teal`} />
+                      ) : (
+                        <Circle weight="bold" className={`${STEP_ICON} text-ink-quiet`} />
+                      )}
+                      {finalizedAt && !dirty ? "Finalized" : "Finalize"}
+                    </button>
+                  </Tip>
+                </div>
+
+                <span aria-hidden="true" className="h-6 w-px bg-ink/15" />
+
+                {/* On its own: works at any time. */}
+                <Tip label="Copy report" shortcut={keyText(shortcuts.copy, mac, " + ")}>
+                  <button
+                    type="button"
+                    onClick={() => copy(report)}
+                    disabled={busy}
+                    className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-ink/35 px-4 text-[0.95rem] font-bold text-ink transition-colors hover:bg-ink/[0.05] active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {copyState === "copied" ? <Check weight="bold" className="h-[18px] w-[18px]" /> : <Copy weight="bold" className="h-[18px] w-[18px]" />}
+                    {copyState === "copied" ? "Copied" : "Copy"}
                   </button>
                 </Tip>
               </div>

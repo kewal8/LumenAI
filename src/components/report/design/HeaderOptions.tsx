@@ -6,7 +6,9 @@ import {
   CaretDown,
   CaretRight,
   Check,
+  CheckCircle,
   Checks,
+  Circle,
   Copy,
   CornersOut,
   DotsThree,
@@ -24,8 +26,14 @@ import {
   TextB,
   TextItalic,
   TextUnderline,
+  WarningCircle,
 } from "@phosphor-icons/react";
+import { Dialog } from "@base-ui/react/dialog";
 import { useState } from "react";
+import { Spinner } from "@/components/Spinner";
+import { toast } from "@/components/Toast";
+import { BACKDROP, POPUP } from "@/components/app/TeamClient";
+import { buttonClass } from "@/components/app/ui";
 
 /*
  * A design study for the report header, built apart from the report screen so
@@ -260,35 +268,468 @@ function OptionOnePress({ stage }: { stage: Stage }) {
 
 // ——— C. Two rows ———
 
-function OptionTwoRows({ stage }: { stage: Stage }) {
+const DEMO_ISSUES = [
+  { id: "spelling", kind: "Spelling", text: "“haemorrage” should be “haemorrhage”", where: "Findings, line 2" },
+  { id: "filler", kind: "Filler word", text: "“um” was left in the sentence", where: "Findings, line 4" },
+];
+
+/** One step of the Validate and Finalize pair: an empty ring until done, then a green tick and less weight. */
+function StepButton({
+  done,
+  busy,
+  attention,
+  label,
+  title,
+  onClick,
+  disabled,
+}: {
+  done: boolean;
+  busy?: boolean;
+  /** Something needs the doctor before this step counts as done. */
+  attention?: boolean;
+  label: string;
+  title: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  const icon = "h-[18px] w-[18px] shrink-0";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-full px-3.5 text-[0.92rem] transition-colors hover:bg-surface active:scale-[0.98] disabled:cursor-progress ${
+        done
+          ? "font-medium text-ink-soft hover:text-ink"
+          : attention
+            ? "font-bold text-amber-deep"
+            : "font-bold text-ink"
+      }`}
+    >
+      {busy ? (
+        <Spinner />
+      ) : done ? (
+        <CheckCircle weight="fill" className={`${icon} text-teal`} />
+      ) : attention ? (
+        <WarningCircle weight="fill" className={icon} />
+      ) : (
+        <Circle weight="bold" className={`${icon} text-ink-quiet`} />
+      )}
+      {label}
+    </button>
+  );
+}
+
+/**
+ * A working prototype. The second row names the report and shows its two
+ * states as tags; Validate and Finalize are a pair of steps that each go from
+ * an empty ring to a green tick, and Copy stands apart from them. Validate is
+ * optional and lists what it finds; Finalize asks first when the report has
+ * not been validated, and a finalized report can be opened again.
+ */
+function OptionTwoRows() {
+  const [validated, setValidated] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [issues, setIssues] = useState<typeof DEMO_ISSUES>([]);
+  const [final, setFinal] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [asking, setAsking] = useState<"finalize" | "reopen" | null>(null);
+  // Prototype only: makes the next validation find mistakes.
+  const [mistakes, setMistakes] = useState(false);
+
+  // Stands in for the real check, which takes a few seconds.
+  function validate(then?: () => void) {
+    setChecking(true);
+    setTimeout(() => {
+      setChecking(false);
+      if (mistakes) {
+        setValidated(false);
+        setIssues(DEMO_ISSUES);
+        toast.warning(`Validation found ${DEMO_ISSUES.length} things to fix`);
+        return;
+      }
+      setIssues([]);
+      setValidated(true);
+      toast.success("Validated. No issues found.");
+      then?.();
+    }, 1100);
+  }
+
+  function fix(ids: string[]) {
+    const left = issues.filter((issue) => !ids.includes(issue.id));
+    setIssues(left);
+    if (!left.length) {
+      setValidated(true);
+      toast.success("All fixed. Report validated.");
+    }
+  }
+
+  function finalize() {
+    setFinal(true);
+    toast.success("Report finalized and saved");
+  }
+
+  function copy() {
+    setCopied(true);
+    toast.success(validated ? "Validated report copied" : "Report copied");
+  }
+
+  function reset() {
+    setValidated(false);
+    setChecking(false);
+    setIssues([]);
+    setFinal(false);
+    setCopied(false);
+  }
+
+  const TAG = "shrink-0 rounded px-1.5 py-px text-[0.68rem] font-bold uppercase tracking-[0.06em]";
+
   return (
     <Card>
-      {/* Row 1: whose report, and the tools used rarely. Small and quiet. */}
+      {/* Row 1: whose report, where it stands, and the tools used rarely. Small and quiet. */}
       <div className="flex h-11 items-center gap-2 border-b border-line bg-ink/[0.02] px-4">
         <span className={QUIET_TOOL}><Plus weight="bold" className="h-[18px] w-[18px]" /></span>
         <span className="truncate text-[0.9rem] font-semibold">R. Sharma</span>
         <span className="shrink-0 text-[0.85rem] text-ink-soft">42 M</span>
-        <span className="text-ink/25">/</span>
-        <Template small />
+        {/* Where the report stands, beside whose it is. */}
+        <span className="ml-1 flex shrink-0 items-center gap-1.5">
+          <span className={`${TAG} ${final ? "bg-teal/[0.12] text-teal-deep" : "bg-ink/[0.07] text-ink-soft"}`}>
+            {final ? "Final" : "Draft"}
+          </span>
+          <span
+            className={`${TAG} ${
+              validated
+                ? "bg-teal/[0.12] text-teal-deep"
+                : issues.length
+                  ? "bg-amber-tint text-amber-deep"
+                  : "bg-ink/[0.07] text-ink-soft"
+            }`}
+          >
+            {validated ? "Validated" : issues.length ? `${issues.length} to fix` : "Not validated"}
+          </span>
+        </span>
         <span className="ml-auto flex shrink-0 items-center gap-0.5">
           <span className={QUIET_TOOL}><Printer className="h-[18px] w-[18px]" /></span>
           <span className={QUIET_TOOL}><FloppyDisk className="h-[18px] w-[18px]" /></span>
           <span className={QUIET_TOOL}><CornersOut className="h-[18px] w-[18px]" /></span>
         </span>
       </div>
-      {/* Row 2: the three closing steps, and where the report stands. */}
-      <div className="flex items-center gap-3 border-b border-line px-4 py-2.5">
-        <span className="flex min-w-0 flex-1 items-center gap-2 text-[0.9rem] text-ink-soft">
-          <Badge stage={stage} />
-          <span className="truncate">
-            {["Speak the findings", "Check it, then validate", "Ready to finalize", "Final. Copy it into PACS", "In your clipboard"][stage]}
-          </span>
-        </span>
-        <Steps stage={stage} />
+      {/* Row 2: the template, then the pair of steps, then Copy on its own. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-4 py-2.5">
+        {/* Starts on the same line as the + above and the undo arrow below: their icons sit 9px inside their buttons. */}
+        <div className="flex min-w-0 flex-1 basis-56 items-center gap-2 pl-[5px]">
+          <Template />
+        </div>
+
+        <div className="flex shrink-0 items-center gap-3">
+          {/* One family: two steps on a shared track. */}
+          <div className="flex items-center gap-0.5 rounded-full bg-ink/[0.05] p-0.5">
+            <StepButton
+              done={validated}
+              busy={checking}
+              attention={issues.length > 0}
+              label={checking ? "Validating" : validated ? "Validated" : issues.length ? `${issues.length} to fix` : "Validate"}
+              title={validated || issues.length ? "Validate again" : "Check spelling, grammar and filler words"}
+              onClick={() => validate()}
+              disabled={checking}
+            />
+            <StepButton
+              done={final}
+              label={final ? "Finalized" : "Finalize"}
+              title={final ? "Open this report for changes" : "Mark this report final"}
+              onClick={() => (final ? setAsking("reopen") : validated ? finalize() : setAsking("finalize"))}
+              disabled={checking}
+            />
+          </div>
+
+          <span aria-hidden="true" className="h-6 w-px bg-ink/15" />
+
+          {/* On its own: works at any time. */}
+          <button type="button" onClick={copy} className={OUTLINED}>
+            {copied ? <Check weight="bold" className="h-[18px] w-[18px]" /> : <Copy weight="bold" className="h-[18px] w-[18px]" />}
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
       </div>
+
+      {/* What validation found, each with its place in the report. The last fix marks the report validated. */}
+      {issues.length > 0 && (
+        <div className="border-b border-line bg-amber-tint/60 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <p className="flex-1 text-[0.92rem] font-bold text-amber-deep">
+              {issues.length === 1 ? "1 thing to fix" : `${issues.length} things to fix`}
+            </p>
+            {issues.length > 1 && (
+              <button
+                type="button"
+                onClick={() => fix(issues.map((issue) => issue.id))}
+                className="text-[0.88rem] font-bold text-ink underline-offset-2 hover:underline"
+              >
+                Fix all
+              </button>
+            )}
+          </div>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {issues.map((issue) => (
+              <li key={issue.id} className="flex items-center gap-3 rounded-xl bg-surface px-3 py-2">
+                <span className="min-w-0 flex-1 text-[0.92rem]">
+                  <span className="font-bold">{issue.kind}: </span>
+                  {issue.text}
+                  <span className="block text-[0.82rem] text-ink-soft">{issue.where}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => fix([issue.id])}
+                  className="inline-flex h-9 shrink-0 items-center rounded-full border border-ink/35 px-3.5 text-[0.88rem] font-bold hover:bg-ink/[0.05]"
+                >
+                  Fix
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <FormatBar />
-      <Paper />
+      <Paper>
+        <div className="mt-5 flex flex-wrap items-center gap-4 font-sans">
+          <label className="flex items-center gap-2.5 text-[0.85rem] font-semibold text-ink-soft">
+            <input
+              type="checkbox"
+              checked={mistakes}
+              onChange={(event) => setMistakes(event.target.checked)}
+              className="h-4 w-4 accent-teal"
+            />
+            Prototype: the report has mistakes
+          </label>
+          <button type="button" onClick={reset} className="text-[0.85rem] font-semibold text-ink-quiet underline-offset-2 hover:text-ink hover:underline">
+            Reset
+          </button>
+        </div>
+      </Paper>
+
+      <Dialog.Root open={asking !== null} onOpenChange={(open) => !open && setAsking(null)}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className={BACKDROP} />
+          <Dialog.Popup className={POPUP}>
+            {asking === "reopen" ? (
+              <>
+                <Dialog.Title className="text-[1.3rem] font-semibold tracking-[-0.02em]">Open this report for changes?</Dialog.Title>
+                <Dialog.Description className="mt-2 text-ink-soft">
+                  It goes back to Draft. Finalize it again when the changes are done.
+                </Dialog.Description>
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAsking(null);
+                      setFinal(false);
+                      toast.warning("Report is a draft again");
+                    }}
+                    className={buttonClass.primary}
+                  >
+                    Open for changes
+                  </button>
+                  <Dialog.Close className={buttonClass.quiet}>Keep it final</Dialog.Close>
+                </div>
+              </>
+            ) : issues.length ? (
+              <>
+                <Dialog.Title className="text-[1.3rem] font-semibold tracking-[-0.02em]">Finalize with {issues.length} left to fix?</Dialog.Title>
+                <Dialog.Description className="mt-2 text-ink-soft">
+                  Validation found mistakes that are still in the report.
+                </Dialog.Description>
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <Dialog.Close className={buttonClass.primary}>Go back and fix</Dialog.Close>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAsking(null);
+                      finalize();
+                    }}
+                    className={buttonClass.secondary}
+                  >
+                    Finalize anyway
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <Dialog.Title className="text-[1.3rem] font-semibold tracking-[-0.02em]">Validate before finalizing?</Dialog.Title>
+                <Dialog.Description className="mt-2 text-ink-soft">
+                  This report has not been validated. Validate checks spelling, grammar and filler words, and uses 1 AI update.
+                </Dialog.Description>
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAsking(null);
+                      validate(finalize);
+                    }}
+                    className={buttonClass.primary}
+                  >
+                    <Checks weight="bold" className="h-4 w-4" />
+                    Validate, then finalize
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAsking(null);
+                      finalize();
+                    }}
+                    className={buttonClass.secondary}
+                  >
+                    Finalize without validating
+                  </button>
+                  <Dialog.Close className={buttonClass.quiet}>Cancel</Dialog.Close>
+                </div>
+              </>
+            )}
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
     </Card>
+  );
+}
+
+// ——— E. No Finalize: the hand-off marks it done ———
+
+/**
+ * A working prototype with no Save and no Finalize. The draft saves itself;
+ * Validate stays optional; copying or printing is the hand-off and marks the
+ * report done, and a change after that is flagged. With "Approval step" on,
+ * as in a centre where a senior signs off others' reports, an Approve button
+ * appears and is the only thing that releases the report.
+ */
+function OptionHandOff() {
+  const [approvals, setApprovals] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [validated, setValidated] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [sent, setSent] = useState<{ how: "Copied" | "Printed"; at: string } | null>(null);
+  const [changedAfter, setChangedAfter] = useState(false);
+  const [approved, setApproved] = useState(false);
+
+  const now = () => new Date().toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+
+  // Every change saves itself a moment later; no Save button.
+  function edit() {
+    setSaving(true);
+    setValidated(false);
+    if (sent) setChangedAfter(true);
+    if (approved) setApproved(false);
+    setTimeout(() => setSaving(false), 700);
+  }
+
+  function validate() {
+    setChecking(true);
+    setTimeout(() => {
+      setChecking(false);
+      setValidated(true);
+      toast.success("Validated. Nothing to fix.");
+    }, 1100);
+  }
+
+  function handOff(how: "Copied" | "Printed") {
+    if (approvals && !approved) {
+      toast.warning("This report needs approval before it can be copied or printed.");
+      return;
+    }
+    setSent({ how, at: now() });
+    setChangedAfter(false);
+    toast.success(how === "Copied" ? "Report copied. Press Ctrl+V in PACS" : "Sent to the printer");
+  }
+
+  function reset() {
+    setSaving(false);
+    setValidated(false);
+    setChecking(false);
+    setSent(null);
+    setChangedAfter(false);
+    setApproved(false);
+  }
+
+  const state = changedAfter
+    ? { label: `Changed after ${sent!.how === "Copied" ? "copying" : "printing"}`, tone: "bg-amber-tint text-amber-deep" }
+    : sent
+      ? { label: `${sent.how} ${sent.at}`, tone: "bg-teal/[0.12] text-teal-deep" }
+      : approved
+        ? { label: "Approved", tone: "bg-teal/[0.12] text-teal-deep" }
+        : { label: "Draft", tone: "bg-ink/[0.07] text-ink-soft" };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <label className="flex items-center gap-3 self-start rounded-full border border-line bg-surface px-4 py-2 text-[0.9rem] font-semibold">
+        <input type="checkbox" checked={approvals} onChange={(event) => (setApprovals(event.target.checked), reset())} className="h-4 w-4 accent-teal" />
+        Approval step: a senior signs off before release
+      </label>
+      <Card>
+        <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-4 py-2">
+          <span className={TOOL}><Plus weight="bold" className="h-5 w-5" /></span>
+          <div className="flex min-w-0 flex-1 basis-48 flex-col leading-tight">
+            <span className="flex items-baseline gap-2">
+              <span className="truncate text-[0.95rem] font-semibold">R. Sharma</span>
+              <span className="shrink-0 text-[0.88rem] text-ink-soft">42 M</span>
+            </span>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className={`shrink-0 rounded px-1.5 py-px text-[0.68rem] font-bold uppercase tracking-[0.06em] ${state.tone}`}>
+                {state.label}
+              </span>
+              {/* The save state is a quiet word, not a button. */}
+              <span className="text-[0.8rem] text-ink-quiet">{saving ? "Saving…" : "Saved"}</span>
+            </span>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={() => handOff("Printed")} title="Print or PDF" className={QUIET_TOOL}>
+              <Printer className="h-5 w-5" />
+            </button>
+            {validated && !checking ? (
+              <button type="button" onClick={validate} title="Validate again" className={`${PILL} bg-teal/[0.12] text-teal-deep hover:bg-teal/[0.18]`}>
+                <CheckCircle weight="fill" className="h-[18px] w-[18px]" />
+                Validated
+              </button>
+            ) : (
+              <button type="button" onClick={validate} disabled={checking} className={`${OUTLINED} disabled:opacity-60`}>
+                {checking ? <Spinner /> : <Checks weight="bold" className="h-[18px] w-[18px]" />}
+                {checking ? "Validating" : "Validate"}
+              </button>
+            )}
+            {approvals && (
+              <button
+                type="button"
+                onClick={() => (setApproved(true), toast.success("Report approved and released"))}
+                disabled={approved}
+                className={approved ? `${PILL} text-teal-deep` : OUTLINED}
+              >
+                <SealCheck weight={approved ? "fill" : "bold"} className="h-[18px] w-[18px]" />
+                {approved ? "Approved" : "Approve"}
+              </button>
+            )}
+            <button type="button" onClick={() => handOff("Copied")} className={FILLED}>
+              <Copy weight="bold" className="h-[18px] w-[18px]" />
+              Copy for PACS
+            </button>
+          </div>
+        </header>
+        <FormatBar />
+        <Paper>
+          <div className="mt-5 flex flex-wrap gap-3 font-sans">
+            <button
+              type="button"
+              onClick={edit}
+              className="rounded-full border border-dashed border-ink/30 px-3.5 py-1.5 text-[0.85rem] font-semibold text-ink-soft hover:border-ink/60 hover:text-ink"
+            >
+              Make an edit to the report
+            </button>
+            <button type="button" onClick={reset} className="text-[0.85rem] font-semibold text-ink-quiet underline-offset-2 hover:text-ink hover:underline">
+              Reset
+            </button>
+          </div>
+        </Paper>
+      </Card>
+    </div>
   );
 }
 
@@ -336,9 +777,9 @@ const OPTIONS = [
   },
   {
     key: "C",
-    name: "Two rows: who, then what next",
-    why: "A thin top row holds the patient, template and rare tools. A second row holds the closing steps with one line saying where the report stands.",
-    cost: "Clearest to read, but about 48px less report on screen, and the doctor's eye is on the text, not the header.",
+    name: "Two rows: who, then the report and its steps",
+    why: "A thin top row holds the patient, the report's two tags (Draft and Not validated) and the rare tools. The second row names the template. Validate and Finalize are one pair: an empty ring until done, then a green tick and less weight. Copy stands apart and works at any time. Try it: tick “the report has mistakes” below the report to see validation list what it found.",
+    cost: "Clearest to read, but about 48px less report on screen.",
     View: OptionTwoRows,
   },
   {
@@ -347,6 +788,13 @@ const OPTIONS = [
     why: "The header only says whose report it is. The closing steps float at the bottom of the report card, after the impression, where review finishes and near the AI Assistant's controls.",
     cost: "Very calm header, but a long report means scrolling to reach the dock unless it stays pinned to the bottom edge.",
     View: OptionDock,
+  },
+  {
+    key: "E",
+    name: "No Finalize: copying or printing marks it done",
+    why: "No Save and no Finalize. The draft saves itself. Validate stays optional. Copy for PACS or Print is the hand-off, so it marks the report done with the time; an edit after that is flagged in amber and switches Validated off. Turn on the approval step to see a centre where a senior must approve first. Try it: these buttons work.",
+    cost: "Two buttons in the header. A report copied just to check the paste counts as sent until it is changed.",
+    View: OptionHandOff,
   },
 ];
 

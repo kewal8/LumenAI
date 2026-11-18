@@ -1,7 +1,7 @@
 "use client";
 
 import { Popover } from "@base-ui/react/popover";
-import { CheckCircle, Checks, X } from "@phosphor-icons/react";
+import { CheckCircle, Circle, WarningCircle, X } from "@phosphor-icons/react";
 import { useState } from "react";
 import { Spinner } from "@/components/Spinner";
 import { Tip } from "@/components/Tip";
@@ -18,6 +18,12 @@ type Issue = {
 
 const KIND: Record<Issue["kind"], string> = { spelling: "Spelling", grammar: "Grammar", filler: "Filler" };
 
+/** One step of the Validate and Finalize pair: an empty ring until done, then a green tick and less weight. */
+export const STEP =
+  "inline-flex h-9 shrink-0 items-center gap-2 rounded-full px-3.5 text-[0.92rem] transition-colors hover:bg-surface active:scale-[0.98] disabled:cursor-progress";
+export const STEP_DONE = "font-medium text-ink-soft hover:text-ink";
+export const STEP_ICON = "h-[18px] w-[18px] shrink-0";
+
 const SMALL =
   "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[0.85rem] font-semibold transition-colors disabled:opacity-50";
 
@@ -30,13 +36,19 @@ export function ValidateButton({
   getLines,
   fixText,
   disabled,
+  validated,
   onChecked,
+  onIssues,
 }: {
   getLines: () => string[];
   fixText: (line: number, find: string, replace: string) => boolean;
   disabled: boolean;
+  /** The report as it is now passed a check (or every suggestion was dealt with). */
+  validated: boolean;
   /** Called once a check has used an AI update. */
   onChecked: () => void;
+  /** Suggestions still open after a check: 0 once none were found or all were fixed or ignored. */
+  onIssues: (count: number) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -55,10 +67,21 @@ export function ValidateButton({
     }
     onChecked();
     setIssues(result.data.issues.map((issue, key) => ({ ...issue, key })));
+    onIssues(result.data.issues.length);
+    if (result.data.issues.length === 0) {
+      setOpen(false);
+      toast.success("Validated. No issues found.");
+    }
   }
 
   function drop(key: number) {
-    setIssues((current) => current?.filter((issue) => issue.key !== key) ?? null);
+    const left = (issues ?? []).filter((issue) => issue.key !== key);
+    setIssues(left);
+    onIssues(left.length);
+    if (!left.length) {
+      setOpen(false);
+      toast.success("All suggestions dealt with. Report validated.");
+    }
   }
 
   function fix(issue: Issue & { key: number }) {
@@ -72,14 +95,18 @@ export function ValidateButton({
     const list = issues ?? [];
     const done = list.filter((issue) => fixText(issue.line, issue.find, issue.replace)).length;
     setIssues([]);
+    onIssues(0);
     if (done === list.length) toast.success(done === 1 ? "1 fix made" : `${done} fixes made`);
     else toast.warning(`${done} of ${list.length} fixes made. The rest of the text had changed.`);
     setOpen(false);
   }
 
+  // Suggestions from the last check still waiting for Fix or Ignore.
+  const pending = !checking && issues ? issues.length : 0;
+
   return (
     <Popover.Root open={open} onOpenChange={(next) => !checking && setOpen(next)}>
-      <Tip label="Validate: check spelling, grammar and filler words · uses 1 AI update">
+      <Tip label={validated ? "Validated. Press to check again · uses 1 AI update" : "Validate: check spelling, grammar and filler words · uses 1 AI update"}>
         <Popover.Trigger
           onClick={(event) => {
             // Each press runs a fresh check of the report as it is now, rather than toggling.
@@ -87,10 +114,18 @@ export function ValidateButton({
             if (!checking) check();
           }}
           disabled={disabled || checking}
-          className="inline-flex h-10 items-center gap-2 rounded-full px-3.5 text-[0.95rem] font-semibold text-ink transition-colors hover:bg-ink/[0.07] disabled:text-ink-quiet disabled:hover:bg-transparent data-[popup-open]:bg-ink/[0.07]"
+          className={`${STEP} ${validated && !checking ? STEP_DONE : pending ? "font-bold text-amber-deep" : "font-bold text-ink"} data-[popup-open]:bg-surface`}
         >
-          {checking ? <Spinner /> : <Checks weight="bold" className="h-5 w-5" />}
-          <span className="hidden @[52rem]:inline">Validate</span>
+          {checking ? (
+            <Spinner />
+          ) : validated ? (
+            <CheckCircle weight="fill" className={`${STEP_ICON} text-teal`} />
+          ) : pending ? (
+            <WarningCircle weight="fill" className={STEP_ICON} />
+          ) : (
+            <Circle weight="bold" className={`${STEP_ICON} text-ink-quiet`} />
+          )}
+          {checking ? "Validating" : validated ? "Validated" : pending ? `${pending} to fix` : "Validate"}
         </Popover.Trigger>
       </Tip>
       <Popover.Portal>
