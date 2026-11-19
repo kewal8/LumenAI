@@ -82,28 +82,30 @@ body {
 }
 
 /* Dark is opt-in through the toggle in the navigation, never automatic.
-   The surfaces are a near-neutral charcoal with only a hint of the brand
-   green, in clear steps (canvas < card < tinted block), so a card never
-   melts into the page and the teal accent is the only strong colour. */
+   Metallic, not black and white: the page is gunmetal grey, panels are a
+   clear step lighter steel, and text is a silver white. No pure black and
+   no pure white anywhere, so nothing glares in a dim reading room. The
+   steps stay clear (canvas < card < tinted block) and teal is the only
+   strong colour. */
 html[data-landing-theme="dark"] {
-  --c-canvas: #0a100f;
-  --c-surface: #121a18;
-  --c-ink: #e8eeec;
-  --c-ink-soft: #a8b6b2;
-  --c-ink-quiet: #7f8e8a;
-  --c-line: #23302d;
+  --c-canvas: #181b1f;
+  --c-surface: #22262b;
+  --c-ink: #dce1e5;
+  --c-ink-soft: #a6adb4;
+  --c-ink-quiet: #868e96;
+  --c-line: #33383f;
   --c-teal: #5ccbb9;
   --c-teal-deep: #94dccf;
-  --c-teal-tint: #13241f;
+  --c-teal-tint: #1b3332;
   --c-amber: #e7ad4f;
   --c-amber-deep: #f2cb88;
-  --c-amber-tint: #241d0e;
+  --c-amber-tint: #352b15;
   --c-flag: #f09a86;
-  --c-btn: #e8eeec;
-  --c-btn-text: #0a100f;
-  --c-night: #0f201d;
-  --c-night-line: #253834;
-  --c-grid: rgb(232 238 236 / 0.025);
+  --c-btn: #dce1e5;
+  --c-btn-text: #181b1f;
+  --c-night: #1e2b2d;
+  --c-night-line: #34484a;
+  --c-grid: rgb(220 225 229 / 0.03);
   --c-glow-strength: 0.32;
 }
 
@@ -256,27 +258,36 @@ html[data-landing-theme="dark"] {
 }
 
 html[data-landing-theme="dark"] :is(.app, .app-layer) {
-  /* The same calm charcoal steps as the public pages: page, then panels a
-     clear step lighter, then lines, so panels never merge with the page. */
-  --c-canvas: #0b1110;
-  --c-surface: #141c1a;
-  --c-ink: #f2f6f5;
-  --c-ink-soft: #b4c1be;
-  --c-ink-quiet: #8e9b98;
-  --c-line: #27332f;
-  /* Deep teal, not mint: white text on it is 4.9:1, and as an icon on the
-     dark panels it is 3.4:1. teal-deep stays light because it is used for
-     teal text on dark backgrounds. */
+  /* The same metallic steps as the public pages: gunmetal page, steel
+     panels a clear step lighter, then lines, so panels never merge with the
+     page. Text is silver white: 11:1 on a panel, without the glare of pure
+     white on black. */
+  --c-canvas: #1a1d21;
+  --c-surface: #24282d;
+  --c-ink: #e1e5e9;
+  --c-ink-soft: #aeb5bc;
+  --c-ink-quiet: #8f979f;
+  --c-line: #383d44;
+  /* Deep teal, not mint: silver-white text on it is 4.5:1, and as an icon on the
+     dark panels it is about 3:1. teal-deep stays light because it is used
+     for teal text on dark backgrounds. */
   --c-teal: #0f7f73;
   --c-teal-deep: #8fdccf;
-  --c-teal-tint: #142a25;
+  --c-teal-tint: #1d3635;
   --c-amber-deep: #f6d28f;
-  --c-amber-tint: #2c230c;
+  --c-amber-tint: #3a3017;
   --c-flag: #ffb3a1;
-  /* Main buttons are teal in dark mode: a near-white block on a dark page
-     glares more than it guides. White text on it is 4.9:1. */
+  /* Main buttons are teal in dark mode: a pale block on a dark page glares
+     more than it guides. */
   --c-btn: #0f7f73;
-  --c-btn-text: #ffffff;
+  --c-btn-text: #f5f7f9;
+}
+
+/* A faint top-to-bottom sheen on the page behind the panels, like brushed
+   metal under a lamp. Two close greys only; panels stay flat. */
+html[data-landing-theme="dark"] .app {
+  background-image: linear-gradient(180deg, #1f2227 0%, #17191d 100%);
+  background-attachment: fixed;
 }
 
 /* In dark mode teal-deep is a light mint (it is used for text), so a dark
