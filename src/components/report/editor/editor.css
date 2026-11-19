@@ -51,22 +51,6 @@
   padding-left: 0.3em;
 }
 
-/* What the AI wrote, run over with a highlighter pen like a marked page.
-   Only on screen while the report is being checked: never copied or printed,
-   and gone once the report is finalized. */
-.report-doc .ai-mark {
-  background: color-mix(in srgb, #ffdd00 62%, transparent);
-  border-radius: 0.22em;
-  padding: 0.06em 0.14em;
-  margin: 0 -0.14em;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-}
-
-html[data-report-final] .report-doc .ai-mark {
-  background: none;
-}
-
 .report-doc p.report-line-flagged {
   background: color-mix(in srgb, var(--c-flag) 11%, transparent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-flag) 11%, transparent),

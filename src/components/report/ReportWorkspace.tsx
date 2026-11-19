@@ -448,17 +448,6 @@ export function ReportWorkspace({
     newCase(result.data.template);
   }
 
-  // A finalized report is clean: the highlighter over the AI's words goes.
-  const finalClean = Boolean(finalizedAt) && !dirty;
-  useEffect(() => {
-    const root = document.documentElement;
-    if (finalClean) root.dataset.reportFinal = "";
-    else delete root.dataset.reportFinal;
-    return () => {
-      delete root.dataset.reportFinal;
-    };
-  }, [finalClean]);
-
   // Leaving with unsaved work. Refresh, closing the tab or typing another
   // address: the browser shows its own "Leave site?" question (a page cannot
   // draw its own there). Unsent words in the message box count too.

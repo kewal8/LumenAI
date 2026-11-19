@@ -28,11 +28,6 @@ function lineTexts(doc: PMNode) {
   return texts;
 }
 
-/** A paragraph's text with one character per position, so offsets match the document. */
-function plainText(node: PMNode) {
-  return node.textBetween(0, node.content.size, "", "\ufffc");
-}
-
 function words(text: string) {
   const found: { word: string; from: number; to: number }[] = [];
   for (const match of text.matchAll(/\S+/g)) {
@@ -73,7 +68,7 @@ function addedRanges(base: string | null, text: string): [number, number][] {
     else j++;
   }
 
-  // Neighbouring added words join into one stroke of the highlighter.
+  // Neighbouring added words join into one stretch of bold.
   const ranges: [number, number][] = [];
   now.forEach((item, index) => {
     if (kept.has(index)) return;
@@ -285,13 +280,6 @@ export const ReportLines = Extension.create({
               if (flagged) {
                 decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: "report-line-flagged" }));
               }
-              // What the AI wrote is run over with a highlighter, word by word.
-              // A decoration, not part of the report: never copied or printed.
-              if (node.attrs.status === "spoken") {
-                for (const [from, to] of addedRanges(node.attrs.base, plainText(node))) {
-                  decorations.push(Decoration.inline(pos + 1 + from, pos + 1 + to, { class: "ai-mark" }));
-                }
-              }
               if (flagged) {
                 decorations.push(
                   Decoration.widget(pos + node.nodeSize, (view, getPos) => noteFor(node, view, getPos), {
@@ -333,6 +321,10 @@ export function applyPatchToEditor(editor: Editor, { template, ops, impression }
   const { schema } = editor.state;
   const tr = editor.state.tr.setMeta(PATCH, true);
   const paragraph = schema.nodes.paragraph;
+  // What the AI writes is made bold, word by word, with the editor's own Bold:
+  // part of the report, so it is copied and printed, and the doctor can take
+  // it off with the Bold button.
+  const bold = schema.marks.bold.create();
 
   const setText = (pos: number, node: PMNode, text: string) => {
     const from = pos + 1;
@@ -365,7 +357,8 @@ export function applyPatchToEditor(editor: Editor, { template, ops, impression }
     if (op.op === "add") {
       const created = paragraph.create(
         { lineId: newLineId(op.sectionId), sectionId: op.sectionId, status: "spoken", source: op.source, base: null, warnings: op.warnings },
-        op.text ? schema.text(op.text) : undefined,
+        // A new line is the AI's from end to end.
+        op.text ? schema.text(op.text, [bold]) : undefined,
       );
       const last =
         findBlock(tr.doc, (node) => isLine(node) && node.attrs.sectionId === op.sectionId) ??
@@ -383,6 +376,10 @@ export function applyPatchToEditor(editor: Editor, { template, ops, impression }
         line.node.attrs.status === "spoken" ? (line.node.attrs.base ?? null) : line.node.textContent;
       tr.setNodeMarkup(line.pos, undefined, { ...line.node.attrs, status: "spoken", source: op.source, base, warnings: op.warnings });
       setText(line.pos, line.node, op.text);
+      // Only the words that are not in the wording the line had before.
+      for (const [from, to] of addedRanges(base, op.text)) {
+        tr.addMark(line.pos + 1 + from, line.pos + 1 + to, bold);
+      }
       continue;
     }
 
@@ -400,13 +397,21 @@ export function applyPatchToEditor(editor: Editor, { template, ops, impression }
 
   // Impression: reuse the paragraphs that are there, add or remove the rest.
   const isImpression = (node: PMNode) => node.type.name === "paragraph" && Boolean(node.attrs.impression);
+  // An impression line that is not the template's normal wording is the AI's
+  // from end to end, so all of it is bold. A line left as it was is not touched.
+  const normalImpression = new Set(template.normalImpression.map((line) => line.trim()));
+  const marksFor = (text: string) => (normalImpression.has(text.trim()) ? [] : [bold]);
   impression.forEach((text, index) => {
     const existing = findAll(tr.doc, isImpression);
     if (existing[index]) {
-      if (existing[index].node.textContent !== text) setText(existing[index].pos, existing[index].node, text);
+      const { pos, node } = existing[index];
+      if (node.textContent !== text) {
+        setText(pos, node, text);
+        if (text) for (const mark of marksFor(text)) tr.addMark(pos + 1, pos + 1 + text.length, mark);
+      }
       return;
     }
-    const created = paragraph.create({ impression: true }, text ? schema.text(text) : undefined);
+    const created = paragraph.create({ impression: true }, text ? schema.text(text, marksFor(text)) : undefined);
     const anchor =
       existing[existing.length - 1] ??
       findBlock(tr.doc, (node) => node.attrs.role === "impression");

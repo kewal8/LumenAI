@@ -530,9 +530,13 @@ export function AppShell({
       </aside>
 
       <div
-        className={`flex min-w-0 flex-1 flex-col ${
-          tabsShown ? "pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0" : ""
-        }`}
+        // No trailing space when the tabs are hidden: a stray space made the
+        // server and browser class names differ and broke hydration.
+        className={
+          tabsShown
+            ? "flex min-w-0 flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0"
+            : "flex min-w-0 flex-1 flex-col"
+        }
       >
         <MobileTopBar user={user} area={area} />
         <BottomTabs area={area} locked={user.locked} />
