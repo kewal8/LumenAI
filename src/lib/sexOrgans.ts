@@ -19,7 +19,7 @@ export type OrganSex = "male" | "female";
 const MALE =
   /\b(prostate|prostatic|seminal vesicles?|testis|testes|testicles?|testicular|scrotum|scrotal|epididym\w*|penis|penile|spermatic cords?)\b/i;
 const FEMALE =
-  /\b(uterus|uterine|cervix|endometri\w+|myometri\w+|ovary|ovaries|ovarian|adnexa\w*|fallopian|vagina\w*)\b/i;
+  /\b(uterus|uterine|cervix|cervical os|endometri\w+|myometri\w+|ovary|ovaries|ovarian|adnexa\w*|parametri\w+|fallopian|vagina\w*|pouch of douglas)\b/i;
 
 /** Which sex's organs a line talks about, if any. */
 export function organSexOf(text: string): OrganSex | "both" | null {
@@ -31,6 +31,20 @@ export function organSexOf(text: string): OrganSex | "both" | null {
 
 export function sexFromLabel(sex: Sex | null | undefined): OrganSex | null {
   return sex === "Male" ? "male" : sex === "Female" ? "female" : null;
+}
+
+const SPOKEN_SEX =
+  /\b(male|female)\s+(?:patient|pt|child|infant|adult)\b|\b(?:patient|pt)\s+is\s+(?:an?\s+)?(?:\w+\s+)?(male|female)\b|\byears?[\s-]+old\s+(male|female)\b/gi;
+
+/**
+ * The sex the radiologist stated in a dictation ("male patient", "patient is
+ * female", "45 year old male"). The last one said wins, so a self-correction
+ * is respected. Null when the dictation does not state it.
+ */
+export function sexFromDictation(dictation: string): Sex | null {
+  let said: string | null = null;
+  for (const match of dictation.matchAll(SPOKEN_SEX)) said = (match[1] ?? match[2] ?? match[3]).toLowerCase();
+  return said === "male" ? "Male" : said === "female" ? "Female" : null;
 }
 
 const NAME: Record<OrganSex, string> = { male: "male", female: "female" };

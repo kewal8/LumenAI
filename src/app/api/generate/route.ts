@@ -6,7 +6,7 @@ import { LOCKED_MESSAGE, editorLocked } from "@/lib/subscription";
 import { SEXES } from "@/lib/patient";
 import { applyPatch, type PatchOp, type Report, type Template } from "@/lib/report";
 import { keepCorrelation } from "@/lib/correlation";
-import { continuationRemovals, organPlan, organSexOf, removalOps, sexFromLabel } from "@/lib/sexOrgans";
+import { continuationRemovals, organPlan, organSexOf, removalOps, sexFromDictation, sexFromLabel } from "@/lib/sexOrgans";
 import { pathOf, recordError } from "@/lib/monitor";
 import { recordClaudeUsage } from "@/lib/usage";
 import { validateLine } from "@/lib/validate";
@@ -52,7 +52,7 @@ Return edits as ops:
 - "remove": delete an untouched normal line that cannot apply to this patient, under the rule for organs of one sex below. Give the sectionId and lineId. Set text and source to "". Never use it for anything else.
 Leave untouched lines out of ops entirely.
 
-Organs that belong to one sex. Templates for the abdomen and pelvis often carry normal lines for both a prostate and a uterus and ovaries, and only one set can apply to a patient. patient_sex is the sex recorded for this patient, or "not recorded". Work out which applies in this order: if prostate, seminal vesicle or other male pelvic organ findings have been dictated, the report is male; if uterine, endometrial, cervical or ovarian findings have been dictated, it is female; if nothing of that kind has been dictated, go by patient_sex; if that is not recorded either, leave these lines exactly as they are. Once it is clear, return a "remove" op for every untouched normal line that describes an organ of the other sex, and for a normal line that only continues that description (such as "No focal lesion is seen." directly after the uterus line). Remove only untouched normal lines, never a dictated finding, whatever patient_sex says. Never write a line or an impression item about an organ of the other sex that was not dictated, and never add an organ description that is neither dictated nor in the template. If findings for both a prostate and a uterus or ovaries have been dictated, or a dictated finding contradicts patient_sex, remove nothing and write the finding exactly as dictated: the tool flags it and asks the radiologist to check the patient details, because a recorded sex can be wrong and anatomy does not always follow it.
+Organs that belong to one sex. Templates for the abdomen and pelvis often carry normal lines for both a prostate and a uterus and ovaries, and only one set can apply to a patient. patient_sex is the sex recorded for this patient, or "not recorded". The radiologist can also say it in the dictation ("male patient", "female patient", "45 year old male"): that states the patient's sex, it is not a finding, so write no line for it, and patient_sex already reflects it. The stated or recorded sex is enough to act on: do not wait for a prostate or uterine finding before removing the other sex's lines. Work out which applies in this order: if prostate, seminal vesicle or other male pelvic organ findings have been dictated, the report is male; if uterine, endometrial, cervical or ovarian findings have been dictated, it is female; if nothing of that kind has been dictated, go by patient_sex; if that is not recorded either, leave these lines exactly as they are. Once it is clear, return a "remove" op for every untouched normal line that describes an organ of the other sex, and for a normal line that only continues that description (such as "No focal lesion is seen." directly after the uterus line). Remove only untouched normal lines, never a dictated finding, whatever patient_sex says. Never write a line or an impression item about an organ of the other sex that was not dictated, and never add an organ description that is neither dictated nor in the template. If findings for both a prostate and a uterus or ovaries have been dictated, or a dictated finding contradicts patient_sex, remove nothing and write the finding exactly as dictated: the tool flags it and asks the radiologist to check the patient details, because a recorded sex can be wrong and anatomy does not always follow it.
 
 Paired organs: kidneys, ureters, adrenals, ovaries, lungs and every other structure with a right and a left. Treat each side on its own. A finding dictated for one side changes only the lines for that side. Leave every line for the other side out of ops, so its complete normal description and its measurements stay exactly as they are: never shorten it to something like "Left kidney is normal.", and never rewrite it because the opposite side has pathology. Never carry a finding, a measurement, a calculus or hydronephrosis from one side to the other, and never make a one-sided finding bilateral. When both sides are abnormal, describe each side separately with its own findings and its own measurements. A line that names no side belongs to the side named in the lines just above it (a "Pelvicalyceal system is not dilated. No calculus seen." line under the right kidney line is about the right kidney); when you write a finding into such a line, name the side in it as dictated ("A calculus measuring 8 mm is noted in the lower pole calyx of the right kidney."), so the line can be read and checked without the ones above. Add the side to the finding only: normal wording you keep in the line stays word for word as it was. When one template line covers both sides together ("Both kidneys are normal in size, shape and density.") and the finding is on one side, rewrite that line so the affected side carries the finding and the other side keeps every part of the line's normal wording, said for that side alone ("Left kidney is normal in size, shape and density."). On a blank template, or when the report has no line for the other side, write nothing about it: a side that was not dictated is not assumed normal.
 
@@ -125,7 +125,9 @@ export async function POST(request: Request) {
     .filter((entry) => typeof entry?.id === "string" && typeof entry?.said === "string")
     .slice(-30)
     .map((entry) => ({ id: entry.id.slice(0, 80), said: entry.said.slice(0, 4000) }));
-  const recordedSex = SEXES.find((option) => option === sentSex) ?? null;
+  // "Male patient" said in this dictation is the latest word on it, so it comes before the recorded sex.
+  const spokenSex = typeof dictation === "string" ? sexFromDictation(dictation) : null;
+  const recordedSex = spokenSex ?? SEXES.find((option) => option === sentSex) ?? null;
   if (!dictation?.trim()) {
     return Response.json({ error: "Nothing was dictated." }, { status: 400 });
   }
@@ -225,6 +227,8 @@ export async function POST(request: Request) {
       // The template's own "correlate clinically" line always closes it, as written.
       impression: template.noImpression ? [] : keepCorrelation(response.parsed_output.impression, template),
       said: response.parsed_output.said.trim(),
+      // The sex stated in the dictation, for the patient's details.
+      sex: spokenSex,
       // Only rewrites of dictations that were actually sent.
       revised: response.parsed_output.revised
         .filter((item) => earlier.some((entry) => entry.id === item.id) && item.said.trim())
