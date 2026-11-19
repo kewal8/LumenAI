@@ -28,10 +28,19 @@ function lineTexts(doc: PMNode) {
   return texts;
 }
 
+/**
+ * A word as it is compared: without the punctuation around it and in lower
+ * case. "haemorrhage," and "haemorrhage", or "mastoid" and "Mastoid", are the
+ * same word, so a moved comma or a new capital is not counted as new wording.
+ */
+function sameAs(word: string) {
+  return word.toLowerCase().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "") || word;
+}
+
 function words(text: string) {
   const found: { word: string; from: number; to: number }[] = [];
   for (const match of text.matchAll(/\S+/g)) {
-    found.push({ word: match[0], from: match.index, to: match.index + match[0].length });
+    found.push({ word: sameAs(match[0]), from: match.index, to: match.index + match[0].length });
   }
   return found;
 }
