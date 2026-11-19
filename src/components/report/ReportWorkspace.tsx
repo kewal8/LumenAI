@@ -70,9 +70,10 @@ import { docToHtml, docToReport, docToText, reportToDoc, type DocNode } from "@/
 import { afterOneUpdate, updatesLeft, type Credits } from "@/lib/credits";
 import { setUpdatesLeft } from "@/lib/updatesLeft";
 import { BLANK_TEMPLATE, BLANK_TEMPLATE_ID } from "@/lib/templates";
-import { EMPTY_PATIENT, ageSex, hasPatient, type Patient } from "@/lib/patient";
+import { EMPTY_PATIENT, SEXES, ageSex, hasPatient, type Patient } from "@/lib/patient";
 import { organPlan, organSexOf, removalOps, sexFromLabel } from "@/lib/sexOrgans";
 import { AssistantMenu } from "./AssistantMenu";
+import { SendFeedback } from "./SendFeedback";
 import { VoiceButton } from "./VoiceButton";
 import { MICROPHONE_MESSAGES, useDictation, type Word } from "@/lib/useDictation";
 import {
@@ -651,6 +652,13 @@ export function ReportWorkspace({
 
     const ops: PatchOp[] = body.ops;
     const next = applyOps(ops, body.impression);
+    // "Male patient" said aloud is kept with the patient's details, like one typed there.
+    const spoken = SEXES.find((option) => option === body.sex);
+    if (spoken && spoken !== patient?.sex) {
+      // A recorded sex that the dictation overrides is said out loud, never changed silently.
+      if (patient?.sex) toast.warning(`Patient's sex changed from ${patient.sex} to ${spoken}, as dictated.`);
+      setPatient((current) => ({ ...(current ?? EMPTY_PATIENT), sex: spoken }));
+    }
     // One credit is one update of the report.
     setCredits(afterOneUpdate);
     const entry = logEntryFor(
@@ -1204,6 +1212,7 @@ export function ReportWorkspace({
               </span>
 
               <div className="ml-auto flex shrink-0 items-center gap-0.5">
+                <SendFeedback className={ICON_BUTTON} />
                 <Tip label="Print or PDF" shortcut={keyText(shortcuts.print, mac, " + ")}>
                   <button type="button" onClick={print} disabled={busy} aria-label="Print or PDF" className={ICON_BUTTON}>
                     <Printer weight="bold" className="h-5 w-5" />

@@ -9,6 +9,7 @@ import {
   ChartBar,
   ChartLineUp,
   CaretUpDown,
+  ChatCircleText,
   CreditCard,
   Files,
   FolderOpen,
@@ -70,6 +71,7 @@ const NAV: Record<Area, NavItem[]> = {
     { href: "/admin/accounts", label: "Accounts", icon: Buildings },
     { href: "/admin/referrals", label: "Referrals", icon: Gift },
     { href: "/admin/preview-links", label: "Preview links", icon: LinkSimple },
+    { href: "/admin/feedback", label: "Feedback", icon: ChatCircleText },
     { href: "/admin/screens", label: "Screens", icon: AppWindow },
   ],
 };
