@@ -1147,7 +1147,9 @@ export function ReportWorkspace({
         {/* The report. */}
         <section
           aria-label="Report"
-          className={`${CARD} order-2 min-h-[70dvh] min-w-0 flex-1 lg:order-1 lg:min-h-0 ${fullScreen ? "lg:mx-auto lg:max-w-[72rem]" : ""}`}
+          // Below the wide layout the report keeps a fixed height between the top
+          // bar and the docked AI Assistant, so a long report scrolls inside it.
+          className={`${CARD} order-2 min-w-0 flex-1 max-lg:h-[calc(100dvh-22rem)] max-lg:min-h-[22rem] max-lg:flex-none lg:order-1 lg:min-h-0 ${fullScreen ? "lg:mx-auto lg:max-w-[72rem]" : ""}`}
         >
           {/* Two rows. First: whose report, where it stands, and the tools used
               less often. Second: the template it started from, then the pair

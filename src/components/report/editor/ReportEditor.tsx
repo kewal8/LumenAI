@@ -63,6 +63,8 @@ const HIGHLIGHTS = [
 
 // Zoom is a reading comfort setting, remembered on this computer only.
 const ZOOM_KEY = "lumenai-report-zoom";
+/** The least the sheet shrinks to fit a tight screen, as a share of the chosen zoom. */
+const MIN_FIT = 0.85;
 const ZOOM_STEPS = [80, 90, 100, 110, 120, 135, 150, 175];
 const DEFAULT_ZOOM = 120;
 const zoomListeners = new Set<() => void>();
@@ -446,7 +448,7 @@ export function ReportEditor({
   const zoom = useZoom();
   // The sheet, for measuring where pages end; state so the breaks draw once it exists.
   const [sheet, setSheet] = useState<HTMLDivElement | null>(null);
-  // Room for the sheet, so an A4 sheet shrinks to fit instead of rewrapping its lines.
+  // Room for the sheet, measured so it can give way a little on a tight screen.
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   const [room, setRoom] = useState(0);
   useEffect(() => {
@@ -457,8 +459,13 @@ export function ReportEditor({
   }, [scroller, pageHeightMm]);
   // The printed text width in CSS pixels (96 to the inch), plus the 0.6em lines pad on each side.
   const sheetWidth = ((A4.width - 2 * A4.side) / 25.4) * 96 + 1.2 * profile.size * (4 / 3);
-  // A margin each side holds the page labels, as on a printed sheet.
-  const scale = pageHeightMm && room > 0 ? Math.min(zoom / 100, (room - 2 * PAGE_MARGIN) / sheetWidth) : zoom / 100;
+  // When the room is only a little short (an ordinary laptop), the sheet gives
+  // way slightly so no sideways scrolling is needed. It never goes below 85% of
+  // the chosen zoom: on a narrower screen it keeps that size and is scrolled
+  // sideways inside its own area, instead of shrinking until it cannot be read.
+  const chosen = zoom / 100;
+  const fit = (room - 2 * PAGE_MARGIN) / sheetWidth;
+  const scale = pageHeightMm && room > 0 ? Math.min(chosen, Math.max(fit, chosen * MIN_FIT)) : chosen;
   const [misspelt, setMisspelt] = useState<SpellTarget | null>(null);
   const editor = useEditor({
     // The page is rendered on the server first; the editor starts in the browser.
@@ -493,21 +500,28 @@ export function ReportEditor({
             <Toolbar editor={editor} profile={profile} flat />
           </div>
         )}
-        <div ref={setScroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-9">
+        <div ref={setScroller} className="min-h-0 flex-1 overflow-auto overscroll-contain">
+          {/* As wide as the sheet needs, so the space around it scrolls with it.
+              A margin each side holds the page labels, as on a printed sheet. */}
           <div
-            ref={setSheet}
-            className={`relative mx-auto ${pageHeightMm ? "" : "max-w-[46rem]"}`}
-            style={{
-              fontFamily: `'${profile.font}', Arial, sans-serif`,
-              fontSize: `${profile.size}pt`,
-              zoom: scale,
-              // The printed text width; lines here pad 0.6em each side, which print does not.
-              ...(pageHeightMm ? { width: sheetWidth } : {}),
-            }}
+            className={`min-w-full py-9 ${pageHeightMm ? "w-max" : ""}`}
+            style={{ paddingInline: pageHeightMm ? PAGE_MARGIN : 24 }}
           >
-            <EditorContent editor={editor} />
-            {footer}
-            {editor && pageHeightMm && <PageBreaks editor={editor} column={sheet} heightMm={pageHeightMm} />}
+            <div
+              ref={setSheet}
+              className={`relative mx-auto ${pageHeightMm ? "" : "max-w-[46rem]"}`}
+              style={{
+                fontFamily: `'${profile.font}', Arial, sans-serif`,
+                fontSize: `${profile.size}pt`,
+                zoom: scale,
+                // The printed text width; lines here pad 0.6em each side, which print does not.
+                ...(pageHeightMm ? { width: sheetWidth } : {}),
+              }}
+            >
+              <EditorContent editor={editor} />
+              {footer}
+              {editor && pageHeightMm && <PageBreaks editor={editor} column={sheet} heightMm={pageHeightMm} />}
+            </div>
           </div>
         </div>
         {editor && overlay?.(editor)}
