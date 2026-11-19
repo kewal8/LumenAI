@@ -12,6 +12,12 @@ const SIDES: Record<string, RegExp> = {
 
 const NEGATION = /\b(no|not|without|absent|negative|nil|normal|unremarkable)\b/i;
 
+/** Words that change when a normal sentence about both sides is kept for one side only. */
+const SAME_SENTENCE = new Set(["left", "right", "is", "are", "the", "it", "appears", "appear"]);
+
+/** "No calculus seen in the left kidney.": a kept normal sentence with only its side spelled out. */
+const SIDE_TAIL = /\s+(?:in|of|on) the (?:left|right) [a-z]+(?: [a-z]+)?[.!?]?$/i;
+
 function normalise(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9.]+/g, " ").trim();
 }
@@ -32,9 +38,12 @@ function sentences(text: string) {
 function dictatedPart(text: string, original: string) {
   // Words without the full stop that ends a sentence; "2.5" stays whole.
   const wordsOf = (part: string) => part.toLowerCase().match(/[a-z0-9]+(?:\.[0-9]+)?/g) ?? [];
-  const kept = new Set(wordsOf(original));
+  // "Both kidneys are normal in size." kept for one side reads "Left kidney is
+  // normal in size.": the side, the verb and the plural change, nothing else.
+  const stem = (word: string) => (/^[a-z]{4,}s$/.test(word) ? word.slice(0, -1) : word);
+  const kept = new Set(wordsOf(original).map(stem));
   return sentences(text)
-    .filter((sentence) => !wordsOf(sentence).every((word) => kept.has(word)))
+    .filter((sentence) => !wordsOf(sentence.replace(SIDE_TAIL, "")).every((word) => SAME_SENTENCE.has(word) || kept.has(stem(word))))
     .join(" ");
 }
 
@@ -62,10 +71,13 @@ export function validateLine(
     warnings.push(`Number not in dictation: ${unspoken.join(", ")}.`);
   }
 
+  // Only what was written from the dictation is checked for side and negation.
+  const written = dictatedPart(text, original) || text;
+
   // "Left kidney, I mean right kidney": the side the doctor corrected away is not expected in the line.
   const meant = hasCorrection(source) ? resolveCorrections(tidySpoken(source)).text : source;
   for (const [side, pattern] of Object.entries(SIDES)) {
-    if (pattern.test(text) && !pattern.test(`${source} ${previous}`)) {
+    if (pattern.test(written) && !pattern.test(`${source} ${previous}`)) {
       warnings.push(`Side "${side}" is not in the dictated words.`);
     }
     if (pattern.test(meant) && !pattern.test(text)) {
@@ -77,7 +89,6 @@ export function validateLine(
   // compared with the dictation, only what was written from it. When nothing
   // new was written, the whole line is compared, so a finding that never made
   // it in ("mild hydronephrosis" left as "No hydronephrosis") is still caught.
-  const written = dictatedPart(text, original) || text;
   if (NEGATION.test(written) !== NEGATION.test(source)) {
     warnings.push("Check negation against the dictation.");
   }

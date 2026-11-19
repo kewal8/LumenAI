@@ -10,13 +10,15 @@ import { send } from "@/components/auth/fields";
 
 type Issue = {
   line: number;
-  kind: "spelling" | "grammar" | "filler";
+  kind: "spelling" | "grammar" | "filler" | "organ";
   find: string;
   replace: string;
   reason: string;
+  /** For a whole line that should go: removes it; false when the line has changed. */
+  remove?: () => boolean;
 };
 
-const KIND: Record<Issue["kind"], string> = { spelling: "Spelling", grammar: "Grammar", filler: "Filler" };
+const KIND: Record<Issue["kind"], string> = { spelling: "Spelling", grammar: "Grammar", filler: "Filler", organ: "Patient's sex" };
 
 /** One step of the Validate and Finalize pair: an empty ring until done, then a green tick and less weight. */
 export const STEP =
@@ -39,6 +41,7 @@ export function ValidateButton({
   validated,
   onChecked,
   onIssues,
+  organIssues,
 }: {
   getLines: () => string[];
   fixText: (line: number, find: string, replace: string) => boolean;
@@ -49,6 +52,8 @@ export function ValidateButton({
   onChecked: () => void;
   /** Suggestions still open after a check: 0 once none were found or all were fixed or ignored. */
   onIssues: (count: number) => void;
+  /** Lines about organs of one sex that do not fit the patient, found without the AI. */
+  organIssues?: () => { text: string; reason: string; remove: () => boolean }[];
 }) {
   const [open, setOpen] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -66,9 +71,19 @@ export function ValidateButton({
       return;
     }
     onChecked();
-    setIssues(result.data.issues.map((issue, key) => ({ ...issue, key })));
-    onIssues(result.data.issues.length);
-    if (result.data.issues.length === 0) {
+    // Lines that do not fit the patient's sex come first: they matter most.
+    const organs: Issue[] = (organIssues?.() ?? []).map((issue) => ({
+      line: -1,
+      kind: "organ",
+      find: issue.text,
+      replace: "",
+      reason: issue.reason,
+      remove: issue.remove,
+    }));
+    const found = [...organs, ...result.data.issues];
+    setIssues(found.map((issue, key) => ({ ...issue, key })));
+    onIssues(found.length);
+    if (found.length === 0) {
       setOpen(false);
       toast.success("Validated. No issues found.");
     }
@@ -84,21 +99,25 @@ export function ValidateButton({
     }
   }
 
+  const apply = (issue: Issue) => (issue.remove ? issue.remove() : fixText(issue.line, issue.find, issue.replace));
+
   function fix(issue: Issue & { key: number }) {
-    if (!fixText(issue.line, issue.find, issue.replace)) {
+    if (!apply(issue)) {
       toast.warning("That text has changed since the check, so it was left as it is.");
     }
     drop(issue.key);
   }
 
   function fixAll() {
-    const list = issues ?? [];
-    const done = list.filter((issue) => fixText(issue.line, issue.find, issue.replace)).length;
-    setIssues([]);
-    onIssues(0);
+    // Whole lines are never removed in bulk: each one is the doctor's own decision.
+    const list = (issues ?? []).filter((issue) => !issue.remove);
+    const kept = (issues ?? []).filter((issue) => issue.remove);
+    const done = list.filter(apply).length;
+    setIssues(kept);
+    onIssues(kept.length);
     if (done === list.length) toast.success(done === 1 ? "1 fix made" : `${done} fixes made`);
     else toast.warning(`${done} of ${list.length} fixes made. The rest of the text had changed.`);
-    setOpen(false);
+    if (!kept.length) setOpen(false);
   }
 
   // Suggestions from the last check still waiting for Fix or Ignore.

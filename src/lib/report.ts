@@ -76,14 +76,20 @@ export function logEntryFor(
     dictation,
     changes: ops.map((op) => ({
       heading: report.sections.find((section) => section.id === op.sectionId)?.heading ?? "",
-      text: op.op === "reset" ? "Put back to the normal wording." : op.text,
+      text:
+        op.op === "reset"
+          ? "Put back to the normal wording."
+          : op.op === "remove"
+            ? `Removed, as it does not apply to this patient: ${op.text}`
+            : op.text,
       flagged: op.warnings.length > 0,
     })),
   };
 }
 
 export type PatchOp = {
-  op: "replace" | "add" | "reset";
+  /** "remove" deletes an untouched normal line that cannot apply, such as the uterus line for a male patient. */
+  op: "replace" | "add" | "reset" | "remove";
   sectionId: string;
   lineId: string;
   text: string;
@@ -136,6 +142,12 @@ export function applyPatch(
 
     const index = section.lines.findIndex((line) => line.id === op.lineId);
     if (index === -1) continue;
+
+    if (op.op === "remove") {
+      // Only untouched normal wording is ever removed, never a finding.
+      if (section.lines[index].status === "normal") section.lines.splice(index, 1);
+      continue;
+    }
 
     if (op.op === "replace") {
       section.lines[index] = {

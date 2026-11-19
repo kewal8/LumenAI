@@ -370,6 +370,12 @@ export function applyPatchToEditor(editor: Editor, { template, ops, impression }
     const line = findBlock(tr.doc, (node) => isLine(node) && node.attrs.lineId === op.lineId);
     if (!line) continue;
 
+    if (op.op === "remove") {
+      // Only untouched normal wording is ever removed, never a finding.
+      if (line.node.attrs.status === "normal" || !line.node.attrs.status) removeBlock(line.pos, line.node);
+      continue;
+    }
+
     if (op.op === "replace") {
       // Kept from the first rewrite, so a second dictation is still compared with the normal wording.
       const base =

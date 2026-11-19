@@ -3,7 +3,9 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { LOCKED_MESSAGE, editorLocked } from "@/lib/subscription";
-import type { PatchOp, Report, Template } from "@/lib/report";
+import { SEXES } from "@/lib/patient";
+import { applyPatch, type PatchOp, type Report, type Template } from "@/lib/report";
+import { continuationRemovals, organPlan, organSexOf, removalOps, sexFromLabel } from "@/lib/sexOrgans";
 import { pathOf, recordError } from "@/lib/monitor";
 import { recordClaudeUsage } from "@/lib/usage";
 import { validateLine } from "@/lib/validate";
@@ -16,7 +18,7 @@ const client = new Anthropic();
 const PatchSchema = z.object({
   ops: z.array(
     z.object({
-      op: z.enum(["replace", "add", "reset"]),
+      op: z.enum(["replace", "add", "reset", "remove"]),
       sectionId: z.string(),
       lineId: z.string(),
       text: z.string(),
@@ -46,11 +48,18 @@ Return edits as ops:
 - "replace": rewrite an existing line, identified by sectionId and lineId. Use this when the dictated finding belongs to the structure a line describes, or makes that line's normal statement untrue. A report must not state a finding and also keep a normal line that contradicts it.
 - "add": append a new line to a section when no existing line covers the finding. Set lineId to "".
 - "reset": the radiologist withdrew a finding. Give the sectionId and lineId; the tool restores the template wording. Set text and source to "".
+- "remove": delete an untouched normal line that cannot apply to this patient, under the rule for organs of one sex below. Give the sectionId and lineId. Set text and source to "". Never use it for anything else.
 Leave untouched lines out of ops entirely.
+
+Organs that belong to one sex. Templates for the abdomen and pelvis often carry normal lines for both a prostate and a uterus and ovaries, and only one set can apply to a patient. patient_sex is the sex recorded for this patient, or "not recorded". Work out which applies in this order: if prostate, seminal vesicle or other male pelvic organ findings have been dictated, the report is male; if uterine, endometrial, cervical or ovarian findings have been dictated, it is female; if nothing of that kind has been dictated, go by patient_sex; if that is not recorded either, leave these lines exactly as they are. Once it is clear, return a "remove" op for every untouched normal line that describes an organ of the other sex, and for a normal line that only continues that description (such as "No focal lesion is seen." directly after the uterus line). Remove only untouched normal lines, never a dictated finding, whatever patient_sex says. Never write a line or an impression item about an organ of the other sex that was not dictated, and never add an organ description that is neither dictated nor in the template. If findings for both a prostate and a uterus or ovaries have been dictated, or a dictated finding contradicts patient_sex, remove nothing and write the finding exactly as dictated: the tool flags it and asks the radiologist to check the patient details, because a recorded sex can be wrong and anatomy does not always follow it.
+
+Paired organs: kidneys, ureters, adrenals, ovaries, lungs and every other structure with a right and a left. Treat each side on its own. A finding dictated for one side changes only the lines for that side. Leave every line for the other side out of ops, so its complete normal description and its measurements stay exactly as they are: never shorten it to something like "Left kidney is normal.", and never rewrite it because the opposite side has pathology. Never carry a finding, a measurement, a calculus or hydronephrosis from one side to the other, and never make a one-sided finding bilateral. When both sides are abnormal, describe each side separately with its own findings and its own measurements. A line that names no side belongs to the side named in the lines just above it (a "Pelvicalyceal system is not dilated. No calculus seen." line under the right kidney line is about the right kidney); when you write a finding into such a line, name the side in it as dictated ("A calculus measuring 8 mm is noted in the lower pole calyx of the right kidney."), so the line can be read and checked without the ones above. Add the side to the finding only: normal wording you keep in the line stays word for word as it was. When one template line covers both sides together ("Both kidneys are normal in size, shape and density.") and the finding is on one side, rewrite that line so the affected side carries the finding and the other side keeps every part of the line's normal wording, said for that side alone ("Left kidney is normal in size, shape and density."). On a blank template, or when the report has no line for the other side, write nothing about it: a side that was not dictated is not assumed normal.
+
+A finding often makes only part of a line untrue. Keep the rest of that line's normal wording: a calculus in a kidney with no dilatation dictated changes "No calculus seen." and leaves "Pelvicalyceal system is not dilated." standing. Keep normal anatomical wording unless the dictated finding contradicts it.
 
 For each replace or add:
 - text: formal report prose in the style and spelling of the template lines. Several related findings about one structure can share a line.
-- source: the words from the new dictation that this line is based on, copied exactly as they appear, misrecognitions included. The tool shows these to the radiologist and uses them to check side, numbers and negation, so they must be a verbatim excerpt. When the line comes from a self-correction, the excerpt covers both the first words and the correction, so the radiologist sees what was changed.
+- source: the words from the new dictation that this line is based on, copied exactly as they appear, misrecognitions included. The tool shows these to the radiologist and uses them to check side, numbers and negation, so they must be a verbatim excerpt, and the excerpt must take in the words that name the side, even when they were said earlier in the sentence. When the line comes from a self-correction, the excerpt covers both the first words and the correction, so the radiologist sees what was changed.
 
 said: the new dictation as the radiologist meant it, shown back to them in the conversation beside the report. Apply their self-corrections (keep only the corrected value or side, drop the correction words), and drop false starts, repeated words and filler such as "so", "um" or "this is the test that I'm doing". Keep every finding, number, unit, side and negation exactly as finally dictated, in their order and words; fix only obvious misrecognitions of terminology, as in the report. Never add, explain or summarise. If nothing needs tidying, return the dictation unchanged.
 
@@ -60,7 +69,7 @@ impression: the complete impression after your edits, as a list where each item 
 
 First, read every abnormal line now in the report and name what each one amounts to. Use the standard diagnostic term when the finding is that diagnosis by definition: a calculus in the common bile duct is choledocholithiasis, calculi in the gallbladder are cholelithiasis, a dilated pelvicalyceal system and ureter is hydroureteronephrosis. This naming is interpretation of what was dictated, which is the purpose of an impression, and it is different from inventing a finding. Where no single term says it more clearly, keep the finding in the radiologist's words with its level and side.
 
-Second, put the items in order of clinical importance, not in template order: the finding that most changes what happens to the patient comes first (obstruction, nerve or cord compression, a mass, anything acute), incidental and minor findings come last. Join findings that belong together into one item, such as a stone with the dilatation upstream of it, a disc bulge with the narrowing and nerve root compression it causes, or a ligament tear with the bone contusions that go with it, so nothing is said twice. A change seen at several levels or sites can close the list as one summary item, such as "Multilevel degenerative disc disease".
+Second, put the items in order of clinical importance, not in template order: the finding that most changes what happens to the patient comes first (obstruction, nerve or cord compression, a mass, anything acute), incidental and minor findings come last. Join findings that belong together into one item, such as a stone with the dilatation upstream of it, a disc bulge with the narrowing and nerve root compression it causes, or a ligament tear with the bone contusions that go with it, so nothing is said twice. Do not repeat the same minor finding level by level: join such levels into one item.
 
 Third, write each item briefly: a diagnosis, not a description. Keep the side, level and site. Keep a measurement only when it matters for management, such as the size of a stone or a lesion; leave out measurements of normal-sized organs. Never change the grade or certainty of a finding: mild stays mild, and "suggestive of" does not become a diagnosis. Do not turn an imaging finding into a clinical syndrome: compression of a nerve root is reported as compression, not as radiculopathy, which the images do not show.
 
@@ -68,14 +77,26 @@ A finding with a clear diagnosis needs nothing more: no differentials and no adv
 
 After the positive items, include a dictated negative finding only when it changes management in the light of the positive ones, such as no midline shift or hydrocephalus beside a brain lesion, or no acute infarction. Normal template lines the radiologist did not dictate are not listed.
 
-Two examples of the result.
+Some studies have their own conventions.
+
+Lumbar and other spine studies with degenerative change at several levels: open with one summary item that names the levels where it is most marked ("Multilevel lumbar degenerative disc disease, predominantly at L4-L5 and L5-S1 levels."), then give the levels in order of significance, the level with the worst canal stenosis or nerve root compression first, and finish with the minor levels. For each significant level say, as dictated: the disc morphology, the degree of central canal stenosis (mild, moderate or severe), lateral recess and neural foraminal narrowing with its degree and side, and the exact nerve root with whether it is the traversing or the exiting root and whether one side or both. Put facet joint arthropathy and ligamentum flavum thickening in the item for the level where they add to the stenosis, not as items of their own. Diffuse disc bulge, focal protrusion, extrusion, sequestration, annular fissure and disc osteophyte complex are different things: keep the term that was dictated and never swap one for another. Contact, displacement and compression of a nerve root are different grades: never raise one to the next. Listhesis, spondylolysis, Modic endplate changes, Schmorl's nodes, a vertebral haemangioma, marrow abnormality and conus or cauda equina findings go in when they were dictated as abnormal.
+
+Kidneys and other paired organs: give each abnormal side its own item, with its side. When only one side is abnormal and the report still carries the normal description of the other side, close the paired organ with one short item for it ("Left kidney appears normal."), without repeating its normal findings. Leave that item out when the report says nothing about the other side.
+
+Paranasal sinuses: mucosal thickening in a sinus is reported as inflammatory mucosal change of that sinus. Put the sinuses involved into one item, the most involved first, keeping side and any dictated grade such as mild; when several sinuses are involved the item can end "(multisinusitis)". Do not call mucosal thickening acute sinusitis unless the radiologist said so or dictated features of acute disease. Narrowing or obstruction of the osteomeatal units is its own item. Nasal septal deviation (with its side and any spur) and turbinate hypertrophy follow as their own items. Anatomical variants (concha bullosa, Haller cells, Onodi cells, agger nasi cells) are listed when dictated. A complication, such as bony erosion or orbital or intracranial extension, changes management most and leads the list.
+
+Examples of the result.
 Findings: CBD is dilated, measuring 10 mm. Tiny calculus measuring 4 mm in the distal CBD. Multiple calculi in the gallbladder.
 Impression: ["Choledocholithiasis with upstream CBD dilatation.", "Cholelithiasis."]
-Findings: Disc desiccation at L4-L5 and L5-S1. Broad-based posterior disc bulge at L4-L5 causing bilateral lateral recess narrowing with compression of the traversing L5 nerve roots, with mild bilateral neural foraminal narrowing. At L5-S1, diffuse disc bulge with posterior annular fissure causing mild bilateral neural foraminal narrowing.
-Impression: ["L4-L5 disc bulge causing bilateral lateral recess narrowing with compression of the traversing L5 nerve roots.", "L5-S1 diffuse disc bulge with posterior annular fissure and mild bilateral neural foraminal narrowing.", "Multilevel degenerative disc disease."]
+Findings: Right kidney measures 10.8 x 4.8 cm. A calculus measuring 8 mm is noted in the lower pole calyx. No hydronephrosis is noted. Left kidney measures 11.2 x 5.1 cm. It is normal in size, shape and position with maintained cortical thickness and corticomedullary differentiation. No evidence of calculus or hydronephrosis.
+Impression: ["Right renal lower pole calculus measuring 8 mm without hydronephrosis.", "Left kidney appears normal."]
+Findings: Multilevel disc desiccation, predominantly at L4-L5 and L5-S1 levels. L2-L3: Mild diffuse disc bulge without significant spinal canal or neural foraminal narrowing. L3-L4: Diffuse disc bulge causing mild bilateral lateral recess narrowing. L4-L5: Broad-based posterior disc bulge with bilateral facet joint arthropathy and ligamentum flavum thickening, causing moderate spinal canal stenosis and bilateral lateral recess narrowing with compression of the traversing L5 nerve roots. Mild bilateral neural foraminal narrowing. L5-S1: Diffuse disc bulge with posterior annular fissure, causing mild bilateral neural foraminal narrowing without significant spinal canal stenosis.
+Impression: ["Multilevel lumbar degenerative disc disease, predominantly at L4-L5 and L5-S1 levels.", "L4-L5 broad-based posterior disc bulge with bilateral facet arthropathy and ligamentum flavum thickening, causing moderate spinal canal stenosis and bilateral traversing L5 nerve root compression.", "L5-S1 diffuse disc bulge with posterior annular fissure and mild bilateral neural foraminal narrowing.", "Mild bilateral lateral recess narrowing at L3-L4."]
+Findings: Mucosal thickening in bilateral maxillary sinuses, measuring approximately 6 mm on the right and 8 mm on the left. Mild mucosal thickening in bilateral anterior and posterior ethmoid air cells. Mild mucosal thickening in the left frontal sinus. Bilateral osteomeatal units appear narrowed. Mild bilateral inferior turbinate hypertrophy. Nasal septum is deviated towards the right side with a small bony spur. No evidence of expansile lesion or bony destruction.
+Impression: ["Bilateral maxillary and ethmoid, with mild left frontal sinus mucosal inflammatory changes (multisinusitis).", "Bilateral osteomeatal unit narrowing.", "Rightward deviation of nasal septum with a small bony spur.", "Bilateral inferior turbinate hypertrophy."]
 Findings: Ill-defined T2/FLAIR hyperintense lesion measuring 2.8 x 2.4 cm in the right frontal lobe involving cortical and subcortical white matter, hypointense on T1, with heterogeneous post-contrast enhancement. Surrounding perilesional vasogenic edema causing mild effacement of the adjacent sulci. No significant midline shift. No acute diffusion restriction. Ventricular system normal.
 Impression: ["Heterogeneously enhancing right frontal lobe intra-axial space-occupying lesion with surrounding vasogenic edema and mild local mass effect. Imaging differentials include high-grade glioma and solitary metastasis. Histopathological correlation is advised.", "No significant midline shift or hydrocephalus.", "No evidence of acute infarction."]
-These show the pattern for three studies; apply the same reasoning to every modality and body part.`;
+These show the pattern for five studies; apply the same reasoning to every modality and body part.`;
 
 type GenerateRequest = {
   template: Template;
@@ -83,6 +104,8 @@ type GenerateRequest = {
   dictation: string;
   /** This report's earlier dictations as shown in the conversation, oldest first. */
   earlier?: { id: string; said: string }[];
+  /** The patient's recorded sex, when the details have been given. */
+  sex?: string | null;
 };
 
 export async function POST(request: Request) {
@@ -94,11 +117,12 @@ export async function POST(request: Request) {
   const refusal = await updateRefusal(user);
   if (refusal) return Response.json({ error: refusal }, { status: 429 });
 
-  const { template, report, dictation, earlier: sentEarlier }: GenerateRequest = await request.json();
+  const { template, report, dictation, earlier: sentEarlier, sex: sentSex }: GenerateRequest = await request.json();
   const earlier = (Array.isArray(sentEarlier) ? sentEarlier : [])
     .filter((entry) => typeof entry?.id === "string" && typeof entry?.said === "string")
     .slice(-30)
     .map((entry) => ({ id: entry.id.slice(0, 80), said: entry.said.slice(0, 4000) }));
+  const recordedSex = SEXES.find((option) => option === sentSex) ?? null;
   if (!dictation?.trim()) {
     return Response.json({ error: "Nothing was dictated." }, { status: 400 });
   }
@@ -133,6 +157,7 @@ export async function POST(request: Request) {
           content: [
             `<template>\n${JSON.stringify(template, null, 2)}\n</template>`,
             `<current_report>\n${JSON.stringify(currentReport, null, 2)}\n</current_report>`,
+            `<patient_sex>${recordedSex ?? "not recorded"}</patient_sex>`,
             `<current_impression>\n${JSON.stringify(report.impression)}\n</current_impression>`,
             `<earlier_dictations>\n${JSON.stringify(earlier, null, 2)}\n</earlier_dictations>`,
             `<new_dictation>\n${dictation}\n</new_dictation>`,
@@ -166,13 +191,30 @@ export async function POST(request: Request) {
     const currentLines = new Map(
       report.sections.flatMap((section) => section.lines).map((line) => [line.id, line.text]),
     );
-    const ops: PatchOp[] = response.parsed_output.ops.map((op) => ({
-      ...op,
-      warnings:
-        op.op === "reset"
-          ? []
-          : validateLine(op.text, op.source, dictation, dictatedLines.get(op.lineId), currentLines.get(op.lineId)),
-    }));
+    const written: PatchOp[] = response.parsed_output.ops
+      .filter((op) => op.op !== "remove")
+      .map((op) => ({
+        ...op,
+        warnings:
+          op.op === "reset"
+            ? []
+            : validateLine(op.text, op.source, dictation, dictatedLines.get(op.lineId), currentLines.get(op.lineId)),
+      }));
+
+    // Organs of one sex: the rules are applied here, not left to the model.
+    // Untouched normal lines for the other sex go; a finding never does, and
+    // findings that disagree are flagged for the radiologist instead.
+    const after = applyPatch(report, template, written, []);
+    const plan = organPlan(after, sexFromLabel(recordedSex));
+    if (plan.conflict) {
+      for (const op of written) {
+        if (op.op !== "reset" && organSexOf(op.text)) op.warnings = [...op.warnings, plan.conflict];
+      }
+    }
+    const asked = response.parsed_output.ops.filter((op) => op.op === "remove");
+    const ops: PatchOp[] = plan.sex
+      ? [...written, ...removalOps([...plan.remove, ...continuationRemovals(after, plan.remove, asked)])]
+      : written;
 
     return Response.json({
       ops,

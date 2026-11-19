@@ -71,6 +71,7 @@ import { afterOneUpdate, updatesLeft, type Credits } from "@/lib/credits";
 import { setUpdatesLeft } from "@/lib/updatesLeft";
 import { BLANK_TEMPLATE, BLANK_TEMPLATE_ID } from "@/lib/templates";
 import { EMPTY_PATIENT, ageSex, hasPatient, type Patient } from "@/lib/patient";
+import { organPlan, organSexOf, removalOps, sexFromLabel } from "@/lib/sexOrgans";
 import { AssistantMenu } from "./AssistantMenu";
 import { VoiceButton } from "./VoiceButton";
 import { MICROPHONE_MESSAGES, useDictation, type Word } from "@/lib/useDictation";
@@ -395,6 +396,7 @@ export function ReportWorkspace({
   async function submitPatient(details: Patient) {
     const purpose = patientAsk;
     setPatient(details);
+    fitToSex(details);
     if (purpose === "edit") {
       setPatientAsk(null);
       // Counts as a change: saved with the next save, and not lost silently by starting a new report.
@@ -547,6 +549,86 @@ export function ReportWorkspace({
     }
   }
 
+  /** Writes edits into the report, and into the document when it is the page editor. */
+  function applyOps(ops: PatchOp[], impression: string[]): Report {
+    let next = applyPatch(reportRef.current, template, ops, impression);
+    if (future && editorRef.current) {
+      // Written into the document too, keeping any formatting the doctor added.
+      applying.current = true;
+      editorRef.current.applyPatch({ template, ops, impression });
+      applying.current = false;
+      const doc = editorRef.current.getDoc();
+      next = { ...docToReport(doc, next), doc };
+    }
+    reportRef.current = next;
+    setReport(next);
+    setDirty(true);
+    return next;
+  }
+
+  /**
+   * Once the patient's sex is recorded, untouched normal lines about the other
+   * sex's organs are taken out. A finding is never removed: if one disagrees
+   * with the recorded sex, the doctor is told to check instead.
+   */
+  function fitToSex(details: Patient) {
+    const plan = organPlan(reportRef.current, sexFromLabel(details.sex));
+    if (plan.conflict) {
+      toast.warning(plan.conflict);
+      return;
+    }
+    if (!plan.remove.length) return;
+    applyOps(removalOps(plan.remove), reportRef.current.impression);
+    const count = plan.remove.length;
+    toast.success(
+      `${count === 1 ? "1 line" : `${count} lines`} removed: ${plan.sex === "male" ? "uterus and ovaries do" : "prostate does"} not apply to this patient. Undo brings ${count === 1 ? "it" : "them"} back.`,
+    );
+  }
+
+  /** Lines about organs of one sex that the final check should ask about. */
+  function organIssues() {
+    const current = reportRef.current;
+    const label = sexFromLabel(patient?.sex);
+    const lines = current.sections.flatMap((section) =>
+      section.lines.map((line) => ({ sectionId: section.id, line, organ: organSexOf(line.text) })),
+    );
+    const has = (sex: "male" | "female") => lines.some(({ organ }) => organ === sex || organ === "both");
+    const plan = organPlan(current, label);
+    const wrong = lines.filter(({ organ }) => {
+      if (!organ) return false;
+      // Findings disagree, or nothing settles it and both sets are there: ask about every such line.
+      if (plan.conflict || !plan.sex) return has("male") && has("female");
+      return organ !== plan.sex && organ !== "both";
+    });
+    return wrong.map(({ sectionId, line }) => ({
+      text: line.text,
+      reason:
+        plan.conflict ??
+        (plan.sex
+          ? `This line does not fit a ${plan.sex} patient. Remove it, or check the patient's details.`
+          : "This report describes both a prostate and a uterus or ovaries. Remove the lines that do not belong to this patient."),
+      remove: () => {
+        const found = reportRef.current.sections
+          .find((section) => section.id === sectionId)
+          ?.lines.find((candidate) => candidate.id === line.id);
+        if (!found || found.text !== line.text) return false;
+        // The doctor chose this, so a typed or dictated line can go too: it is put back to normal first.
+        const steps: PatchOp[] =
+          found.status === "normal"
+            ? removalOps([{ sectionId, lineId: line.id, text: line.text }])
+            : [{ op: "reset", sectionId, lineId: line.id, text: "", source: "", warnings: [] }];
+        applyOps(steps, reportRef.current.impression);
+        const still = reportRef.current.sections
+          .find((section) => section.id === sectionId)
+          ?.lines.find((candidate) => candidate.id === line.id);
+        if (still && still.status === "normal" && organSexOf(still.text)) {
+          applyOps(removalOps([{ sectionId, lineId: line.id, text: still.text }]), reportRef.current.impression);
+        }
+        return true;
+      },
+    }));
+  }
+
   async function generate(text: string, signal: AbortSignal): Promise<Report> {
     const response = await fetch("/api/generate", {
       method: "POST",
@@ -559,24 +641,15 @@ export function ReportWorkspace({
         dictation: text,
         // So a correction of something said earlier can rewrite that message too.
         earlier: logRef.current.map((entry) => ({ id: entry.id, said: entry.dictation })),
+        // So organs of the other sex are left out of the report.
+        sex: patient?.sex ?? null,
       }),
     });
     const body = await response.json();
     if (!response.ok) throw new Error(body.error);
 
     const ops: PatchOp[] = body.ops;
-    let next = applyPatch(reportRef.current, template, ops, body.impression);
-    if (future && editorRef.current) {
-      // Written into the document too, keeping any formatting the doctor added.
-      applying.current = true;
-      editorRef.current.applyPatch({ template, ops, impression: body.impression });
-      applying.current = false;
-      const doc = editorRef.current.getDoc();
-      next = { ...docToReport(doc, next), doc };
-    }
-    reportRef.current = next;
-    setReport(next);
-    setDirty(true);
+    const next = applyOps(ops, body.impression);
     // One credit is one update of the report.
     setCredits(afterOneUpdate);
     const entry = logEntryFor(
@@ -1177,6 +1250,7 @@ export function ReportWorkspace({
                     validated={validation === 0}
                     onChecked={() => setCredits(afterOneUpdate)}
                     onIssues={setValidation}
+                    organIssues={organIssues}
                   />
                   {/* Always open: a report typed by hand, or a normal study, is finalized the same way. */}
                   <Tip label={finalizedAt && !dirty ? "Finalized: view it as it prints" : "Finalize: check details, save as final"}>
