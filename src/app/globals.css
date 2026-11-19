@@ -40,9 +40,9 @@ body {
 :root {
   --c-canvas: #f5f5f5;
   --c-surface: #fefefe;
-  --c-ink: #0f2624;
-  --c-ink-soft: #46595a;
-  --c-ink-quiet: #6f8280;
+  --c-ink: #0b1f1d;
+  --c-ink-soft: #324546;
+  --c-ink-quiet: #566866;
   --c-line: #e0e5e4;
   --c-teal: #0f766e;
   --c-teal-deep: #0b5c56;
@@ -90,9 +90,9 @@ body {
 html[data-landing-theme="dark"] {
   --c-canvas: #181b1f;
   --c-surface: #22262b;
-  --c-ink: #dce1e5;
-  --c-ink-soft: #a6adb4;
-  --c-ink-quiet: #868e96;
+  --c-ink: #ebeff2;
+  --c-ink-soft: #bcc3c9;
+  --c-ink-quiet: #9ca4ac;
   --c-line: #33383f;
   --c-teal: #5ccbb9;
   --c-teal-deep: #94dccf;
@@ -245,8 +245,8 @@ html[data-landing-theme="dark"] {
      Teal means "press this" or "this went right", nothing else. Amber marks
      the person's own spoken words and things that are waiting. */
   --c-ink: #0a0d0c;
-  --c-ink-soft: #49524f;
-  --c-ink-quiet: #606a67;
+  --c-ink-soft: #343c3a;
+  --c-ink-quiet: #4b5451;
   --c-line: #d6dbda;
   --c-teal: #0a7c70;
   --c-teal-deep: #07594f;
@@ -264,9 +264,9 @@ html[data-landing-theme="dark"] :is(.app, .app-layer) {
      white on black. */
   --c-canvas: #1a1d21;
   --c-surface: #24282d;
-  --c-ink: #e1e5e9;
-  --c-ink-soft: #aeb5bc;
-  --c-ink-quiet: #8f979f;
+  --c-ink: #eef1f4;
+  --c-ink-soft: #c2c8ce;
+  --c-ink-quiet: #a3abb3;
   --c-line: #383d44;
   /* Deep teal, not mint: silver-white text on it is 4.5:1, and as an icon on the
      dark panels it is about 3:1. teal-deep stays light because it is used
