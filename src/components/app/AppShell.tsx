@@ -32,6 +32,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Spinner } from "@/components/Spinner";
+import { SendFeedback } from "@/components/report/SendFeedback";
 import { Tip, TipProvider } from "@/components/Tip";
 import { Toaster } from "@/components/Toast";
 import { useTheme } from "@/components/landing/ThemeToggle";
@@ -149,7 +150,7 @@ function NavLinks({
 
   return (
     <nav aria-label={area === "admin" ? "Admin" : "App"} className="flex flex-col gap-1">
-      {NAV[area].map((item) => {
+      {NAV[area].flatMap((item) => {
         const active = item.exact
           ? pathname === item.href
           : pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -182,13 +183,29 @@ function NavLinks({
           </Link>
         );
         // Folded to icons, each link names itself on pointing.
-        return compact ? (
+        const entry = compact ? (
           <Tip key={item.href} label={item.label} side="right">
             {link}
           </Tip>
         ) : (
           link
         );
+        // Doctors can send feedback from any screen: it sits just above Settings.
+        // Not a screen of its own, so it opens a form and is never the current item.
+        if (area !== "doctor" || item.href !== "/settings") return [entry];
+        return [
+          <SendFeedback
+            key="send-feedback"
+            tip={compact ? "right" : false}
+            className={`flex h-11 items-center gap-3 rounded-full text-[1rem] font-semibold text-ink-soft transition-colors hover:bg-ink/[0.08] hover:text-ink ${
+              compact ? "w-11 justify-center" : "px-3"
+            }`}
+          >
+            <ChatCircleText className="h-5 w-5 shrink-0" />
+            <span className={compact ? "sr-only" : undefined}>Send feedback</span>
+          </SendFeedback>,
+          entry,
+        ];
       })}
     </nav>
   );

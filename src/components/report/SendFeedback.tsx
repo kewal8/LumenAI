@@ -15,7 +15,17 @@ import { FEEDBACK_MAX } from "@/lib/feedback";
  * LumenAI staff, who read it in the admin panel, with who sent it and from
  * which screen.
  */
-export function SendFeedback({ className }: { className: string }) {
+export function SendFeedback({
+  className,
+  children,
+  tip = "bottom",
+}: {
+  className: string;
+  /** What the button shows. Left out, it is the speech-bubble icon alone. */
+  children?: React.ReactNode;
+  /** Where the "Send feedback" hint appears on pointing; false when the button already says it. */
+  tip?: "bottom" | "right" | false;
+}) {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -42,13 +52,21 @@ export function SendFeedback({ className }: { className: string }) {
     toast.success("Feedback sent. Thank you.");
   }
 
+  const trigger = (
+    <button type="button" onClick={() => setOpen(true)} aria-label="Send feedback" className={className}>
+      {children ?? <ChatCircleText weight="bold" className="h-5 w-5" />}
+    </button>
+  );
+
   return (
     <>
-      <Tip label="Send feedback">
-        <button type="button" onClick={() => setOpen(true)} aria-label="Send feedback" className={className}>
-          <ChatCircleText weight="bold" className="h-5 w-5" />
-        </button>
-      </Tip>
+      {tip ? (
+        <Tip label="Send feedback" side={tip}>
+          {trigger}
+        </Tip>
+      ) : (
+        trigger
+      )}
       {/* What was typed is kept if the form is closed by mistake; it clears once sent. */}
       <Dialog.Root open={open} onOpenChange={(next) => !busy && (setOpen(next), setError(""))}>
         <Dialog.Portal>
