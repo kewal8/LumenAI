@@ -37,8 +37,9 @@ export function LoginForm({ next }: { next: string | null }) {
     void fetch("/api/auth/warm", { method: "POST" }).catch(() => {});
   }, []);
   const { error, busy, submit, clearError } = useSubmit("/api/auth/login", (home) => {
+    // One move, one load. The report screen is always fetched fresh for the
+    // new session, so a refresh on top would only load it a second time.
     router.replace(next ?? home);
-    router.refresh();
   });
 
   return (
@@ -87,7 +88,6 @@ export function AcceptInviteForm({ token, email }: { token: string; email: strin
   const [password, setPassword] = useState("");
   const { error, busy, submit, clearError } = useSubmit("/api/auth/accept-invite", (home) => {
     router.replace(home);
-    router.refresh();
   });
 
   return (
@@ -180,7 +180,6 @@ export function ResetPasswordForm({ token }: { token: string }) {
   const [password, setPassword] = useState("");
   const { error, busy, submit, clearError } = useSubmit("/api/auth/reset-password", (home) => {
     router.replace(home);
-    router.refresh();
   });
 
   return (

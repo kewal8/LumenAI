@@ -83,7 +83,6 @@ export function SignupForm({ referralCode = "" }: { referralCode?: string }) {
       return;
     }
     router.replace(result.data?.home ?? "/welcome");
-    router.refresh();
   }
 
   if (signupId) {
