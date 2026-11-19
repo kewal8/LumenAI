@@ -16,31 +16,43 @@ export const POST = handle(async (request) => {
   const sql = db();
   const ip = clientIp(request);
 
+  // Both read together: one wait on the database, not two.
   // Five wrong passwords for one email in 15 minutes pauses sign-in for it.
-  const [{ failures }] = await sql`
-    select count(*)::int as failures from login_attempts
-    where lower(email) = ${email} and not succeeded
-      and created_at > now() - interval '15 minutes'
-  `;
+  const [[{ failures }], [user]] = await Promise.all([
+    sql`
+      select count(*)::int as failures from login_attempts
+      where lower(email) = ${email} and not succeeded
+        and created_at > now() - interval '15 minutes'
+    `,
+    sql`
+      select id, password_hash, disabled_at, is_platform_admin from users where lower(email) = ${email}
+    `,
+  ]);
   if (failures >= MAX_FAILURES) {
     return fail(429, "Too many attempts. Wait 15 minutes, or reset your password.");
   }
-
-  const [user] = await sql`
-    select id, password_hash, disabled_at, is_platform_admin from users where lower(email) = ${email}
-  `;
 
   let ok = false;
   if (user) ok = await verifyPassword(password, user.password_hash);
   else await burnPasswordCheck(password);
 
-  await sql`
+  const logged = sql`
     insert into login_attempts (email, ip, succeeded) values (${email}, ${ip}, ${ok})
   `;
-  if (!ok) return fail(401, WRONG);
-  if (user.disabled_at) return fail(403, "This account has been turned off. Contact your administrator.");
+  if (!ok) {
+    await logged;
+    return fail(401, WRONG);
+  }
+  if (user.disabled_at) {
+    await logged;
+    return fail(403, "This account has been turned off. Contact your administrator.");
+  }
 
-  await sql`update users set last_login_at = now() where id = ${user.id}`;
-  await createSession(user.id, request.headers.get("user-agent"));
+  // The attempt, the last sign-in time and the new session are written together.
+  await Promise.all([
+    logged,
+    sql`update users set last_login_at = now() where id = ${user.id}`,
+    createSession(user.id, request.headers.get("user-agent")),
+  ]);
   return Response.json({ ok: true, home: homePath(user.is_platform_admin) });
 });

@@ -3,7 +3,7 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { BACKDROP } from "@/components/app/TeamClient";
+import { BACKDROP } from "@/components/app/ui";
 import { send } from "@/components/auth/fields";
 import type { RenewalDue } from "@/lib/moments";
 import { RenewalReminder } from "./RenewalReminder";

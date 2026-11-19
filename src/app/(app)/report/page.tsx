@@ -11,10 +11,13 @@ export const metadata = { title: "New report · LumenAI" };
 
 export default async function NewReportPage({ searchParams }: PageProps<"/report">) {
   const user = await requireUser();
+  // The plan check and the screen's data are read together: one wait, not two.
+  const [locked, workspace] = await Promise.all([
+    editorLocked(user),
+    searchParams.then(({ template }) => loadWorkspace(user, typeof template === "string" ? template : null)),
+  ]);
   // No active plan: the Plans page explains why and opens the way in.
-  if (await editorLocked(user)) redirect("/plans");
-  const { template } = await searchParams;
-  const workspace = await loadWorkspace(user, typeof template === "string" ? template : null);
+  if (locked) redirect("/plans");
 
   // Keyed by the starting template so choosing another one starts a clean report.
   return <ReportWorkspace key={workspace.template.id} {...workspace} design="future" />;

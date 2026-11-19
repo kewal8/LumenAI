@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/rules";
 import { authLinkClass } from "./AuthShell";
 import { Field, FormError, SubmitButton, send } from "./fields";
@@ -31,6 +31,11 @@ export function LoginForm({ next }: { next: string | null }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // The database sleeps when idle. Waking it now means it is ready by the
+  // time the password is typed. Nothing depends on the answer.
+  useEffect(() => {
+    void fetch("/api/auth/warm", { method: "POST" }).catch(() => {});
+  }, []);
   const { error, busy, submit, clearError } = useSubmit("/api/auth/login", (home) => {
     router.replace(next ?? home);
     router.refresh();

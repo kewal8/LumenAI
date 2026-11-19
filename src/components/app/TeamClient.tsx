@@ -10,11 +10,10 @@ import { Field, FieldLabel, FormError, send } from "@/components/auth/fields";
 import { Tip } from "@/components/Tip";
 import type { Role } from "@/lib/auth/session";
 import { ROLE_LABELS } from "@/lib/team";
-import { Select, buttonClass } from "./ui";
+import { BACKDROP, POPUP, Select, buttonClass } from "./ui";
 
-export const POPUP =
-  "app-layer sheet fixed left-1/2 top-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/20 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(15_38_36/0.5)] outline-none sm:p-8";
-export const BACKDROP = "app-backdrop fixed inset-0 z-50 bg-[#0f2624]/40";
+// Kept in ./ui so screens that only need these styles do not load this file.
+export { BACKDROP, POPUP };
 
 export function InviteButton({
   roles,

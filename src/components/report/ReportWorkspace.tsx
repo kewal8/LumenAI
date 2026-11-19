@@ -30,6 +30,7 @@ import {
   CornersIn,
   CornersOut,
 } from "@phosphor-icons/react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { buttonClass, formatDateTime, tidyHeading } from "@/components/app/ui";
@@ -58,7 +59,6 @@ import { expandMacros, removeLastMacro, tidyShortForms, type Macro, type MacroMo
 import { MacroHighlights } from "./MacroHighlights";
 import { comboFromEvent, type ShortcutAction, type Shortcuts } from "@/lib/shortcuts";
 import { keyText, useIsMac } from "@/lib/keys";
-import { FinalizeDialog } from "./FinalizeDialog";
 import { STEP, STEP_DONE, STEP_ICON, ValidateButton } from "./ValidateButton";
 import { FloatingBox, useFloatingWindow } from "./FloatingBox";
 import { useLineVoice } from "./LineVoice";
@@ -72,7 +72,6 @@ import { setUpdatesLeft } from "@/lib/updatesLeft";
 import { BLANK_TEMPLATE, BLANK_TEMPLATE_ID } from "@/lib/templates";
 import { EMPTY_PATIENT, ageSex, hasPatient, type Patient } from "@/lib/patient";
 import { AssistantMenu } from "./AssistantMenu";
-import { PatientDialog } from "./PatientDialog";
 import { VoiceButton } from "./VoiceButton";
 import { MICROPHONE_MESSAGES, useDictation, type Word } from "@/lib/useDictation";
 import {
@@ -88,6 +87,18 @@ import {
 type FailedDictation = { text: string; message: string };
 
 const COPY_BLOCKED = "Your browser did not let the report copy. Press Copy again.";
+
+// Pop-ups that open late in a report, if at all. They are fetched once the
+// screen is up (see the idle preload below), not with it.
+const FinalizeDialog = dynamic(() => import("./FinalizeDialog").then((module) => module.FinalizeDialog), { ssr: false });
+const PatientDialog = dynamic(() => import("./PatientDialog").then((module) => module.PatientDialog), { ssr: false });
+
+/** True from the first time `on` is true: a pop-up is kept once it has been opened. */
+function useOnceOn(on: boolean) {
+  const [seen, setSeen] = useState(on);
+  if (on && !seen) setSeen(true);
+  return seen || on;
+}
 
 export function ReportWorkspace({
   profile,
@@ -149,11 +160,22 @@ export function ReportWorkspace({
   // Who the report is for. Asked for on the first save, and confirmed before finalizing.
   const [patient, setPatient] = useState<Patient | null>(saved?.patient ?? null);
   const [patientAsk, setPatientAsk] = useState<"save" | "finalize" | "edit" | null>(null);
+  const patientWanted = useOnceOn(patientAsk !== null);
+  // A few seconds after the screen is ready the two pop-ups are fetched
+  // quietly, so they open at once when asked for.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void import("./FinalizeDialog");
+      void import("./PatientDialog");
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, []);
   // What to do once a save asked for from elsewhere (such as starting a new report) succeeds.
   const afterSave = useRef<(() => void) | null>(null);
   // When the report was last finalized, and whether the finalized preview is open.
   const [finalizedAt, setFinalizedAt] = useState<string | null>(saved?.finalizedAt ?? null);
   const [showFinal, setShowFinal] = useState(false);
+  const finalWanted = useOnceOn(showFinal);
   // True while the report has changes that are not in "Reports" yet.
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -900,7 +922,7 @@ export function ReportWorkspace({
 
   const dialogs = (
     <>
-      <FinalizeDialog
+      {finalWanted && <FinalizeDialog
         open={showFinal}
         onClose={() => setShowFinal(false)}
         printHtml={showFinal ? printHtml() : ""}
@@ -910,9 +932,9 @@ export function ReportWorkspace({
         flaggedLines={flaggedLines}
         onPrint={print}
         onCopy={() => copy(report)}
-      />
+      />}
 
-      <PatientDialog
+      {patientWanted && <PatientDialog
         open={patientAsk !== null}
         initial={patientDraft}
         purpose={patientAsk ?? "save"}
@@ -922,7 +944,7 @@ export function ReportWorkspace({
           setPatientAsk(null);
         }}
         onSubmit={submitPatient}
-      />
+      />}
 
       <Dialog.Root open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
         <Dialog.Portal>

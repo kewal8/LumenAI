@@ -5,7 +5,7 @@ import { updatesLeft } from "@/lib/credits";
 import { loadCredits } from "@/lib/workspace";
 import { greetingName } from "@/lib/greeting";
 import { renewalDue } from "@/lib/moments";
-import { RenewalPrompt } from "@/components/welcome/RenewalPrompt";
+import { RenewalPromptLazy } from "@/components/welcome/RenewalPromptLazy";
 
 // Reads the session on every request, so this route is rendered on demand
 // rather than prerendered.
@@ -30,7 +30,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     >
       {children}
       {/* Asks the owner to renew in the last week of a plan. */}
-      {renewal && <RenewalPrompt key={renewal.moment} due={renewal} firstName={greetingName(user.name)} />}
+      {renewal && <RenewalPromptLazy key={renewal.moment} due={renewal} firstName={greetingName(user.name)} />}
     </AppShell>
   );
 }
