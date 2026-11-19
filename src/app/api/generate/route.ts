@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { LOCKED_MESSAGE, editorLocked } from "@/lib/subscription";
 import { SEXES } from "@/lib/patient";
 import { applyPatch, type PatchOp, type Report, type Template } from "@/lib/report";
+import { keepCorrelation } from "@/lib/correlation";
 import { continuationRemovals, organPlan, organSexOf, removalOps, sexFromLabel } from "@/lib/sexOrgans";
 import { pathOf, recordError } from "@/lib/monitor";
 import { recordClaudeUsage } from "@/lib/usage";
@@ -74,6 +75,8 @@ Second, put the items in order of clinical importance, not in template order: th
 Third, write each item briefly: a diagnosis, not a description. Keep the side, level and site. Keep a measurement only when it matters for management, such as the size of a stone or a lesion; leave out measurements of normal-sized organs. Never change the grade or certainty of a finding: mild stays mild, and "suggestive of" does not become a diagnosis. Do not turn an imaging finding into a clinical syndrome: compression of a nerve root is reported as compression, not as radiculopathy, which the images do not show.
 
 A finding with a clear diagnosis needs nothing more: no differentials and no advice. A lesion the images cannot fully characterise is different (a mass, a space-occupying lesion, an indeterminate nodule). Describe it by its imaging character and site, never by a tissue diagnosis the radiologist did not dictate, then in the same item give the two or three standard imaging differentials for that appearance and the one correlation that would settle it, such as "Histopathological correlation is advised." If the radiologist dictated their own differentials or advice, use theirs and add none.
+
+A template's normal impression often ends with a standing line that asks for clinical correlation ("Kindly correlate clinically & with other investigations.", "Clinical correlation is advised."). That line belongs to the radiologist's template and stays in every report: keep it as the last item, word for word, after the items you write, whatever the findings and whatever the modality. Never drop it, shorten it, reword it or write your own version of it.
 
 After the positive items, include a dictated negative finding only when it changes management in the light of the positive ones, such as no midline shift or hydrocephalus beside a brain lesion, or no acute infarction. Normal template lines the radiologist did not dictate are not listed.
 
@@ -219,7 +222,8 @@ export async function POST(request: Request) {
     return Response.json({
       ops,
       // A template without an impression section never gets one, whatever the model returned.
-      impression: template.noImpression ? [] : response.parsed_output.impression,
+      // The template's own "correlate clinically" line always closes it, as written.
+      impression: template.noImpression ? [] : keepCorrelation(response.parsed_output.impression, template),
       said: response.parsed_output.said.trim(),
       // Only rewrites of dictations that were actually sent.
       revised: response.parsed_output.revised
