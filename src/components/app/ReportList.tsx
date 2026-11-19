@@ -66,6 +66,10 @@ function DownloadButton({ id, label }: { id: string; label: string }) {
   );
 }
 
+/** A report saved without a patient's name goes by when it was made and its template. */
+const nameOf = (report: { patient: { name: string } | null; templateName: string; createdAt: string }) =>
+  report.patient?.name || `${formatDate(report.createdAt)}, ${time(report.createdAt)} · ${report.templateName}`;
+
 const time = (iso: string) =>
   new Date(iso).toLocaleTimeString("en-IN", {
     hour: "numeric",
@@ -161,7 +165,7 @@ export function ReportList({
                           href={`/reports/${report.id}`}
                           className="block truncate font-semibold hover:underline"
                         >
-                          {report.patient ? report.patient.name : report.templateName}
+                          {nameOf(report)}
                           {report.patient && ageSex(report.patient) && (
                             <span className="ml-2 font-medium text-ink-soft">{ageSex(report.patient)}</span>
                           )}
@@ -215,7 +219,7 @@ export function ReportList({
                       >
                         Open
                       </Link>
-                      <DownloadButton id={report.id} label={report.patient?.name ?? report.templateName} />
+                      <DownloadButton id={report.id} label={nameOf(report)} />
                       {/* Kept apart from Open and Download, so it is not pressed by mistake. */}
                       <span aria-hidden="true" className="mx-1.5 h-5 w-px bg-ink/15" />
                       <ConfirmAction

@@ -369,10 +369,11 @@ export function ReportWorkspace({
     return true;
   }
 
-  // Saving needs the patient's details: they are asked for the first time.
+  // The patient's details are asked for once, at the first save. They can be
+  // left empty there, so a report without a name is not asked again.
   function requestSave(then?: () => void) {
     afterSave.current = then ?? null;
-    if (hasPatient(patient)) {
+    if (patient !== null || savedId !== null) {
       void save().then((ok) => ok && then?.());
     } else {
       setPatientAsk("save");
@@ -1163,7 +1164,9 @@ export function ReportWorkspace({
                       {ageSex(patient) && <span className="shrink-0 text-[0.88rem] text-ink-soft">{ageSex(patient)}</span>}
                     </>
                   ) : (
-                    <span className="whitespace-nowrap text-[0.95rem] font-semibold text-ink-quiet">New patient</span>
+                    <span className="truncate text-[0.95rem] font-semibold text-ink-quiet">
+                      {savedId ? "No patient name" : "New patient"}
+                    </span>
                   )}
                 </button>
               </Tip>
@@ -1185,8 +1188,10 @@ export function ReportWorkspace({
                 >
                   {finalizedAt && !dirty ? "Final" : "Draft"}
                 </span>
+                {/* On a narrow screen the patient's name needs the room: the
+                    Validate button below says the same thing. */}
                 <span
-                  className={`shrink-0 rounded px-1.5 py-px text-[0.68rem] font-bold uppercase tracking-[0.06em] ${
+                  className={`shrink-0 rounded px-1.5 py-px text-[0.68rem] font-bold uppercase tracking-[0.06em] @max-md:hidden ${
                     validation === 0
                       ? "bg-teal/[0.12] text-teal-deep"
                       : validation

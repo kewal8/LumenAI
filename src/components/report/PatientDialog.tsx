@@ -72,10 +72,6 @@ function PatientForm({
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!name.trim()) {
-      setError("Enter the patient's name.");
-      return;
-    }
     const years = age.trim() === "" ? null : Number(age);
     if (years !== null && (!Number.isInteger(years) || years < 0 || years > 150)) {
       setError("Enter the age as a whole number.");
@@ -93,8 +89,8 @@ function PatientForm({
       </Dialog.Title>
       <Dialog.Description className="mt-1.5 text-ink-soft">
         {purpose === "finalize"
-          ? "The final report is saved under these details. Check them before finalizing."
-          : "The report is saved under this patient in Reports."}
+          ? "The final report is saved under these details. Check them before finalizing. Without a name, it is saved under today's date and the template."
+          : "The report is saved under this patient in Reports. Without a name, it is saved under today's date and the template."}
       </Dialog.Description>
 
       <p className="mt-4 flex items-start gap-2 rounded-2xl bg-amber-tint px-3.5 py-2.5 text-[0.88rem] font-semibold leading-snug text-amber-deep">
@@ -104,7 +100,9 @@ function PatientForm({
 
       <div className="mt-5 flex flex-col gap-4">
         <label className="flex flex-col gap-1.5">
-          <span className={LABEL}>Patient name</span>
+          <span className={LABEL}>
+            Patient name <span className="font-medium text-ink-quiet">(optional)</span>
+          </span>
           <input
             value={name}
             onChange={(event) => (setName(event.target.value), setError(""))}

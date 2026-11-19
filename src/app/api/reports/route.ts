@@ -12,7 +12,7 @@ export const POST = handle(async (request) => {
   const input = parseReportInput(body);
   if (typeof input === "string") return fail(400, input);
   const finalize = body?.finalize === true;
-  // A report is saved for a patient: the details are asked for before the first save.
+  // The details are asked for before the first save; the name can be left out.
   const patient = parsePatient(body?.patient);
   if (typeof patient === "string") return fail(400, patient);
   if (!patient) return fail(400, "Enter the patient's details before saving.");
@@ -39,7 +39,7 @@ export const POST = handle(async (request) => {
     values (${user.org.id}, ${user.id}, ${input.template.name}, ${input.report.title},
             encode(sha256(convert_to(${template}::jsonb::text, 'UTF8')), 'hex'), ${JSON.stringify(input.report)}::jsonb,
             ${finalize ? new Date() : null}, ${finalize ? new Date() : null}, ${startedAt},
-            ${patient.name}, ${patient.age}, ${patient.ageUnit}, ${patient.sex}, ${patient.study}, ${patient.modality})
+            ${patient.name || null}, ${patient.age}, ${patient.ageUnit}, ${patient.sex}, ${patient.study}, ${patient.modality})
     returning id, finalized_at
   `;
   return Response.json({ ok: true, id: row.id, finalizedAt: row.finalized_at });

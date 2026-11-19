@@ -6,8 +6,9 @@ export const SEXES = ["Male", "Female", "Other"] as const;
 export type AgeUnit = (typeof AGE_UNITS)[number];
 export type Sex = (typeof SEXES)[number];
 
-/** Who and what a report is for. Asked for when the report is first saved. */
+/** Who and what a report is for. Asked for when the report is first saved; every part can be left out. */
 export type Patient = {
+  /** Empty when no name was given: the report then goes by its date and template. */
   name: string;
   age: number | null;
   ageUnit: AgeUnit;
@@ -18,7 +19,7 @@ export type Patient = {
 
 export const EMPTY_PATIENT: Patient = { name: "", age: null, ageUnit: "Years", sex: null, study: "", modality: null };
 
-/** True once the details needed to save have been given. */
+/** True once the patient's name has been given. */
 export function hasPatient(patient: Patient | null | undefined): patient is Patient {
   return Boolean(patient?.name.trim());
 }
@@ -38,8 +39,8 @@ function text(value: unknown, max: number) {
 export function parsePatient(value: unknown): Patient | null | string {
   if (value === undefined || value === null) return null;
   const input = value as Record<string, unknown>;
+  // The name can be left out: the report is then listed by its date and template.
   const name = text(input.name, 120);
-  if (!name) return "Enter the patient's name.";
   let age: number | null = null;
   if (input.age !== null && input.age !== undefined && input.age !== "") {
     age = Number(input.age);
@@ -52,9 +53,10 @@ export function parsePatient(value: unknown): Patient | null | string {
 
 /** Reads the patient columns of a reports row. */
 export function patientFromRow(row: Record<string, unknown>): Patient | null {
-  if (typeof row.patient_name !== "string" || !row.patient_name) return null;
+  const given = [row.patient_name, row.patient_age, row.patient_sex, row.study, row.modality];
+  if (given.every((value) => value === null || value === undefined || value === "")) return null;
   return {
-    name: row.patient_name,
+    name: typeof row.patient_name === "string" ? row.patient_name : "",
     age: typeof row.patient_age === "number" ? row.patient_age : null,
     ageUnit: AGE_UNITS.find((unit) => unit === row.patient_age_unit) ?? "Years",
     sex: SEXES.find((option) => option === row.patient_sex) ?? null,
