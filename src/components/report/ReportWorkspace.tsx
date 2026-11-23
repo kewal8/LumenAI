@@ -604,6 +604,8 @@ export function ReportWorkspace({
     const changes = reviews[entryId] ?? [];
     const chosen = changes.filter((change) => keys.includes(change.key));
     let skipped = 0;
+    // Lines the doctor edited after the AI wrote them stay as written, so they count as kept.
+    const kept = new Set<string>();
     if (to === "ignored" && editorRef.current) {
       applying.current = true;
       for (const change of chosen) {
@@ -619,6 +621,7 @@ export function ReportWorkspace({
             ])
           : editorRef.current.restore([], { expect: change.impression!.after, text: change.impression!.before, template });
         skipped += result.skipped;
+        if (result.skipped) kept.add(change.key);
       }
       applying.current = false;
       const doc = editorRef.current.getDoc();
@@ -629,7 +632,9 @@ export function ReportWorkspace({
     }
     setReviews((current) => ({
       ...current,
-      [entryId]: (current[entryId] ?? []).map((change) => (keys.includes(change.key) ? { ...change, state: to } : change)),
+      [entryId]: (current[entryId] ?? []).map((change) =>
+        keys.includes(change.key) ? { ...change, state: kept.has(change.key) ? "accepted" : to } : change,
+      ),
     }));
     const count = chosen.length - skipped;
     if (to === "accepted") toast.success(count === 1 ? "1 change accepted" : `${count} changes accepted`);
