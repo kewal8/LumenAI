@@ -28,7 +28,7 @@ import { Tip } from "@/components/Tip";
 import type { DocNode, PatchPlan } from "@/lib/reportDoc";
 import { PASTE_FONTS, type PasteProfile } from "@/lib/reportFormat";
 import { EDITOR_EXTENSIONS } from "./extensions";
-import { applyPatchToEditor } from "./reportLines";
+import { applyPatchToEditor, restoreReport, snapshotReport, type ReportSnap } from "./reportLines";
 import { SpellCheck, type SpellTarget } from "./spelling/SpellCheck";
 import { SpellMenu } from "./spelling/SpellMenu";
 import { fixText, readLines } from "./textFixes";
@@ -42,6 +42,10 @@ export type ReportEditorHandle = {
   getLines: () => string[];
   /** Applies one accepted fix; false when that text is no longer there. */
   fixText: (line: number, find: string, replace: string) => boolean;
+  /** Every report line and the impression as they stand, for reviewing what the AI changed. */
+  snapshot: () => ReportSnap | null;
+  /** Puts chosen lines back; lines edited since are left alone and counted as skipped. */
+  restore: (...args: Parameters<typeof restoreReport> extends [unknown, ...infer Rest] ? Rest : never) => { done: number; skipped: number };
 };
 
 const SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24];
@@ -488,6 +492,8 @@ export function ReportEditor({
       getDoc: () => (editor?.getJSON() as DocNode | undefined) ?? initialDoc,
       getLines: () => (editor ? readLines(editor) : []),
       fixText: (line, find, replace) => (editor ? fixText(editor, line, find, replace) : false),
+      snapshot: () => (editor ? snapshotReport(editor) : null),
+      restore: (lines, impression) => (editor ? restoreReport(editor, lines, impression) : { done: 0, skipped: lines.length }),
     }),
     [editor, initialDoc],
   );

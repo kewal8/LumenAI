@@ -1,4 +1,4 @@
-import { CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { CaretRight, Heart } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -89,6 +89,24 @@ export function SiteHeader() {
   );
 }
 
+/** The flag of India: saffron, white and green, with the wheel in navy. */
+function IndiaFlag() {
+  return (
+    <svg
+      viewBox="0 0 30 20"
+      role="img"
+      aria-label="Flag of India"
+      className="h-[1.05em] w-auto rounded-[3px] ring-1 ring-ink/15"
+    >
+      <rect width="30" height="20" fill="#ffffff" />
+      <rect width="30" height="6.67" fill="#ff9933" />
+      <rect y="13.33" width="30" height="6.67" fill="#138808" />
+      <circle cx="15" cy="10" r="2.6" fill="none" stroke="#000080" strokeWidth="0.7" />
+      <circle cx="15" cy="10" r="0.6" fill="#000080" />
+    </svg>
+  );
+}
+
 export function SiteFooter() {
   return (
     <footer className={`${SHELL} py-14`}>
@@ -115,6 +133,12 @@ export function SiteFooter() {
       </div>
       <p className="mt-12 text-sm text-ink-soft">
         Every report is reviewed and signed by the radiologist.
+      </p>
+      <p className="mt-8 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t border-line pt-8 text-[0.98rem] font-semibold">
+        Made with
+        <Heart weight="fill" className="h-[1.1em] w-[1.1em] text-flag" aria-label="love" />
+        in Bengaluru, India
+        <IndiaFlag />
       </p>
     </footer>
   );

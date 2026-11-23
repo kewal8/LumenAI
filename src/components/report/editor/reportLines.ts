@@ -440,3 +440,86 @@ export function applyPatchToEditor(editor: Editor, { template, ops, impression }
 
   editor.view.dispatch(tr);
 }
+
+// ---------------------------------------------------------------------------
+// Reviewing what the AI changed: a picture of every line before and after a
+// dictation, and a way to put chosen lines back exactly as they were.
+
+/** One report line as it stood: its wording, its full node, and the line before it. */
+export type LineSnap = { lineId: string; sectionId: string | null; text: string; node: unknown; prev: string | null };
+export type ReportSnap = { lines: LineSnap[]; impression: string[] };
+
+const isImpressionLine = (node: PMNode) => node.type.name === "paragraph" && Boolean(node.attrs.impression);
+
+export function snapshotReport(editor: Editor): ReportSnap {
+  const lines: LineSnap[] = [];
+  let prev: string | null = null;
+  editor.state.doc.descendants((node) => {
+    if (!isLine(node)) return true;
+    lines.push({ lineId: node.attrs.lineId, sectionId: node.attrs.sectionId, text: node.textContent, node: node.toJSON(), prev });
+    prev = node.attrs.lineId;
+    return false;
+  });
+  return { lines, impression: findAll(editor.state.doc, isImpressionLine).map(({ node }) => node.textContent) };
+}
+
+/**
+ * Puts lines into a chosen state: `node` back in place of the line (or the
+ * line removed when `node` is null), only when the line still reads `expect`
+ * (or is absent when `expect` is null). A line the doctor has edited since is
+ * left as it is and counted as skipped, so their own words are never lost.
+ */
+export function restoreReport(
+  editor: Editor,
+  lines: { lineId: string; sectionId: string | null; expect: string | null; node: unknown; prev: string | null }[],
+  impression?: { expect: string[]; text: string[]; template: PatchPlan["template"] },
+) {
+  const { schema } = editor.state;
+  const tr = editor.state.tr.setMeta(PATCH, true);
+  let done = 0;
+  let skipped = 0;
+
+  for (const item of lines) {
+    const current = findBlock(tr.doc, (node) => isLine(node) && node.attrs.lineId === item.lineId);
+    const matches = item.expect === null ? !current : Boolean(current) && current!.node.textContent === item.expect;
+    if (!matches) {
+      skipped++;
+      continue;
+    }
+    if (current) {
+      if (item.node) tr.replaceWith(current.pos, current.pos + current.node.nodeSize, schema.nodeFromJSON(item.node));
+      else {
+        const resolved = tr.doc.resolve(current.pos);
+        if (resolved.parent.type.name === "listItem" && resolved.parent.childCount === 1) tr.delete(resolved.before(), resolved.after());
+        else tr.delete(current.pos, current.pos + current.node.nodeSize);
+      }
+      done++;
+      continue;
+    }
+    if (!item.node) continue;
+    // A line that had gone comes back after the line it used to follow, or at the top of its section.
+    const after =
+      (item.prev && findBlock(tr.doc, (node) => isLine(node) && node.attrs.lineId === item.prev)) ||
+      findBlock(tr.doc, (node) => node.attrs.role === "section" && node.attrs.sectionId === item.sectionId);
+    if (!after) {
+      skipped++;
+      continue;
+    }
+    tr.insert(after.pos + after.node.nodeSize, schema.nodeFromJSON(item.node));
+    done++;
+  }
+
+  if (tr.docChanged) editor.view.dispatch(tr);
+
+  // The impression is written back the way a dictation writes it, so lists and bold stay right.
+  if (impression) {
+    const reads = findAll(editor.state.doc, isImpressionLine).map(({ node }) => node.textContent);
+    if (reads.length === impression.expect.length && reads.every((text, index) => text === impression.expect[index])) {
+      applyPatchToEditor(editor, { template: impression.template, ops: [], impression: impression.text });
+      done++;
+    } else {
+      skipped++;
+    }
+  }
+  return { done, skipped };
+}

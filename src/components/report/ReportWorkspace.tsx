@@ -34,6 +34,8 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { buttonClass, formatDateTime, tidyHeading } from "@/components/app/ui";
+import { BACKDROP, POPUP } from "@/components/app/TeamClient";
+import { AiReview, changesBetween, pendingStyle, type AiChange } from "./AiReview";
 import { send as sendJson } from "@/components/auth/fields";
 import { Tip } from "@/components/Tip";
 import { copyReport } from "@/lib/clipboard";
@@ -176,7 +178,13 @@ export function ReportWorkspace({
   const afterSave = useRef<(() => void) | null>(null);
   // When the report was last finalized, and whether the finalized preview is open.
   const [finalizedAt, setFinalizedAt] = useState<string | null>(saved?.finalizedAt ?? null);
-  const [showFinal, setShowFinal] = useState(false);
+  const [showFinal, setShowFinalState] = useState(false);
+  // The page as it prints, made when the final view opens rather than while drawing.
+  const [finalHtml, setFinalHtml] = useState("");
+  const setShowFinal = (open: boolean) => {
+    if (open) setFinalHtml(printHtml());
+    setShowFinalState(open);
+  };
   const finalWanted = useOnceOn(showFinal);
   // True while the report has changes that are not in "Reports" yet.
   const [dirty, setDirty] = useState(false);
@@ -185,6 +193,20 @@ export function ReportWorkspace({
   const [pending, setPending] = useState<Template | null>(null);
   // Every dictation written into this report, oldest first. Saved with the report.
   const [log, setLog] = useState<LogEntry[]>(saved?.report.log ?? []);
+  // What each dictation changed, by log entry, while the radiologist reviews it.
+  // Kept only on this screen: a report reopened later has nothing waiting.
+  const [reviews, setReviews] = useState<Record<string, AiChange[]>>({});
+  const pendingCount = Object.values(reviews).reduce(
+    (sum, changes) => sum + changes.filter((change) => change.state === "pending").length,
+    0,
+  );
+  // An action asked for while AI changes were still waiting; it runs once they are accepted.
+  const [gate, setGate] = useState<{ run: () => void } | null>(null);
+  // Read by Copy, Print, Save and Finalize when they are pressed.
+  const reviewedRef = useRef(true);
+  useEffect(() => {
+    reviewedRef.current = pendingCount === 0;
+  }, [pendingCount]);
   // The dictation being written into the report right now, and the last one that failed.
   const [writing, setWriting] = useState<string | null>(null);
   const [failed, setFailed] = useState<FailedDictation | null>(null);
@@ -316,8 +338,8 @@ export function ReportWorkspace({
 
   // Short forms are managed in Settings; here they are only expanded as the doctor speaks.
   const [macros] = useState(initialMacros);
+  // Never changes on this screen, so the first value is the one the callbacks read.
   const macrosRef = useRef(macros);
-  macrosRef.current = macros;
 
   const dictation = useDictation({
     model: "nova-3-medical",
@@ -373,6 +395,7 @@ export function ReportWorkspace({
   // The patient's details are asked for once, at the first save. They can be
   // left empty there, so a report without a name is not asked again.
   function requestSave(then?: () => void) {
+    if (!reviewedRef.current) return setGate({ run: () => requestSave(then) });
     afterSave.current = then ?? null;
     if (patient !== null || savedId !== null) {
       void save().then((ok) => ok && then?.());
@@ -383,6 +406,7 @@ export function ReportWorkspace({
 
   // The last step: the details are confirmed, the report is saved as final and shown as it will print.
   function finalize() {
+    if (!reviewedRef.current) return setGate({ run: finalize });
     afterSave.current = null;
     setPatientAsk("finalize");
   }
@@ -499,6 +523,7 @@ export function ReportWorkspace({
 
   function startNew(next: Template) {
     setPending(null);
+    setReviews({});
     // A reopened report lives at its own address; a new one starts on the New report screen.
     if (saved) {
       router.push(`${future ? "/report" : "/report/classic"}?template=${encodeURIComponent(next.id)}`);
@@ -524,6 +549,7 @@ export function ReportWorkspace({
   // Prints through a hidden frame, so the report page itself stays as it is.
   // "Save as PDF" in the print window gives the PDF.
   async function print() {
+    if (!reviewedRef.current) return setGate({ run: () => void print() });
     const from = await fullIdentity();
     if (!from) return;
     const frame = document.createElement("iframe");
@@ -539,6 +565,7 @@ export function ReportWorkspace({
   }
 
   async function copy(next: Report) {
+    if (!reviewedRef.current) return setGate({ run: () => void copy(reportRef.current) });
     const from = await fullIdentity();
     if (!from) return;
     const { html, text } = clipboardParts(next, from);
@@ -566,6 +593,60 @@ export function ReportWorkspace({
     setReport(next);
     setDirty(true);
     return next;
+  }
+
+  /**
+   * Settles AI changes from one dictation. Accepting keeps them as they are.
+   * Ignoring or undoing puts each line back as it read before the dictation;
+   * a line the radiologist has edited since is left as they wrote it.
+   */
+  function settleChanges(entryId: string, keys: string[], to: "accepted" | "ignored") {
+    const changes = reviews[entryId] ?? [];
+    const chosen = changes.filter((change) => keys.includes(change.key));
+    let skipped = 0;
+    if (to === "ignored" && editorRef.current) {
+      applying.current = true;
+      for (const change of chosen) {
+        const result = change.line
+          ? editorRef.current.restore([
+              {
+                lineId: change.line.lineId,
+                sectionId: change.line.sectionId,
+                expect: change.line.afterText,
+                node: change.line.beforeNode,
+                prev: change.line.prev,
+              },
+            ])
+          : editorRef.current.restore([], { expect: change.impression!.after, text: change.impression!.before, template });
+        skipped += result.skipped;
+      }
+      applying.current = false;
+      const doc = editorRef.current.getDoc();
+      const next = { ...docToReport(doc, reportRef.current), doc };
+      reportRef.current = next;
+      setReport(next);
+      setDirty(true);
+    }
+    setReviews((current) => ({
+      ...current,
+      [entryId]: (current[entryId] ?? []).map((change) => (keys.includes(change.key) ? { ...change, state: to } : change)),
+    }));
+    const count = chosen.length - skipped;
+    if (to === "accepted") toast.success(count === 1 ? "1 change accepted" : `${count} changes accepted`);
+    else if (count > 0) toast.success(count === 1 ? "1 line put back as it was" : `${count} lines put back as they were`);
+    if (skipped) toast.warning(`${skipped === 1 ? "1 line was" : `${skipped} lines were`} edited after the AI wrote ${skipped === 1 ? "it" : "them"}, so ${skipped === 1 ? "it was" : "they were"} left as you wrote ${skipped === 1 ? "it" : "them"}.`);
+  }
+
+  /** Accepts every change still waiting, from every dictation. */
+  function acceptAllWaiting() {
+    setReviews((current) =>
+      Object.fromEntries(
+        Object.entries(current).map(([id, changes]) => [
+          id,
+          changes.map((change) => (change.state === "pending" ? { ...change, state: "accepted" as const } : change)),
+        ]),
+      ),
+    );
   }
 
   /**
@@ -651,7 +732,10 @@ export function ReportWorkspace({
     if (!response.ok) throw new Error(body.error);
 
     const ops: PatchOp[] = body.ops;
+    // The report before and after, so the radiologist can review each change.
+    const before = future ? (editorRef.current?.snapshot() ?? null) : null;
     const next = applyOps(ops, body.impression);
+    const after = future ? (editorRef.current?.snapshot() ?? null) : null;
     // "Male patient" said aloud is kept with the patient's details, like one typed there.
     const spoken = SEXES.find((option) => option === body.sex);
     if (spoken && spoken !== patient?.sex) {
@@ -686,6 +770,11 @@ export function ReportWorkspace({
       entry,
     ]);
     setOpenEntry(entry.id);
+    if (before && after) {
+      const headings = new Map(template.sections.map((section) => [section.id, tidyHeading(section.heading)]));
+      const changes = changesBetween(before, after, (sectionId) => (sectionId && headings.get(sectionId)) || "Report");
+      if (changes.length) setReviews((current) => ({ ...current, [entry.id]: changes }));
+    }
     return next;
   }
 
@@ -713,7 +802,7 @@ export function ReportWorkspace({
 
     try {
       await nextReport;
-      toast.success("Report updated");
+      toast.success(future ? "Report updated. Review the changes in the chat." : "Report updated");
     } catch (cause) {
       if (stopper.signal.aborted) {
         // Stopped by the doctor: the report is as it was and the words stay in the box.
@@ -996,7 +1085,7 @@ export function ReportWorkspace({
       {finalWanted && <FinalizeDialog
         open={showFinal}
         onClose={() => setShowFinal(false)}
-        printHtml={showFinal ? printHtml() : ""}
+        printHtml={showFinal ? finalHtml : ""}
         finalizedAt={finalizedAt}
         hasLetterhead={identity.letterheadEnabled && Boolean(identity.headerImage || identity.footerImage)}
         hasSignature={Boolean(identity.signatureText.trim() || identity.signatureImage)}
@@ -1140,10 +1229,43 @@ export function ReportWorkspace({
     "grid h-10 w-10 shrink-0 place-items-center rounded-full text-ink-soft transition-colors hover:bg-ink/[0.06] hover:text-ink disabled:opacity-40";
 
   if (future) {
+    const waitingStyle = pendingStyle(Object.values(reviews).flat());
     return (
       <main
         // On a phone the report has the screen; room is left at the bottom for the docked AI Assistant.
         className="flex min-w-0 flex-1 flex-col gap-4 p-3 max-lg:pb-[calc(17rem+env(safe-area-inset-bottom))] sm:p-4 sm:max-lg:pb-[calc(17rem+env(safe-area-inset-bottom))] lg:h-[100dvh] lg:flex-none lg:flex-row lg:overflow-clip">
+        {/* Lines waiting for review are tinted amber on screen only. */}
+        {waitingStyle && <style>{waitingStyle}</style>}
+        <Dialog.Root open={gate !== null} onOpenChange={(open) => !open && setGate(null)}>
+          <Dialog.Portal>
+            <Dialog.Backdrop className={BACKDROP} />
+            <Dialog.Popup className={POPUP}>
+              <Dialog.Title className="text-[1.3rem] font-semibold tracking-[-0.02em]">
+                {pendingCount === 1 ? "1 AI change is" : `${pendingCount} AI changes are`} not reviewed yet
+              </Dialog.Title>
+              <Dialog.Description className="mt-2 text-ink-soft">
+                The lines marked in amber were written by the AI and are waiting for you. Accept them to go on, or review them in the chat first.
+              </Dialog.Description>
+              <div className="mt-6 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const run = gate?.run;
+                    acceptAllWaiting();
+                    reviewedRef.current = true;
+                    setGate(null);
+                    toast.success("All AI changes accepted");
+                    run?.();
+                  }}
+                  className={buttonClass.primary}
+                >
+                  Accept all and continue
+                </button>
+                <Dialog.Close className={buttonClass.secondary}>Review first</Dialog.Close>
+              </div>
+            </Dialog.Popup>
+          </Dialog.Portal>
+        </Dialog.Root>
         {/* The report. */}
         <section
           aria-label="Report"
@@ -1499,6 +1621,13 @@ export function ReportWorkspace({
                             ))}
                           </ul>
                         )}
+                        {/* The radiologist decides what stays: nothing the AI wrote is final until accepted. */}
+                        <AiReview
+                          changes={reviews[entry.id] ?? []}
+                          onAccept={(keys) => settleChanges(entry.id, keys, "accepted")}
+                          onIgnore={(keys) => settleChanges(entry.id, keys, "ignored")}
+                          onUndo={(keys) => settleChanges(entry.id, keys, "ignored")}
+                        />
                       </div>
                     </div>
                   </li>

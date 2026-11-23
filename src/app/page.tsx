@@ -19,14 +19,13 @@ import {
   X,
 } from "@phosphor-icons/react/dist/ssr";
 import {
-  DrawLine,
   HeroTilt,
   Item,
   MotionRoot,
-  Pop,
   Reveal,
   Stagger,
 } from "@/components/landing/motion";
+import { Compare, FeatureTurns, Highlights, Steps } from "@/components/landing/Highlights";
 import { ScreenshotFrame } from "@/components/landing/ScreenshotFrame";
 import { KeyCombo } from "@/components/KeyCombo";
 import {
@@ -70,18 +69,27 @@ function IconTile({
 
 const PROBLEMS = [
   {
+    icon: <Files className="h-5 w-5" />,
     title: "Most of a report is normal",
     body: "Yet every normal line is still typed, dictated or checked, case after case, until the evening.",
   },
   {
+    icon: <Microphone className="h-5 w-5" />,
     title: "Dictation software types every word",
     body: "Even the “sorry, I mean 15 mm”. It hears what you say, not which line a finding belongs to.",
   },
   {
+    icon: <PencilSimple className="h-5 w-5" />,
     title: "The report editor is where time goes",
     body: "Headings, spacing and the impression get fixed by hand after the reading is done.",
   },
 ];
+
+/**
+ * A report in outline: the normal lines are bars of these widths, the one
+ * finding is the only line with words.
+ */
+const SAMPLE_LINES = ["78%", null, "92%", "34%", "66%", "58%", "84%"];
 
 const STEPS = [
   { title: "Open a template, or start blank", body: "Beside your image viewer, or on its own. A template starts the report complete and normal." },
@@ -194,10 +202,9 @@ export default function LandingPage() {
             </li>
           </ul>
 
-          {/* TODO: replace with a real screenshot of the report screen (1600x1000). */}
           <div className="hero-in mt-14 w-full max-w-[64rem] [--i:3]">
             <HeroTilt>
-              <ScreenshotFrame label="Report screen" layout="dictation" className="text-left" />
+              <ScreenshotFrame label="Report screen" layout="desk" className="text-left" />
             </HeroTilt>
           </div>
         </div>
@@ -205,19 +212,49 @@ export default function LandingPage() {
 
       <section className="px-3 pt-20 sm:px-5 lg:pt-28">
         <Reveal className="on-night mx-auto max-w-[88rem] rounded-[40px] bg-night px-5 py-20 text-on-night sm:px-8 lg:py-24">
-          <div className="mx-auto grid max-w-[72rem] gap-x-16 gap-y-12 lg:grid-cols-2">
-            <h2 className={H2}>Reporting still means typing what you already know.</h2>
-            <Stagger as="ul">
+          <div className="mx-auto grid max-w-[72rem] items-center gap-x-16 gap-y-12 lg:grid-cols-2">
+            <div>
+              <h2 className={H2}>Reporting still means typing what you already know.</h2>
+              {/* The point made visible: one finding in a report of normal lines. */}
+              <figure className="mt-10 rounded-3xl border border-night-line bg-on-night/[0.05] p-5 sm:p-7">
+                <Stagger as="ul" className="flex flex-col gap-3.5" aria-hidden="true">
+                  {SAMPLE_LINES.map((width, index) =>
+                    width ? (
+                      <Item as="li" key={index}>
+                        <span className="block h-2.5 rounded-full bg-on-night/[0.14]" style={{ width }} />
+                      </Item>
+                    ) : (
+                      <Item
+                        as="li"
+                        key={index}
+                        className="-mx-2 w-fit rounded-xl bg-teal-glow/[0.16] px-3 py-2 font-semibold leading-snug text-on-night"
+                      >
+                        Small acute infarct, left basal ganglia.
+                      </Item>
+                    ),
+                  )}
+                </Stagger>
+                <figcaption className="mt-6 text-[0.95rem] leading-relaxed text-on-night-soft">
+                  One finding. The rest is normal, and still gets written.
+                </figcaption>
+              </figure>
+            </div>
+            <Stagger as="ul" className="lg:pt-2">
               {PROBLEMS.map((problem) => (
                 <Item
                   as="li"
                   key={problem.title}
-                  className="border-t border-night-line py-6 first:border-t-0 first:pt-0 last:pb-0"
+                  className="flex gap-4 border-t border-night-line py-7 first:border-t-0 first:pt-0 last:pb-0"
                 >
-                  <h3 className="text-[1.35rem] font-semibold leading-snug">{problem.title}</h3>
-                  <p className="mt-2 max-w-[46ch] leading-relaxed text-on-night-soft">
-                    {problem.body}
-                  </p>
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-on-night/[0.1] text-teal-glow">
+                    {problem.icon}
+                  </span>
+                  <div>
+                    <h3 className="text-[1.35rem] font-semibold leading-snug">{problem.title}</h3>
+                    <p className="mt-2 max-w-[44ch] leading-relaxed text-on-night-soft">
+                      {problem.body}
+                    </p>
+                  </div>
                 </Item>
               ))}
             </Stagger>
@@ -227,99 +264,81 @@ export default function LandingPage() {
 
       <div id="features" className="scroll-mt-24">
         <section className={`${SHELL} py-20 lg:py-28`}>
-          <Reveal className="grid items-center gap-x-16 gap-y-12 lg:grid-cols-2">
-            <div>
-              <h2 className={H2}>
-                Say what is abnormal.{" "}
-                <span className="text-teal">Everything else stays normal.</span>
-              </h2>
-              <p className="mt-6 max-w-[48ch] text-[1.05rem] leading-relaxed text-ink-soft">
-                Look at the images and talk, in any order. LumenAI starts from
-                your template and changes only the lines you mention.
-              </p>
-              <ul className="mt-9 flex flex-col gap-6">
-                <li className="flex gap-4">
-                  <IconTile>
-                    <Microphone className="h-5 w-5" />
-                  </IconTile>
-                  <div>
-                    <h3 className="font-semibold leading-snug">Medical speech recognition</h3>
-                    <p className="mt-1 text-[0.98rem] leading-relaxed text-ink-soft">
-                      Clinical vocabulary, with Indian English supported.
-                    </p>
-                  </div>
-                </li>
-                <li className="flex gap-4">
-                  <IconTile warm>
-                    <Browsers className="h-5 w-5" />
-                  </IconTile>
-                  <div>
-                    <h3 className="font-semibold leading-snug">With your own software, or on its own</h3>
-                    <p className="mt-1 text-[0.98rem] leading-relaxed text-ink-soft">
-                      A browser tab next to your viewer, or a complete reporting desk by itself. Nothing to install.
-                    </p>
-                  </div>
-                </li>
-                <li className="flex gap-4">
-                  <IconTile>
-                    <DeviceMobile className="h-5 w-5" />
-                  </IconTile>
-                  <div>
-                    <h3 className="font-semibold leading-snug">On your phone, like an app</h3>
-                    <p className="mt-1 text-[0.98rem] leading-relaxed text-ink-soft">
-                      Add it to your home screen. Dictate, check and copy a report wherever you are.
-                    </p>
-                  </div>
-                </li>
-              </ul>
-            </div>
-            <div className="glow-up rounded-[40px] border border-line bg-surface/60 p-5 sm:p-8">
-              {/* TODO: real screenshot, dictation in progress. */}
-              <ScreenshotFrame label="Dictation" layout="dictation" />
-            </div>
+          <Reveal>
+            <FeatureTurns
+              intro={
+                <>
+                  <h2 className={H2}>
+                    Say what is abnormal.{" "}
+                    <span className="text-teal">Everything else stays normal.</span>
+                  </h2>
+                  <p className="mt-6 max-w-[48ch] text-[1.05rem] leading-relaxed text-ink-soft">
+                    Look at the images and talk, in any order. LumenAI starts from
+                    your template and changes only the lines you mention.
+                  </p>
+                </>
+              }
+              points={[
+                {
+                  icon: <IconTile><Microphone className="h-5 w-5" /></IconTile>,
+                  title: "Medical speech recognition",
+                  body: "Clinical vocabulary, with Indian English supported.",
+                  mock: <ScreenshotFrame label="Dictation" layout="dictation" />,
+                },
+                {
+                  icon: <IconTile warm><Browsers className="h-5 w-5" /></IconTile>,
+                  title: "With your own software, or on its own",
+                  body: "A browser tab next to your viewer, or a complete reporting desk by itself. Nothing to install.",
+                  mock: <ScreenshotFrame label="Beside your viewer" layout="beside" />,
+                },
+                {
+                  icon: <IconTile><DeviceMobile className="h-5 w-5" /></IconTile>,
+                  title: "On your phone, like an app",
+                  body: "Add it to your home screen. Dictate, check and copy a report wherever you are.",
+                  mock: <ScreenshotFrame label="On your phone" layout="phone" />,
+                },
+              ]}
+            />
           </Reveal>
         </section>
 
         <section className={`${SHELL} pb-20 lg:pb-28`}>
-          <Reveal className="grid items-center gap-x-16 gap-y-12 lg:grid-cols-2">
-            <div className="lg:order-2">
-              <h2 className={H2}>
-                Your template, filled in.{" "}
-                <span className="text-teal">Impression included.</span>
-              </h2>
-              <p className="mt-6 max-w-[48ch] text-[1.05rem] leading-relaxed text-ink-soft">
-                Each finding replaces the line it belongs to. The impression is
-                written from the abnormal lines only.
-              </p>
-              <ul className="mt-9 flex flex-col gap-6">
-                <li className="flex gap-4">
-                  <IconTile>
-                    <ListChecks className="h-5 w-5" />
-                  </IconTile>
-                  <div>
-                    <h3 className="font-semibold leading-snug">Findings land in the right section</h3>
-                    <p className="mt-1 text-[0.98rem] leading-relaxed text-ink-soft">
-                      Speak in any order. The report keeps the order of your template.
-                    </p>
-                  </div>
-                </li>
-                <li className="flex gap-4">
-                  <IconTile warm>
-                    <Prohibit className="h-5 w-5" />
-                  </IconTile>
-                  <div>
-                    <h3 className="font-semibold leading-snug">No contradictions left behind</h3>
-                    <p className="mt-1 text-[0.98rem] leading-relaxed text-ink-soft">
-                      A finding never sits beside a normal line that denies it.
-                    </p>
-                  </div>
-                </li>
-              </ul>
-            </div>
-            <div className="glow-up rounded-[40px] border border-line bg-surface/60 p-5 sm:p-8">
-              {/* TODO: real screenshot, finished report with impression. */}
-              <ScreenshotFrame label="Report" layout="report" />
-            </div>
+          <Reveal>
+            <FeatureTurns
+              flip
+              intro={
+                <>
+                  <h2 className={H2}>
+                    Your template, filled in.{" "}
+                    <span className="text-teal">Impression included.</span>
+                  </h2>
+                  <p className="mt-6 max-w-[48ch] text-[1.05rem] leading-relaxed text-ink-soft">
+                    Each finding replaces the line it belongs to. The impression is
+                    written from the abnormal lines only.
+                  </p>
+                </>
+              }
+              points={[
+                {
+                  icon: <IconTile><Signature className="h-5 w-5" /></IconTile>,
+                  title: "Impression written for you",
+                  body: "Built from your abnormal lines, ready to read and sign.",
+                  mock: <ScreenshotFrame label="Report" layout="report" />,
+                },
+                {
+                  icon: <IconTile><ListChecks className="h-5 w-5" /></IconTile>,
+                  title: "Findings land in the right section",
+                  body: "Speak in any order. The report keeps the order of your template.",
+                  mock: <ScreenshotFrame label="Report" layout="order" />,
+                },
+                {
+                  icon: <IconTile warm><Prohibit className="h-5 w-5" /></IconTile>,
+                  title: "No contradictions left behind",
+                  body: "A finding never sits beside a normal line that denies it.",
+                  mock: <ScreenshotFrame label="Report" layout="replace" />,
+                },
+              ]}
+            />
           </Reveal>
         </section>
 
@@ -411,7 +430,6 @@ export default function LandingPage() {
                   </p>
                 </div>
               </div>
-              {/* TODO: real screenshot, a flagged line. */}
               <ScreenshotFrame label="Safety checks" layout="flags" />
             </Item>
 
@@ -462,8 +480,7 @@ export default function LandingPage() {
                   </p>
                 </div>
               </div>
-              {/* TODO: real screenshot, report pasted into a PACS editor. */}
-              <ScreenshotFrame label="Pasted into your editor" layout="paste" />
+              <ScreenshotFrame label="Your reporting software" layout="paste" />
             </Item>
 
             {/* The other way out: no PACS needed to finish a report. */}
@@ -504,53 +521,12 @@ export default function LandingPage() {
             Four steps from images to signed report.
           </h2>
         </Reveal>
-        <Stagger as="ol" className="relative mt-14 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Line joining the four step numbers on wide screens. */}
-            <DrawLine className="absolute left-5 right-[calc(25%-1.25rem)] top-5 hidden h-px bg-line lg:block" />
-            {STEPS.map((step, index) => (
-              <Item as="li" key={step.title} className="relative">
-                <Pop className="grid h-10 w-10 place-items-center rounded-full bg-btn text-[0.95rem] font-bold text-btn-text">
-                  {index + 1}
-                </Pop>
-                <h3 className="mt-5 text-[1.25rem] font-semibold leading-snug tracking-[-0.03em]">
-                  {step.title}
-                </h3>
-                <p className="mt-1.5 text-[0.98rem] leading-relaxed text-ink-soft">{step.body}</p>
-              </Item>
-            ))}
-        </Stagger>
+        <Steps steps={STEPS} />
       </section>
 
       <section className={`${SHELL} pb-20 lg:pb-28`}>
-        <Reveal className="grid gap-5 md:grid-cols-2">
-          <div className={`${CARD} p-8 sm:p-10`}>
-            <h2 className="text-[1.6rem] font-semibold tracking-[-0.03em] text-ink-quiet">
-              Reporting today
-            </h2>
-            <ul className="mt-6 flex flex-col gap-4 text-ink-soft">
-              {OLD_WAY.map((item) => (
-                <li key={item} className="flex gap-3.5">
-                  <span className="mt-[0.7rem] h-px w-4 shrink-0 bg-ink-quiet" aria-hidden="true" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="rounded-3xl bg-teal-tint p-8 sm:p-10">
-            <h2 className="text-[1.6rem] font-semibold tracking-[-0.03em]">
-              With Lumen<span className="text-teal">AI</span>
-            </h2>
-            <ul className="mt-6 flex flex-col gap-4">
-              {NEW_WAY.map((item) => (
-                <li key={item} className="flex gap-3.5">
-                  <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-teal text-btn-text">
-                    <Check weight="bold" className="h-3.5 w-3.5" />
-                  </span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
+        <Reveal>
+          <Compare pairs={OLD_WAY.map((old, index) => ({ old, now: NEW_WAY[index] }))} />
         </Reveal>
       </section>
 
@@ -601,7 +577,7 @@ export default function LandingPage() {
 
       <section id="centres" className={`${SHELL} scroll-mt-24 pb-20 lg:pb-28`}>
         <Stagger className="grid gap-5 lg:grid-cols-5">
-          <Item as="article" lift className="flex flex-col gap-8 rounded-3xl bg-teal-tint p-8 sm:p-10 lg:col-span-3">
+          <Item as="article" className="flex flex-col gap-8 rounded-3xl bg-teal-tint p-8 sm:p-10 lg:col-span-3">
             <div>
               <h2 className="text-[clamp(1.7rem,3vw,2.25rem)] font-semibold leading-tight tracking-[-0.03em]">
                 For radiology centres
@@ -611,15 +587,7 @@ export default function LandingPage() {
                 reporting, and every report checked before it is signed.
               </p>
             </div>
-            <ul className="grid gap-x-5 gap-y-6 sm:grid-cols-2 xl:grid-cols-3">
-              {CENTRE_POINTS.map((point) => (
-                <li key={point.title}>
-                  <IconTile onTint>{point.icon}</IconTile>
-                  <h3 className="mt-4 font-semibold leading-snug">{point.title}</h3>
-                  <p className="mt-1 text-[0.95rem] leading-relaxed text-ink-soft">{point.body}</p>
-                </li>
-              ))}
-            </ul>
+            <Highlights points={CENTRE_POINTS} label="What a centre gets" />
             <div>
               <SecondaryButton href="/book-a-demo">Talk to us about your centre</SecondaryButton>
             </div>
