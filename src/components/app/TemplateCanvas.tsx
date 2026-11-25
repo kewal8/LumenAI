@@ -304,8 +304,7 @@ export function TemplateCanvas({
             aria-invalid={duplicate || undefined}
             aria-describedby={duplicate ? "template-name-taken" : undefined}
             autoFocus={!template}
-            style={{ outline: "none" }}
-            className="bg-transparent text-[1.02rem] font-semibold text-ink placeholder:font-medium placeholder:text-ink-quiet"
+            className="bg-transparent text-[1.02rem] outline-none font-semibold text-ink placeholder:font-medium placeholder:text-ink-quiet"
           />
         </label>
         <div className={`${FIELD} relative`}>
@@ -332,7 +331,7 @@ export function TemplateCanvas({
             autoComplete="off"
             value={modality}
             onChange={(event) => (setModality(event.target.value), touched())}
-            className="absolute inset-0 cursor-pointer rounded-[1.6rem] opacity-0"
+            className="absolute inset-0 cursor-pointer rounded-[1.6rem] opacity-0 outline-none"
           >
             <option value="">Select a modality</option>
             {MODALITIES.map((option) => (
@@ -533,7 +532,7 @@ function ShareDialog({
                   aria-label="General access"
                   value={choice ? "org" : "me"}
                   onChange={(event) => setChoice(event.target.value === "org")}
-                  className="cursor-pointer appearance-none rounded-lg bg-transparent py-1 pl-1 pr-7 text-[1rem] font-semibold outline-none hover:bg-ink/[0.06]"
+                  className="cursor-pointer appearance-none rounded-lg bg-transparent py-1 pl-1 pr-7 text-[1rem] font-semibold outline-none hover:bg-ink/[0.06] focus-visible:bg-ink/[0.06] focus-visible:ring-2 focus-visible:ring-teal"
                 >
                   <option value="me">Only you</option>
                   <option value="org">Everyone at {orgName}</option>

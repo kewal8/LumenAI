@@ -85,7 +85,7 @@ export function AccountInviteButton() {
                 value={link}
                 aria-label="Invitation link"
                 onFocus={(event) => event.target.select()}
-                className="h-11 w-full rounded-full border border-ink/35 bg-canvas px-4 text-[0.9rem] text-ink outline-none"
+                className="h-11 w-full rounded-full border border-ink/35 bg-canvas px-4 text-[0.9rem] text-ink outline-none transition-colors focus:border-teal"
               />
               <FormError message={error} />
               <div className="flex gap-2">

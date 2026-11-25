@@ -284,7 +284,7 @@ function UserMenu({
       <Menu.Trigger
         title={compact ? user.name : undefined}
         aria-label={compact ? `Account: ${user.name}` : undefined}
-        className={`flex items-center gap-3 rounded-2xl text-left outline-none transition-colors hover:bg-ink/10 data-[popup-open]:bg-ink/10 ${
+        className={`flex items-center gap-3 rounded-2xl text-left outline-none transition-colors hover:bg-ink/10 focus-visible:bg-ink/10 focus-visible:ring-2 focus-visible:ring-teal data-[popup-open]:bg-ink/10 ${
           compact ? "p-1" : "w-full p-2"
         }`}
       >

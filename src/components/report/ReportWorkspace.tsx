@@ -1491,7 +1491,7 @@ export function ReportWorkspace({
               <TemplatePicker
                 current={template}
                 onPick={pickTemplate}
-                className="!h-8 min-w-0 max-w-[18rem] !gap-1 !rounded-md !border-transparent !bg-transparent !px-[9px] !text-[0.85rem] !font-medium !text-ink-soft hover:!bg-ink/[0.05] hover:!text-ink data-[popup-open]:!bg-ink/[0.06] [&>svg]:!h-3 [&>svg]:!w-3"
+                className="!h-8 min-w-0 max-w-[18rem] !gap-1 !rounded-md !border-transparent !bg-transparent !px-[9px] !text-[0.85rem] !font-medium !text-ink-soft hover:!bg-ink/[0.05] hover:!text-ink focus-visible:!border-teal focus-visible:!text-ink data-[popup-open]:!bg-ink/[0.06] [&>svg]:!h-3 [&>svg]:!w-3"
               />
 
               <div className="ml-auto flex shrink-0 items-center gap-3">
@@ -1860,8 +1860,6 @@ export function ReportWorkspace({
                               ? "Talk now. Your words appear here."
                               : "Speak your findings, or type them here"
                         }
-                      // The rounded box around it shows focus; the app-wide ring would draw a second box.
-                      style={{ outline: "none" }}
                       // Grows with the words, up to a few lines, then scrolls.
                       className="max-h-40 min-h-16 w-full resize-none bg-transparent px-3 pt-2 [field-sizing:content] text-[1.02rem] leading-relaxed text-ink outline-none placeholder:text-ink-quiet"
                     />

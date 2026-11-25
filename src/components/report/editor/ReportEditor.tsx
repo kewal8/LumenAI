@@ -326,7 +326,7 @@ function Toolbar({ editor, profile, flat = false }: { editor: Editor; profile: P
         value={state.font}
         onChange={(event) => onSelectionOrAll(editor, (chain) => chain.setFontFamily(event.target.value))}
         // A soft filled pill, matching the size control beside it.
-        className="!h-9 !w-[9.25rem] !border-transparent !bg-ink/[0.045] !pl-3.5 !pr-9 !text-[0.92rem] !text-ink hover:!bg-ink/[0.08]"
+        className="!h-9 !w-[9.25rem] !border-transparent !bg-ink/[0.045] !pl-3.5 !pr-9 !text-[0.92rem] !text-ink hover:!bg-ink/[0.08] focus-visible:!border-teal"
       >
         {PASTE_FONTS.map((font) => (
           <option key={font}>{font}</option>

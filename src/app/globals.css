@@ -114,14 +114,19 @@ html[data-landing-theme="dark"] {
   color: #0f2624;
 }
 
-.landing :focus-visible {
-  outline: 2px solid var(--c-teal);
-  outline-offset: 3px;
-  border-radius: 999px;
-}
+/* Keyboard focus rings, in the base layer: a control that draws its own focus
+   (a field whose border turns teal, a rounded box around an input) says
+   outline-none, and that must win, or the field shows a second, square box. */
+@layer base {
+  .landing :focus-visible {
+    outline: 2px solid var(--c-teal);
+    outline-offset: 3px;
+    border-radius: 999px;
+  }
 
-.landing .on-night :focus-visible {
-  outline-color: #ecf6f4;
+  .landing .on-night :focus-visible {
+    outline-color: #ecf6f4;
+  }
 }
 
 .landing a {
@@ -317,9 +322,12 @@ html[data-landing-theme="dark"] .app [aria-current="page"].bg-ink {
   color: #0f2624;
 }
 
-:is(.app, .app-layer) :focus-visible {
-  outline: 2px solid var(--c-teal);
-  outline-offset: 2px;
+/* Base layer for the same reason as the landing ring above. */
+@layer base {
+  :is(.app, .app-layer) :focus-visible {
+    outline: 2px solid var(--c-teal);
+    outline-offset: 2px;
+  }
 }
 
 /* Strokes in dark mode. Borders are drawn as a share of the text colour,

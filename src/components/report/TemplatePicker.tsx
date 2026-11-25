@@ -86,7 +86,7 @@ export function TemplatePicker({
     >
       <Combobox.Trigger
         aria-label={`Template: ${current.name}. Change template`}
-        className={`inline-flex h-11 max-w-full items-center justify-between gap-3 rounded-full border border-ink/40 bg-surface pl-4 pr-3.5 text-[0.95rem] font-semibold text-ink outline-none transition-colors hover:border-ink/60 data-[popup-open]:border-teal ${className}`}
+        className={`inline-flex h-11 max-w-full items-center justify-between gap-3 rounded-full border border-ink/40 bg-surface pl-4 pr-3.5 text-[0.95rem] font-semibold text-ink outline-none transition-colors hover:border-ink/60 focus-visible:border-teal data-[popup-open]:border-teal ${className}`}
       >
         <span className="truncate">{current.name}</span>
         <CaretDown weight="bold" className="h-4 w-4 shrink-0" />
@@ -100,9 +100,6 @@ export function TemplatePicker({
               <Combobox.Input
                 aria-label="Search templates"
                 placeholder="Search templates"
-                // The app-wide focus ring would draw a box inside the dropdown.
-                // The blinking caret already shows where typing goes.
-                style={{ outline: "none" }}
                 className="h-13 w-full bg-transparent text-[1rem] font-semibold text-ink outline-none placeholder:font-medium placeholder:text-ink-quiet"
               />
             </label>
