@@ -1505,6 +1505,7 @@ export function ReportWorkspace({
                     onChecked={() => setCredits(afterOneUpdate)}
                     onIssues={setValidation}
                     organIssues={organIssues}
+                    removeEmptyLines={() => editorRef.current?.removeEmptyLines() ?? 0}
                   />
                   {/* Always open: a report typed by hand, or a normal study, is finalized the same way. */}
                   <Tip label={finalizedAt && !dirty ? "Finalized: view it as it prints" : "Finalize: check details, save as final"}>

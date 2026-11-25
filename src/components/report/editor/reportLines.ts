@@ -523,3 +523,41 @@ export function restoreReport(
   }
   return { done, skipped };
 }
+
+// ---------------------------------------------------------------------------
+// Tidying before a check: lines the doctor or the AI emptied leave a gap.
+
+/**
+ * Takes out report and impression lines left empty (cut, cleared or deleted to
+ * nothing), so the report closes up. The template's own blank lines stay; where
+ * a removed line sat between two of them, one goes too, so the spacing stays
+ * as the template has it. One step, so one Undo puts it all back.
+ */
+export function removeEmptyLines(editor: Editor) {
+  const tr = editor.state.tr;
+  const empty = (node: PMNode | null | undefined) => Boolean(node && node.isTextblock && !node.textContent.trim());
+  const isGap = (node: PMNode | null | undefined) =>
+    empty(node) && !node!.attrs.lineId && !node!.attrs.impression && node!.type.name === "paragraph";
+  const targets = findAll(
+    tr.doc,
+    (node) => node.type.name === "paragraph" && Boolean(node.attrs.lineId || node.attrs.impression) && empty(node),
+  );
+  let removed = 0;
+  // From the end, so the places of the ones before do not move.
+  for (const { pos, node } of targets.reverse()) {
+    const resolved = tr.doc.resolve(pos);
+    removed++;
+    // A bullet with nothing in it goes whole, and its list with it when it was the last.
+    if (resolved.parent.type.name === "listItem" && resolved.parent.childCount === 1) {
+      tr.deleteRange(resolved.before(), resolved.after());
+      continue;
+    }
+    tr.delete(pos, pos + node.nodeSize);
+    const at = tr.doc.resolve(pos);
+    if (at.depth === 0 && isGap(at.nodeBefore) && isGap(at.nodeAfter)) {
+      tr.delete(pos, pos + at.nodeAfter!.nodeSize);
+    }
+  }
+  if (removed) editor.view.dispatch(tr);
+  return removed;
+}

@@ -231,11 +231,37 @@ function signatureLines(signature?: Signature) {
     .filter(Boolean);
 }
 
+/**
+ * The impression is a list of diagnoses, so it is copied and printed as bullet
+ * points, as it shows in the editor. Its lines sit loose in the document, so
+ * each run of them is gathered into one list; empty ones are left out.
+ */
+function withImpressionBullets(nodes: DocNode[]): DocNode[] {
+  const out: DocNode[] = [];
+  let run: DocNode[] = [];
+  const flush = () => {
+    if (run.length) out.push(...inBullets(run));
+    run = [];
+  };
+  for (const node of nodes) {
+    if (node.type === "paragraph" && node.attrs?.impression) {
+      if (nodeText(node).trim()) run.push(node);
+      continue;
+    }
+    flush();
+    out.push(node);
+  }
+  flush();
+  return out;
+}
+
 /** The document as HTML that keeps its formatting when pasted into a PACS editor. */
 export function docToHtml(doc: DocNode, profile: PasteProfile, signature?: Signature) {
   const base = `font-family:'${profile.font}',sans-serif;font-size:${profile.size}pt;color:#000;`;
   const heading = `${base}font-weight:bold;`;
-  const body = (doc.content ?? []).map((node) => blockHtml(node, base, heading)).join("");
+  const body = withImpressionBullets(doc.content ?? [])
+    .map((node) => blockHtml(node, base, heading))
+    .join("");
 
   const lines = signatureLines(signature);
   const signOff =
@@ -264,7 +290,7 @@ export function docToText(doc: DocNode, signature?: Signature) {
       } else walk(child, prefix);
     }
   };
-  walk(doc);
+  walk({ ...doc, content: withImpressionBullets(doc.content ?? []) });
   const lines = signatureLines(signature);
   return [parts.join("\n").trim(), ...(lines.length ? [lines.join("\n")] : [])].join("\n\n");
 }

@@ -42,6 +42,7 @@ export function ValidateButton({
   onChecked,
   onIssues,
   organIssues,
+  removeEmptyLines,
 }: {
   getLines: () => string[];
   fixText: (line: number, find: string, replace: string) => boolean;
@@ -54,6 +55,8 @@ export function ValidateButton({
   onIssues: (count: number) => void;
   /** Lines about organs of one sex that do not fit the patient, found without the AI. */
   organIssues?: () => { text: string; reason: string; remove: () => boolean }[];
+  /** Takes out lines left empty before the check, so the report closes up; how many went. */
+  removeEmptyLines?: () => number;
 }) {
   const [open, setOpen] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -63,6 +66,9 @@ export function ValidateButton({
     setOpen(true);
     setChecking(true);
     setIssues(null);
+    // Gaps left by cut or cleared lines close up first, so the check reads the report as it will be.
+    const tidied = removeEmptyLines?.() ?? 0;
+    if (tidied) toast.success(tidied === 1 ? "1 empty line removed. Undo brings it back." : `${tidied} empty lines removed. Undo brings them back.`);
     const result = await send<{ issues: Issue[] }>("POST", "/api/validate", { lines: getLines() });
     setChecking(false);
     if (result.error || !result.data) {

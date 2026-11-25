@@ -71,8 +71,9 @@ export function buildReportHtml(
 
   const sections = report.sections
     .map(({ heading: label, lines }) => {
+      // The impression is a list of diagnoses, so it is always bullet points.
       const body =
-        listStyle === "bullets"
+        listStyle === "bullets" || label === "IMPRESSION"
           ? `<ul style="margin:0;">${lines
               .map((line) => `<li style="${base}">${escapeHtml(line)}</li>`)
               .join("")}</ul>`
@@ -142,7 +143,7 @@ export function buildReportText(
   signature?: Signature,
 ) {
   const sections = report.sections.map(({ heading, lines }) => {
-    const body = lines.map((line) => (listStyle === "bullets" ? `- ${line}` : line));
+    const body = lines.map((line) => (listStyle === "bullets" || heading === "IMPRESSION" ? `- ${line}` : line));
     return `${heading}:\n${body.join("\n")}`;
   });
   const lines = signatureLines(signature);

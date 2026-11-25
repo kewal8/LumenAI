@@ -28,7 +28,7 @@ import { Tip } from "@/components/Tip";
 import type { DocNode, PatchPlan } from "@/lib/reportDoc";
 import { PASTE_FONTS, type PasteProfile } from "@/lib/reportFormat";
 import { EDITOR_EXTENSIONS } from "./extensions";
-import { applyPatchToEditor, restoreReport, snapshotReport, type ReportSnap } from "./reportLines";
+import { applyPatchToEditor, removeEmptyLines, restoreReport, snapshotReport, type ReportSnap } from "./reportLines";
 import { SpellCheck, type SpellTarget } from "./spelling/SpellCheck";
 import { SpellMenu } from "./spelling/SpellMenu";
 import { fixText, readLines } from "./textFixes";
@@ -44,6 +44,8 @@ export type ReportEditorHandle = {
   fixText: (line: number, find: string, replace: string) => boolean;
   /** Every report line and the impression as they stand, for reviewing what the AI changed. */
   snapshot: () => ReportSnap | null;
+  /** Takes out lines left empty, so the report closes up; how many went. */
+  removeEmptyLines: () => number;
   /** Puts chosen lines back; lines edited since are left alone and counted as skipped. */
   restore: (...args: Parameters<typeof restoreReport> extends [unknown, ...infer Rest] ? Rest : never) => { done: number; skipped: number };
 };
@@ -493,6 +495,7 @@ export function ReportEditor({
       getLines: () => (editor ? readLines(editor) : []),
       fixText: (line, find, replace) => (editor ? fixText(editor, line, find, replace) : false),
       snapshot: () => (editor ? snapshotReport(editor) : null),
+      removeEmptyLines: () => (editor ? removeEmptyLines(editor) : 0),
       restore: (lines, impression) => (editor ? restoreReport(editor, lines, impression) : { done: 0, skipped: lines.length }),
     }),
     [editor, initialDoc],

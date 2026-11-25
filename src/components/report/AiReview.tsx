@@ -271,5 +271,7 @@ export function pendingStyle(changes: AiChange[]) {
     .map((change) => `.report-doc p[data-line-id="${CSS.escape(change.line!.lineId)}"]`);
   if (waiting.some((change) => change.impression)) rules.push(".report-doc p[data-impression]");
   if (!rules.length) return "";
-  return `${rules.join(",")}{background:color-mix(in srgb,var(--c-amber) 16%,transparent)!important;box-shadow:inset 3px 0 0 var(--c-amber)!important}`;
+  // A line emptied since (cut, cleared or deleted to nothing) has nothing left to review, so it shows no amber.
+  const notEmpty = ":not(:has(> br.ProseMirror-trailingBreak:only-child))";
+  return `${rules.map((rule) => rule + notEmpty).join(",")}{background:color-mix(in srgb,var(--c-amber) 16%,transparent)!important;box-shadow:inset 3px 0 0 var(--c-amber)!important}`;
 }

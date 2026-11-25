@@ -51,6 +51,14 @@
   padding-left: 0.3em;
 }
 
+/* Impression items read as bullet points; an empty line gets no bullet. Copy and print match (reportDoc.ts). */
+.report-doc > p[data-impression]:not(:has(> br.ProseMirror-trailingBreak:only-child)) {
+  display: list-item;
+  list-style: disc outside;
+  margin-left: 1.4em;
+  padding-left: 0.3em;
+}
+
 .report-doc p.report-line-flagged {
   background: color-mix(in srgb, var(--c-flag) 11%, transparent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-flag) 11%, transparent),
