@@ -21,7 +21,7 @@ export default async function InsightsPage() {
       <WorkInsights insights={insights} />
       <Section
         title="AI updates"
-        description="What your plan allows each day, and how it has been used. One update is one change to a report from your dictation, or one Validate."
+        description="How your plan's AI updates are used. One update is one change from your dictation, or one Validate."
         icon={<Sparkle weight="fill" className="h-5 w-5 text-amber-deep" />}
       >
         <UsageActivity activity={activity} />

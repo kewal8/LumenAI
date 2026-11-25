@@ -430,6 +430,7 @@ export function ReportEditor({
   pageHeightMm,
   overlay,
   footer,
+  phoneToolbar = true,
 }: {
   ref?: React.Ref<ReportEditorHandle>;
   initialDoc: DocNode;
@@ -450,6 +451,8 @@ export function ReportEditor({
    * takes the printed text width and shows where each page will end.
    */
   pageHeightMm?: number;
+  /** False hides the formatting strip on a phone, where the report is spoken rather than typed. */
+  phoneToolbar?: boolean;
 }) {
   const zoom = useZoom();
   // The sheet, for measuring where pages end; state so the breaks draw once it exists.
@@ -505,7 +508,7 @@ export function ReportEditor({
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         {editor && (
-          <div className="shrink-0 border-b border-line bg-ink/[0.025] px-3 py-1.5">
+          <div className={`shrink-0 border-b border-line bg-ink/[0.025] px-3 py-1.5 ${phoneToolbar ? "" : "max-lg:hidden"}`}>
             <Toolbar editor={editor} profile={profile} flat />
           </div>
         )}

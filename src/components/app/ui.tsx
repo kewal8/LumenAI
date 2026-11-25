@@ -99,14 +99,14 @@ export function Section({
 }) {
   return (
     <section className={`${PANEL} overflow-hidden`}>
-      <header className="flex items-center gap-4 border-b border-line px-6 py-5 sm:px-8">
+      <header className="flex items-start gap-3.5 border-b border-line px-5 py-4 sm:items-center sm:gap-4 sm:px-8 sm:py-5">
         {icon && <IconTile tone="neutral">{icon}</IconTile>}
         <div className="min-w-0">
           <h2 className="text-[1.15rem] font-semibold tracking-[-0.01em]">{title}</h2>
-          {description && <p className="mt-0.5 text-[0.95rem] text-ink-soft">{description}</p>}
+          {description && <p className="mt-0.5 text-[0.92rem] leading-snug text-ink-soft sm:text-[0.95rem]">{description}</p>}
         </div>
       </header>
-      <div className="p-6 sm:p-8">{children}</div>
+      <div className="p-5 sm:p-8">{children}</div>
     </section>
   );
 }

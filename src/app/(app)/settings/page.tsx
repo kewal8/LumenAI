@@ -66,9 +66,12 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
 
   return (
     <Page>
-      <PageHeader title="Settings" description="Your account, and how your reports look and are signed." />
+      {/* On a phone each section is opened from the Me tab, and the top bar names it. */}
+      <div className="group-data-[app-style]/app:max-lg:hidden">
+        <PageHeader title="Settings" description="Your account, and how your reports look and are signed." />
+      </div>
 
-      <nav aria-label="Settings" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+      <nav aria-label="Settings" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 group-data-[app-style]/app:max-lg:hidden">
         {TABS.map(({ id, label, icon: Icon }) => (
           <Link
             key={id}

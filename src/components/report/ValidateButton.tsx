@@ -43,6 +43,8 @@ export function ValidateButton({
   onIssues,
   organIssues,
   removeEmptyLines,
+  className = STEP,
+  side = "bottom",
 }: {
   getLines: () => string[];
   fixText: (line: number, find: string, replace: string) => boolean;
@@ -57,6 +59,10 @@ export function ValidateButton({
   organIssues?: () => { text: string; reason: string; remove: () => boolean }[];
   /** Takes out lines left empty before the check, so the report closes up; how many went. */
   removeEmptyLines?: () => number;
+  /** The button's shape; the Validate and Finalize pill by default. */
+  className?: string;
+  /** Where the list of suggestions opens: above when the button sits at the bottom of a phone. */
+  side?: "top" | "bottom";
 }) {
   const [open, setOpen] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -139,7 +145,7 @@ export function ValidateButton({
             if (!checking) check();
           }}
           disabled={disabled || checking}
-          className={`${STEP} ${validated && !checking ? STEP_DONE : pending ? "font-bold text-amber-deep" : "font-bold text-ink"} data-[popup-open]:bg-surface`}
+          className={`${className} ${validated && !checking ? STEP_DONE : pending ? "font-bold text-amber-deep" : "font-bold text-ink"} data-[popup-open]:bg-surface`}
         >
           {checking ? (
             <Spinner />
@@ -154,7 +160,7 @@ export function ValidateButton({
         </Popover.Trigger>
       </Tip>
       <Popover.Portal>
-        <Popover.Positioner side="bottom" align="end" sideOffset={8} className="z-50">
+        <Popover.Positioner side={side} align="end" sideOffset={8} className="z-50">
           <Popover.Popup className="app-layer flex max-h-[min(34rem,calc(100dvh-8rem))] w-[min(26rem,calc(100vw-2rem))] flex-col rounded-3xl border border-ink/20 bg-surface shadow-[0_18px_50px_-18px_rgb(6_17_15/0.45)] outline-none">
             <div className="flex shrink-0 items-center gap-2 border-b border-line px-5 py-3.5">
               <Popover.Title className="text-[1.05rem] font-semibold">

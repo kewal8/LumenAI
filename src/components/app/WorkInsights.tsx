@@ -59,12 +59,13 @@ function Trend({ now, before }: { now: number; before: number }) {
 function NightBars({ days }: { days: Insights["days"] }) {
   const [hover, setHover] = useState<number | null>(null);
   const top = Math.max(...days.map((day) => day.reports), 1);
-  const height = 132;
+  // Bar heights are shares of the chart, so it can be lower on a phone.
+  const at = (value: number) => (value / top) * 100;
   const shown = hover === null ? null : days[hover];
 
   return (
     <div>
-      <div className="relative" style={{ height }} onMouseLeave={() => setHover(null)}>
+      <div className="relative h-24 lg:h-[132px]" onMouseLeave={() => setHover(null)}>
         {days.every((day) => day.reports === 0) && (
           <p className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[0.95rem] font-semibold text-on-night-soft">
             Your first finalized report starts this chart.
@@ -88,7 +89,7 @@ function NightBars({ days }: { days: Insights["days"] }) {
                   className={`w-full rounded-t-[4px] transition-opacity ${index === days.length - 1 ? "bg-amber" : "bg-teal-glow"} ${
                     hover !== null && hover !== index ? "opacity-40" : ""
                   }`}
-                  style={{ height: (day.reports / top) * height }}
+                  style={{ height: `${at(day.reports)}%` }}
                 />
               )}
             </button>
@@ -99,7 +100,7 @@ function NightBars({ days }: { days: Insights["days"] }) {
             className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-xl bg-on-night px-3 py-2 text-[0.82rem] whitespace-nowrap text-night shadow-[0_8px_24px_-10px_rgb(0_0_0/0.5)]"
             style={{
               left: `clamp(4.5rem, ${((hover + 0.5) / days.length) * 100}%, calc(100% - 4.5rem))`,
-              bottom: Math.min((shown.reports / top) * height + 10, height - 10),
+              bottom: `min(calc(${at(shown.reports)}% + 10px), calc(100% - 10px))`,
             }}
           >
             <p className="font-bold">{dayLabel(shown.day, true)}</p>
@@ -152,9 +153,9 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className={`${PANEL} flex flex-col gap-5 p-5 sm:p-6`}>
+    <section className={`${PANEL} flex flex-col gap-4 p-5 sm:gap-5 sm:p-6`}>
       <h3 className="flex items-center gap-3 text-[1.05rem] font-semibold">
-        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl ${tone}`}>
+        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl sm:h-10 sm:w-10 sm:rounded-2xl ${tone}`}>
           <Icon weight="fill" className="h-5 w-5" />
         </span>
         {title}
@@ -171,8 +172,8 @@ function NormalRing({ share }: { share: number }) {
   const radius = (size - stroke) / 2;
   const length = 2 * Math.PI * radius;
   return (
-    <div className="relative grid h-[132px] w-[132px] shrink-0 place-items-center">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="absolute inset-0 -rotate-90" aria-hidden="true">
+    <div className="relative grid h-24 w-24 shrink-0 place-items-center sm:h-[132px] sm:w-[132px]">
+      <svg viewBox={`0 0 ${size} ${size}`} className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={stroke} className="stroke-amber/25" />
         <circle
           cx={size / 2}
@@ -186,7 +187,7 @@ function NormalRing({ share }: { share: number }) {
           className="stroke-teal transition-[stroke-dashoffset] duration-700"
         />
       </svg>
-      <p className="text-[2rem] font-semibold tracking-[-0.04em]">{share}%</p>
+      <p className="text-[1.5rem] font-semibold tracking-[-0.04em] sm:text-[2rem]">{share}%</p>
     </div>
   );
 }
@@ -206,7 +207,7 @@ export function WorkInsights({ insights }: { insights: Insights }) {
     <div className="flex flex-col gap-5">
       <section
         aria-label="Your last 30 days"
-        className="on-night relative grid gap-8 overflow-hidden rounded-[32px] bg-night p-6 text-on-night sm:p-9 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] lg:gap-12"
+        className="on-night relative grid gap-6 overflow-hidden rounded-[28px] bg-night p-5 text-on-night sm:gap-8 sm:rounded-[32px] sm:p-9 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] lg:gap-12"
       >
         {/* The same soft light as the Referrals and welcome panels. */}
         <span
@@ -219,24 +220,25 @@ export function WorkInsights({ insights }: { insights: Insights }) {
           <p className="mt-1 text-[clamp(3.2rem,6vw,4.4rem)] font-semibold leading-none tracking-[-0.05em] tabular-nums text-on-night">
             {last30.toLocaleString("en-IN")}
           </p>
-          <div className="mt-3 min-h-7">
+          {/* Keeps its room on a wide screen so both halves line up; a phone closes the gap. */}
+          <div className="mt-3 min-h-7 max-lg:empty:hidden">
             <Trend now={last30} before={previous30} />
           </div>
 
-          <dl className="mt-7 grid grid-cols-3 gap-2.5">
-            <div className="rounded-2xl bg-on-night/[0.08] p-3.5">
+          <dl className="mt-5 grid grid-cols-3 gap-2 sm:mt-7 sm:gap-2.5">
+            <div className="rounded-2xl bg-on-night/[0.08] p-3 sm:p-3.5">
               <dt className="text-[0.8rem] font-semibold text-on-night-soft">Today</dt>
-              <dd className="mt-1 text-[1.5rem] font-semibold leading-tight tabular-nums text-amber">{today}</dd>
+              <dd className="mt-1 text-[1.3rem] font-semibold leading-tight sm:text-[1.5rem] tabular-nums text-amber">{today}</dd>
             </div>
-            <div className="rounded-2xl bg-on-night/[0.08] p-3.5">
-              <dt className="text-[0.8rem] font-semibold text-on-night-soft">Normal study</dt>
-              <dd className="mt-1 whitespace-nowrap text-[1.5rem] font-semibold leading-tight text-on-night">
+            <div className="rounded-2xl bg-on-night/[0.08] p-3 sm:p-3.5">
+              <dt className="text-[0.8rem] font-semibold text-on-night-soft">Normal<span className="max-sm:hidden"> study</span></dt>
+              <dd className="mt-1 whitespace-nowrap text-[1.3rem] font-semibold leading-tight sm:text-[1.5rem] text-on-night">
                 {timed ? typical(turnaround.normal) : "–"}
               </dd>
             </div>
-            <div className="rounded-2xl bg-on-night/[0.08] p-3.5">
+            <div className="rounded-2xl bg-on-night/[0.08] p-3 sm:p-3.5">
               <dt className="text-[0.8rem] font-semibold text-on-night-soft">Abnormal</dt>
-              <dd className="mt-1 whitespace-nowrap text-[1.5rem] font-semibold leading-tight text-on-night">
+              <dd className="mt-1 whitespace-nowrap text-[1.3rem] font-semibold leading-tight sm:text-[1.5rem] text-on-night">
                 {timed ? typical(turnaround.abnormal) : "–"}
               </dd>
             </div>
@@ -248,7 +250,7 @@ export function WorkInsights({ insights }: { insights: Insights }) {
         </div>
 
         <div className="relative flex flex-col justify-end">
-          <p className="mb-3 text-[0.95rem] font-semibold text-on-night-soft">Each day, 6 am to 6 am</p>
+          <p className="mb-2 text-[0.95rem] font-semibold text-on-night-soft sm:mb-3">Each day, 6 am to 6 am</p>
           <NightBars days={days} />
         </div>
       </section>

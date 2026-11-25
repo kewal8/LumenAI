@@ -80,18 +80,38 @@ export function ListFilter({
   options: { value: string; text: string }[];
 }) {
   const { go } = useListNavigation(path, params);
+  const current = params.filter[name] ?? "";
   return (
-    <Select
-      aria-label={label}
-      value={params.filter[name] ?? ""}
-      onChange={(event) => go({ [name]: event.target.value })}
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.text}
-        </option>
-      ))}
-    </Select>
+    <>
+      <span className="max-md:hidden">
+        <Select aria-label={label} value={current} onChange={(event) => go({ [name]: event.target.value })}>
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.text}
+            </option>
+          ))}
+        </Select>
+      </span>
+      {/* A phone: one row of chips, one tap each, instead of a drop-down. */}
+      <span role="group" aria-label={label} className="flex min-w-[60%] flex-1 gap-2 overflow-x-auto [scrollbar-width:none] md:hidden">
+        {options.map((option) => {
+          const on = option.value === current;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={on}
+              onClick={() => !on && go({ [name]: option.value })}
+              className={`h-9 shrink-0 rounded-full px-4 text-[0.92rem] font-semibold transition-colors active:scale-[0.97] ${
+                on ? "bg-ink text-canvas" : "bg-ink/[0.06] text-ink"
+              }`}
+            >
+              {option.text}
+            </button>
+          );
+        })}
+      </span>
+    </>
   );
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { DownloadSimple, SealCheck, Trash } from "@phosphor-icons/react";
+import { SWIPE_ACTION, SwipeRow } from "./SwipeRow";
 import Link from "next/link";
 import { useState } from "react";
 import { Spinner } from "@/components/Spinner";
@@ -23,7 +24,7 @@ import { Badge, EmptyState, LIST_HEAD, PANEL, formatDate } from "./ui";
 const PATH = "/reports";
 // Every row, and the headings above them, share these columns so values line up.
 const COLUMNS =
-  "grid grid-cols-[minmax(0,1fr)_11rem] items-center gap-x-4 md:grid-cols-[minmax(0,1fr)_6.5rem_7rem_9rem_11rem]";
+  "grid grid-cols-1 items-center gap-x-4 md:grid-cols-[minmax(0,1fr)_6.5rem_7rem_9rem_11rem]";
 const ICON =
   "grid h-9 w-9 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.08]";
 
@@ -31,7 +32,18 @@ const ICON =
  * Saves the report as a PDF: its print page, letterhead included, opens in the
  * browser's print window with "Save as PDF", named after the patient.
  */
-function DownloadButton({ id, label }: { id: string; label: string }) {
+function DownloadButton({
+  id,
+  label,
+  className = ICON,
+  children,
+}: {
+  id: string;
+  label: string;
+  className?: string;
+  /** What the button shows; a download arrow by default. */
+  children?: React.ReactNode;
+}) {
   const [busy, setBusy] = useState(false);
 
   async function download() {
@@ -59,8 +71,8 @@ function DownloadButton({ id, label }: { id: string; label: string }) {
 
   return (
     <Tip label="Download PDF">
-      <button type="button" onClick={download} disabled={busy} aria-label={`Download ${label} as PDF`} className={ICON}>
-        {busy ? <Spinner /> : <DownloadSimple weight="bold" className="h-[1.1rem] w-[1.1rem]" />}
+      <button type="button" onClick={download} disabled={busy} aria-label={`Download ${label} as PDF`} className={className}>
+        {busy ? <Spinner /> : (children ?? <DownloadSimple weight="bold" className="h-[1.1rem] w-[1.1rem]" />)}
       </button>
     </Tip>
   );
@@ -127,7 +139,8 @@ export function ReportList({
             body="Check the spelling, or clear the filter."
           />
         ) : (
-          <div className={`${PANEL} overflow-hidden`}>
+          // On a phone the rows run edge to edge, as in a phone's own lists.
+          <div className={`${PANEL} overflow-hidden max-md:-mx-5 max-md:rounded-none max-md:border-x-0 sm:max-md:-mx-8`}>
             <div className={`${COLUMNS} ${LIST_HEAD} !grid`}>
               <span className="flex items-center gap-3">
                 <HeadTick ids={rows.map((report) => report.id)} />
@@ -154,16 +167,40 @@ export function ReportList({
               {rows.map((report) => {
                 const when = report.finalizedAt ?? report.updatedAt;
                 return (
-                  <li
+                  <SwipeRow
                     key={report.id}
-                    className={`${COLUMNS} border-t border-line px-6 py-3 transition-colors first:border-t-0 hover:bg-ink/[0.025] has-[:checked]:bg-teal/[0.06]`}
+                    className={`${COLUMNS} px-6 py-3 transition-colors hover:bg-ink/[0.025] has-[:checked]:bg-teal/[0.06] max-md:px-4 max-md:active:bg-ink/[0.04]`}
+                    actions={
+                      <>
+                        <DownloadButton id={report.id} label={nameOf(report)} className={`${SWIPE_ACTION} bg-teal-deep`}>
+                          <DownloadSimple weight="bold" className="h-5 w-5" />
+                          PDF
+                        </DownloadButton>
+                        <ConfirmAction
+                          label={`Delete report ${report.templateName}`}
+                          icon={
+                            <>
+                              <Trash weight="bold" className="h-5 w-5" />
+                              Delete
+                            </>
+                          }
+                          triggerClassName={`${SWIPE_ACTION} bg-flag`}
+                          title="Delete this report?"
+                          body={`${report.templateName}, saved ${formatDate(report.updatedAt)} at ${time(report.updatedAt)}. This cannot be undone.`}
+                          confirmLabel="Delete report"
+                          doneMessage="Report deleted"
+                          path={`/api/reports/${report.id}`}
+                        />
+                      </>
+                    }
                   >
-                    <span className="flex min-w-0 items-center gap-3">
+                    {/* On a phone the whole row opens the report; the tick, when selecting, sits above it. */}
+                    <span className="flex min-w-0 items-center gap-3 [&>input]:relative [&>input]:z-10">
                       <RowTick id={report.id} label={report.templateName} />
                       <span className="min-w-0">
                         <Link
                           href={`/reports/${report.id}`}
-                          className="block truncate font-semibold hover:underline"
+                          className="block truncate font-semibold hover:underline max-md:after:absolute max-md:after:inset-0"
                         >
                           {nameOf(report)}
                           {report.patient && ageSex(report.patient) && (
@@ -212,7 +249,7 @@ export function ReportList({
                         {time(when)}
                       </span>
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 max-md:hidden">
                       <Link
                         href={`/reports/${report.id}`}
                         className="mr-1 inline-flex h-9 items-center rounded-full border border-ink/30 px-4 text-[0.9rem] font-bold transition-colors hover:border-ink/60 hover:bg-ink/[0.05]"
@@ -238,7 +275,7 @@ export function ReportList({
                         path={`/api/reports/${report.id}`}
                       />
                     </span>
-                  </li>
+                  </SwipeRow>
                 );
               })}
             </ul>

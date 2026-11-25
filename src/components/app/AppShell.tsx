@@ -1,12 +1,13 @@
 "use client";
 
-import { Dialog } from "@base-ui/react/dialog";
 import { Menu } from "@base-ui/react/menu";
 import {
   ArrowsLeftRight,
   Buildings,
   CalendarCheck,
   ChartBar,
+  ArrowLeft,
+  UserCircle,
   ChartLineUp,
   CaretUpDown,
   ChatCircleText,
@@ -29,15 +30,14 @@ import {
   Sparkle,
 } from "@phosphor-icons/react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Spinner } from "@/components/Spinner";
 import { SendFeedback } from "@/components/report/SendFeedback";
 import { Tip, TipProvider } from "@/components/Tip";
 import { Toaster } from "@/components/Toast";
 import { useTheme } from "@/components/landing/ThemeToggle";
 import { useUpdatesLeft } from "@/lib/updatesLeft";
-import { buttonClass } from "./ui";
+import { useSignOut } from "./SignOut";
 
 export type ShellUser = {
   name: string;
@@ -246,40 +246,12 @@ function UserMenu({
 }) {
   const router = useRouter();
   const { theme, toggle } = useTheme();
-
   // Signing out ends the session on this device, so it asks first.
-  const [confirmSignOut, setConfirmSignOut] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
-
-  async function signOut() {
-    setSigningOut(true);
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
-    router.replace("/login");
-    router.refresh();
-  }
+  const signOut = useSignOut();
 
   return (
     <>
-    <Dialog.Root open={confirmSignOut} onOpenChange={(open) => !signingOut && setConfirmSignOut(open)}>
-      <Dialog.Portal>
-        <Dialog.Backdrop className="app-backdrop fixed inset-0 z-50 bg-[#0f2624]/40" />
-        <Dialog.Popup className="app-layer sheet fixed left-1/2 top-1/2 z-50 w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/20 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(15_38_36/0.5)] outline-none sm:p-8">
-          <Dialog.Title className="text-[1.3rem] font-semibold tracking-[-0.02em]">Sign out?</Dialog.Title>
-          <Dialog.Description className="mt-2 text-ink-soft">
-            You will need your email and password to sign in again. A report that is not saved will be lost.
-          </Dialog.Description>
-          <div className="mt-6 flex gap-2">
-            <button type="button" onClick={signOut} disabled={signingOut} className={buttonClass.primary}>
-              {signingOut && <Spinner />}
-              {signingOut ? "Signing out" : "Sign out"}
-            </button>
-            <Dialog.Close className={buttonClass.secondary} disabled={signingOut}>
-              Cancel
-            </Dialog.Close>
-          </div>
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+    {signOut.dialog}
     <Menu.Root>
       <Menu.Trigger
         title={compact ? user.name : undefined}
@@ -337,7 +309,7 @@ function UserMenu({
               {theme === "dark" ? "Light mode" : "Dark mode"}
             </Menu.Item>
             <Menu.Separator className="mx-2 my-1.5 h-px bg-line" />
-            <Menu.Item className={MENU_ITEM} onClick={() => setConfirmSignOut(true)}>
+            <Menu.Item className={MENU_ITEM} onClick={signOut.ask}>
               <SignOut className="h-5 w-5" />
               Sign out
             </Menu.Item>
@@ -349,9 +321,12 @@ function UserMenu({
   );
 }
 
-/** The current screen's name, for the phone's top bar. */
+/** The current screen's name, for the phone's top bar: a Settings section by its own name. */
 function useScreenTitle(area: Area) {
   const pathname = usePathname();
+  const tab = useSearchParams().get("tab");
+  if (pathname === "/settings") return SETTINGS_TITLES[tab ?? "profile"] ?? "Settings";
+  if (pathname === "/me") return "Me";
   const item = [...NAV[area]]
     .sort((a, b) => b.href.length - a.href.length)
     .find((nav) => (nav.exact ? pathname === nav.href : pathname === nav.href || pathname.startsWith(`${nav.href}/`)));
@@ -363,7 +338,10 @@ function useScreenTitle(area: Area) {
  * the page's own large title scrolls away, the screen's name takes its place.
  */
 function MobileTopBar({ user, area }: { user: ShellUser; area: Area }) {
-  const title = useScreenTitle(area);
+  const pathname = usePathname();
+  const back = backOf(area, pathname);
+  const screenTitle = useScreenTitle(area);
+  const title = back?.title ?? screenTitle;
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 56);
@@ -378,22 +356,43 @@ function MobileTopBar({ user, area }: { user: ShellUser; area: Area }) {
         scrolled ? "border-b border-line" : "border-b border-transparent"
       }`}
     >
-      <span className="relative min-w-0 flex-1">
-        <span className={`block transition-opacity duration-200 ${scrolled ? "opacity-0" : "opacity-100"}`}>
-          <Wordmark area={area} />
+      {back ? (
+        // A screen opened from another: back to it, with this screen's name.
+        <span className="flex min-w-0 flex-1 items-center gap-1">
+          <Link href={back.href} aria-label={`Back to ${back.label}`} className="-ml-2 grid h-10 w-10 shrink-0 place-items-center rounded-full text-ink active:bg-ink/10">
+            <ArrowLeft weight="bold" className="h-5 w-5" />
+          </Link>
+          <span className="truncate text-[1.05rem] font-semibold">{title}</span>
         </span>
-        <span
-          aria-hidden={!scrolled}
-          className={`absolute inset-y-0 left-0 flex items-center truncate text-[1.05rem] font-semibold transition-opacity duration-200 ${
-            scrolled ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          {title}
+      ) : (
+        <span className="relative min-w-0 flex-1">
+          <span className={`block transition-opacity duration-200 ${scrolled ? "opacity-0" : "opacity-100"}`}>
+            <Wordmark area={area} />
+          </span>
+          <span
+            aria-hidden={!scrolled}
+            className={`absolute inset-y-0 left-0 flex items-center truncate text-[1.05rem] font-semibold transition-opacity duration-200 ${
+              scrolled ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            {title}
+          </span>
         </span>
-      </span>
-      <UserMenu user={user} area={area} compact below />
+      )}
+      {/* A doctor's account lives in the Me tab; staff keep the menu here. */}
+      {area !== "doctor" && <UserMenu user={user} area={area} compact below />}
     </header>
   );
+}
+
+/** Where a screen's back arrow leads on a phone, or null for a tab's own screen. */
+function backOf(area: Area, pathname: string): { href: string; label: string; title?: string } | null {
+  if (area !== "doctor") return null;
+  if (underMe(pathname)) return { href: "/me", label: "Me" };
+  if (pathname === "/report" || pathname.startsWith("/report/") || /^\/reports\/[^/]+/.test(pathname))
+    return { href: "/reports", label: "Reports", title: "Report" };
+  if (/^\/templates\/[^/]+/.test(pathname)) return { href: "/templates", label: "Templates", title: "Template" };
+  return null;
 }
 
 /**
@@ -409,9 +408,29 @@ function isReportScreen(pathname: string) {
   );
 }
 
-// The doctor's tabs on a phone: New report in the middle, raised, as the main
-// action; Plans is in the account menu.
-const DOCTOR_TABS = ["/reports", "/templates", "/report", "/team", "/settings"];
+// The doctor's tabs on a phone: New in the middle, raised, as the main action;
+// everything about the doctor and their practice lives under Me.
+const DOCTOR_TABS: NavItem[] = [
+  { href: "/insights", label: "Insights", icon: ChartLineUp },
+  { href: "/templates", label: "Templates", icon: Files },
+  { href: "/report", label: "New", icon: NotePencil, exact: true },
+  { href: "/reports", label: "Reports", icon: FolderOpen },
+  { href: "/me", label: "Me", icon: UserCircle },
+];
+
+// Screens a phone reaches from Me: they show a back arrow to it, and Me stays lit.
+const UNDER_ME = ["/settings", "/team", "/plans", "/referrals"];
+const SETTINGS_TITLES: Record<string, string> = {
+  profile: "Profile",
+  signature: "Signature",
+  letterhead: "Letterhead",
+  format: "Paste format",
+  dictation: "Dictation",
+  macros: "Macros",
+  dictionary: "Dictionary",
+  shortcuts: "Shortcuts",
+};
+const underMe = (pathname: string) => UNDER_ME.some((href) => pathname === href || pathname.startsWith(`${href}/`));
 
 /**
  * The on-screen keyboard covers the bottom of a phone screen without telling
@@ -444,10 +463,7 @@ function useKeyboardInset() {
 /** The phone's bottom tab bar: every screen one thumb-tap away. */
 function BottomTabs({ area, locked }: { area: Area; locked?: boolean }) {
   const pathname = usePathname();
-  const items =
-    area === "doctor"
-      ? DOCTOR_TABS.map((href) => NAV.doctor.find((item) => item.href === href)!).filter(Boolean)
-      : NAV[area];
+  const items = area === "doctor" ? DOCTOR_TABS : NAV[area];
   if (area === "doctor" && isReportScreen(pathname)) return null;
   return (
     <nav
@@ -458,7 +474,7 @@ function BottomTabs({ area, locked }: { area: Area; locked?: boolean }) {
         {items.map((item) => {
           const active = item.exact
             ? pathname === item.href
-            : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            : pathname === item.href || pathname.startsWith(`${item.href}/`) || (item.href === "/me" && underMe(pathname));
           const Icon = item.icon;
           if (area === "doctor" && item.href === "/report") {
             return (
@@ -471,7 +487,7 @@ function BottomTabs({ area, locked }: { area: Area; locked?: boolean }) {
                   <span className="grid h-14 w-14 place-items-center rounded-full bg-btn text-btn-text shadow-[0_10px_24px_-8px_rgb(6_17_15/0.55)] ring-4 ring-surface">
                     <Plus weight="bold" className="h-6 w-6" />
                   </span>
-                  New report
+                  New
                 </Link>
               </li>
             );

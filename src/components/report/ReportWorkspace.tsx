@@ -36,7 +36,7 @@ import {
 } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { buttonClass, formatDateTime, tidyHeading } from "@/components/app/ui";
 import { BACKDROP, POPUP } from "@/components/app/TeamClient";
 import { AiReview, changesBetween, pendingStyle, type AiChange } from "./AiReview";
@@ -107,6 +107,20 @@ function useOnceOn(on: boolean) {
   const [seen, setSeen] = useState(on);
   if (on && !seen) setSeen(true);
   return seen || on;
+}
+
+const WIDE = "(min-width: 1024px)";
+/** True on a laptop or desktop; false on a phone or tablet, where the report reflows to the screen. */
+function useWide() {
+  return useSyncExternalStore(
+    (changed) => {
+      const query = window.matchMedia(WIDE);
+      query.addEventListener("change", changed);
+      return () => query.removeEventListener("change", changed);
+    },
+    () => window.matchMedia(WIDE).matches,
+    () => true,
+  );
 }
 
 /** The words before the cursor and the words held after it, as one text. */
@@ -1314,6 +1328,9 @@ export function ReportWorkspace({
       delete root.dataset.reportFocus;
     };
   }, [fullScreen]);
+  const wide = useWide();
+  // Swiping up on the dock's handle opens the chat; down closes it.
+  const swipeFrom = useRef<number | null>(null);
   const timeOf = (iso: string) =>
     new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
   // Both halves are the same kind of object: a white card on the grey canvas.
@@ -1327,7 +1344,7 @@ export function ReportWorkspace({
     return (
       <main
         // On a phone the report has the screen; room is left at the bottom for the docked AI Assistant.
-        className="flex min-w-0 flex-1 flex-col gap-4 p-3 max-lg:pb-[calc(17rem+env(safe-area-inset-bottom))] sm:p-4 sm:max-lg:pb-[calc(17rem+env(safe-area-inset-bottom))] lg:h-[100dvh] lg:flex-none lg:flex-row lg:overflow-clip">
+        className="flex min-w-0 flex-1 flex-col max-lg:pb-[calc(10.5rem+env(safe-area-inset-bottom))] lg:h-[100dvh] lg:gap-4 lg:p-4 lg:flex-none lg:flex-row lg:overflow-clip">
         {/* Lines waiting for review are tinted amber on screen only. */}
         {waitingStyle && <style>{waitingStyle}</style>}
         <Dialog.Root open={gate !== null} onOpenChange={(open) => !open && setGate(null)}>
@@ -1363,9 +1380,9 @@ export function ReportWorkspace({
         {/* The report. */}
         <section
           aria-label="Report"
-          // Below the wide layout the report keeps a fixed height between the top
-          // bar and the docked AI Assistant, so a long report scrolls inside it.
-          className={`${CARD} order-2 min-w-0 flex-1 max-lg:h-[calc(100dvh-22rem)] max-lg:min-h-[22rem] max-lg:flex-none lg:order-1 lg:min-h-0 ${fullScreen ? "lg:mx-auto lg:max-w-[72rem]" : ""}`}
+          // On a phone the report is the page itself: edge to edge, scrolled with
+          // the screen, with the dock of controls fixed below it.
+          className={`${CARD} order-2 min-w-0 flex-1 max-lg:flex-none max-lg:overflow-visible max-lg:rounded-none max-lg:border-0 max-lg:shadow-none lg:order-1 lg:min-h-0 ${fullScreen ? "lg:mx-auto lg:max-w-[72rem]" : ""}`}
         >
           {/* Two rows. First: whose report, where it stands, and the tools used
               less often. Second: the template it started from, then the pair
@@ -1494,7 +1511,8 @@ export function ReportWorkspace({
                 className="!h-8 min-w-0 max-w-[18rem] !gap-1 !rounded-md !border-transparent !bg-transparent !px-[9px] !text-[0.85rem] !font-medium !text-ink-soft hover:!bg-ink/[0.05] hover:!text-ink focus-visible:!border-teal focus-visible:!text-ink data-[popup-open]:!bg-ink/[0.06] [&>svg]:!h-3 [&>svg]:!w-3"
               />
 
-              <div className="ml-auto flex shrink-0 items-center gap-3">
+              {/* On a phone these live in the dock at the bottom, in reach of the thumb. */}
+              <div className="ml-auto flex shrink-0 items-center gap-3 max-lg:hidden">
                 {/* One family: the two closing steps on a shared track. */}
                 <div className="flex items-center gap-0.5 rounded-full bg-ink/[0.05] p-0.5">
                   <ValidateButton
@@ -1564,7 +1582,9 @@ export function ReportWorkspace({
             key={editorSeed}
             ref={editorRef}
             variant="embedded"
-            pageHeightMm={a4Canvas ? pageHeightMm : undefined}
+            // A phone shows the words at a readable size, not an A4 sheet to scroll sideways.
+            pageHeightMm={a4Canvas && wide ? pageHeightMm : undefined}
+            phoneToolbar={false}
             initialDoc={initialDoc}
             profile={profile}
             onChange={editorChanged}
@@ -1591,6 +1611,10 @@ export function ReportWorkspace({
         {/* Dictation: a conversation. The doctor's words on the right, what
             LumenAI did with them on the left. */}
         {/* In full screen it floats in the corner, small until made bigger. */}
+        {/* Phone: with the chat pulled up, the report dims behind it; a tap there closes it. */}
+        {assistantBig && !wide && (
+          <div aria-hidden="true" onClick={() => setAssistantBig(false)} className="fixed inset-0 z-20 bg-[#06110f]/35 lg:hidden" />
+        )}
           <section
             ref={panelRef}
             aria-label="AI Assistant"
@@ -1606,7 +1630,33 @@ export function ReportWorkspace({
                 : ""
             }`}
           >
-            <header className="flex shrink-0 items-center justify-between border-b border-line px-5 py-3 max-lg:py-2">
+            {/* Phone: a handle to pull the chat up, and what waits in it. */}
+            <button
+              type="button"
+              onClick={() => setAssistantBig((big) => !big)}
+              onPointerDown={(event) => (swipeFrom.current = event.clientY)}
+              onPointerUp={(event) => {
+                const from = swipeFrom.current;
+                swipeFrom.current = null;
+                if (from === null) return;
+                if (from - event.clientY > 24) setAssistantBig(true);
+                if (event.clientY - from > 24) setAssistantBig(false);
+              }}
+              aria-expanded={assistantBig}
+              aria-label={assistantBig ? "Close the AI chat" : "Open the AI chat"}
+              className="flex w-full shrink-0 touch-none flex-col items-center gap-1.5 pb-1 pt-2 lg:hidden"
+            >
+              <span aria-hidden="true" className="h-1.5 w-10 rounded-full bg-ink/20" />
+              {!assistantBig && pendingCount > 0 && (
+                <span className="flex items-center gap-1.5 rounded-full bg-amber-tint px-3 py-1 text-[0.82rem] font-semibold text-amber-deep">
+                  <Sparkle weight="fill" className="h-3.5 w-3.5" />
+                  {pendingCount === 1 ? "1 AI change waits" : `${pendingCount} AI changes wait`} for review
+                </span>
+              )}
+            </button>
+            <header
+              className={`flex shrink-0 items-center justify-between border-b border-line px-5 py-3 max-lg:py-1 ${assistantBig ? "" : "max-lg:hidden"}`}
+            >
               <h1 className="text-[1.25rem] font-bold tracking-[-0.02em] max-lg:text-[1.05rem]">AI Assistant</h1>
               {/* The microphone button says what is happening, so this corner holds the panel's own actions. */}
               <div className="flex items-center gap-1">
@@ -1793,7 +1843,7 @@ export function ReportWorkspace({
 
 
             {/* One box to speak or type into, like a message box. */}
-            <div className="flex shrink-0 flex-col gap-2.5 border-t border-line p-4">
+            <div className="flex shrink-0 flex-col gap-2.5 border-t border-line p-4 max-lg:gap-2 max-lg:border-t-0 max-lg:px-4 max-lg:pb-3 max-lg:pt-1">
               {dictation.access === "blocked" && !error && !dictation.error && (
                 <p role="alert" className="flex items-start gap-2 rounded-2xl border border-flag/50 bg-flag/10 px-3.5 py-2.5 text-[0.92rem] font-semibold text-flag">
                   <WarningCircle weight="fill" className="mt-0.5 h-4 w-4 shrink-0" />
@@ -1834,6 +1884,9 @@ export function ReportWorkspace({
               <div
                 className={`rounded-[1.5rem] p-[2px] transition-colors ${
                   status === "listening" ? "voice-ring" : "bg-ink/25 focus-within:bg-teal"
+                } ${
+                  // On a phone the box shows while words are coming in, or with the chat open to type.
+                  assistantBig || status !== "ready" || paused || draft.trim() !== "" ? "" : "max-lg:hidden"
                 }`}
               >
                 <div className="rounded-[calc(1.5rem-2px)] bg-surface p-2">
@@ -1888,7 +1941,8 @@ export function ReportWorkspace({
                   paused={paused}
                   className="min-w-0 flex-1"
                 />
-                {/* Faded until something is typed. While the AI writes, it is the Stop button. */}
+                {/* Faded until something is typed. While the AI writes, it is the Stop button.
+                    On a phone it shows only when it can be pressed; Copy stands beside Speak. */}
                 {busy ? (
                   <Tip label="Stop writing">
                     <button
@@ -1907,12 +1961,57 @@ export function ReportWorkspace({
                       onClick={() => send(Promise.resolve(draft))}
                       disabled={dictation.recording || dictation.starting || draft.trim() === ""}
                       aria-label="Update report"
-                      className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-teal text-white transition-[opacity,filter] hover:brightness-110 disabled:cursor-default disabled:opacity-25 disabled:hover:brightness-100"
+                      className={`grid h-14 w-14 shrink-0 place-items-center rounded-full bg-teal text-white transition-[opacity,filter] hover:brightness-110 disabled:cursor-default disabled:opacity-25 disabled:hover:brightness-100 ${
+                        dictation.recording || dictation.starting || draft.trim() === "" ? "max-lg:hidden" : ""
+                      }`}
                     >
                       <ArrowUp weight="bold" className="h-5 w-5" />
                     </button>
                   </Tip>
                 )}
+                <button
+                  type="button"
+                  onClick={() => copy(report)}
+                  disabled={busy}
+                  aria-label="Copy report"
+                  className="grid h-14 w-14 shrink-0 place-items-center rounded-full border border-ink/35 text-ink transition-colors active:scale-[0.97] active:bg-ink/[0.05] disabled:opacity-50 lg:hidden"
+                >
+                  <Copy weight="bold" className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Phone: the two closing steps on one shared track, under the microphone. */}
+              <div className="flex items-center gap-1 rounded-full bg-ink/[0.05] p-1 lg:hidden">
+                <ValidateButton
+                  getLines={() => editorRef.current?.getLines() ?? []}
+                  fixText={(line, find, replace) => editorRef.current?.fixText(line, find, replace) ?? false}
+                  disabled={saving || busy}
+                  validated={validation === 0}
+                  onChecked={() => setCredits(afterOneUpdate)}
+                  onIssues={setValidation}
+                  organIssues={organIssues}
+                  removeEmptyLines={() => editorRef.current?.removeEmptyLines() ?? 0}
+                  className={`${STEP} h-10 flex-1 justify-center`}
+                  side="top"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (finalizedAt && !dirty) setShowFinal(true);
+                    else finalize();
+                  }}
+                  disabled={saving || busy}
+                  className={`${STEP} h-10 flex-1 justify-center ${finalizedAt && !dirty ? STEP_DONE : "font-bold text-ink"}`}
+                >
+                  {saving && patientAsk === "finalize" ? (
+                    <Spinner />
+                  ) : finalizedAt && !dirty ? (
+                    <CheckCircle weight="fill" className={`${STEP_ICON} text-teal`} />
+                  ) : (
+                    <Circle weight="bold" className={`${STEP_ICON} text-ink-quiet`} />
+                  )}
+                  {finalizedAt && !dirty ? "Finalized" : "Finalize"}
+                </button>
               </div>
 
               {heard ? (
@@ -1922,12 +2021,12 @@ export function ReportWorkspace({
                 </p>
               ) : status === "listening" ? (
                 <>
-                  <p className="t-meta -mt-1 text-center">
+                  <p className="t-meta -mt-1 text-center max-lg:hidden">
                     Say “next line”, “full stop”, “comma”, “delete last macro” or “undo that”.
                   </p>
                 </>
               ) : status === "ready" && draft.trim() ? (
-                <p className="t-meta -mt-1 text-center">
+                <p className="t-meta -mt-1 text-center max-lg:hidden">
                   Check the words and correct any mistake. Then press Enter or the arrow to update the report.
                 </p>
               ) : null}

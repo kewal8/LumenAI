@@ -1,6 +1,7 @@
 "use client";
 
-import { PencilSimple, Trash } from "@phosphor-icons/react";
+import { NotePencil, PencilSimple, Trash } from "@phosphor-icons/react";
+import { SWIPE_ACTION, SwipeRow } from "./SwipeRow";
 import Link from "next/link";
 import type { ListParams } from "@/lib/listQuery";
 import { MODALITIES } from "@/lib/templateDoc";
@@ -20,7 +21,7 @@ import { EmptyState, LIST_HEAD, PANEL, formatDate, formatDateTime } from "./ui";
 // Every row, and the headings above them, share these columns so values line up.
 // While selecting, the tick sits inside the first cell, so the columns stay put.
 const COLUMNS =
-  "grid grid-cols-[minmax(0,1fr)_9.5rem] items-center gap-x-4 md:grid-cols-[minmax(0,1fr)_6.5rem_10rem_8.5rem_9.5rem]";
+  "grid grid-cols-1 items-center gap-x-4 md:grid-cols-[minmax(0,1fr)_6.5rem_10rem_8.5rem_9.5rem]";
 const ICON =
   "grid h-9 w-9 place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.08]";
 const PATH = "/templates";
@@ -107,7 +108,8 @@ export function TemplateList({
             body="Check the spelling, or clear the filters."
           />
         ) : (
-          <div className={`${PANEL} overflow-hidden`}>
+          // On a phone the rows run edge to edge, as in a phone's own lists.
+          <div className={`${PANEL} overflow-hidden max-md:-mx-5 max-md:rounded-none max-md:border-x-0 sm:max-md:-mx-8`}>
             <div className={`${COLUMNS} ${LIST_HEAD} !grid`}>
               <span className="flex items-center gap-3">
                 <HeadTick ids={editable} />
@@ -132,11 +134,41 @@ export function TemplateList({
 
             <ul>
               {rows.map((template) => (
-                <li
+                <SwipeRow
                   key={template.id}
-                  className={`${COLUMNS} group border-t border-line px-6 py-3 transition-colors first:border-t-0 hover:bg-ink/[0.025] has-[:checked]:bg-teal/[0.06]`}
+                  className={`${COLUMNS} group px-6 py-3 transition-colors hover:bg-ink/[0.025] has-[:checked]:bg-teal/[0.06] max-md:px-4 max-md:active:bg-ink/[0.04]`}
+                  actions={
+                    <>
+                      <Link href={`/report?template=${template.id}`} className={`${SWIPE_ACTION} bg-teal-deep`}>
+                        <NotePencil weight="bold" className="h-5 w-5" />
+                        Use
+                      </Link>
+                      {template.canEdit && (
+                        <ConfirmAction
+                          label={`Delete ${template.name}`}
+                          icon={
+                            <>
+                              <Trash weight="bold" className="h-5 w-5" />
+                              Delete
+                            </>
+                          }
+                          triggerClassName={`${SWIPE_ACTION} bg-flag`}
+                          title={`Delete ${template.name}?`}
+                          body={
+                            template.shared
+                              ? "It is removed for everyone in your organisation. Reports already written are not affected."
+                              : "Reports already written with it are not affected."
+                          }
+                          confirmLabel="Delete template"
+                          doneMessage={`${template.name} deleted`}
+                          path={`/api/templates/${template.id}`}
+                        />
+                      )}
+                    </>
+                  }
                 >
-                  <span className="flex min-w-0 items-center gap-3">
+                  {/* On a phone the whole row opens the template; the tick, when selecting, sits above it. */}
+                  <span className="flex min-w-0 items-center gap-3 [&>input]:relative [&>input]:z-10">
                     {template.canEdit && (
                       <RowTick id={template.id} label={template.name} />
                     )}
@@ -147,7 +179,7 @@ export function TemplateList({
                             ? `/templates/${template.id}`
                             : `/report?template=${template.id}`
                         }
-                        className="block truncate font-semibold hover:underline"
+                        className="block truncate font-semibold hover:underline max-md:after:absolute max-md:after:inset-0"
                       >
                         {template.name}
                       </Link>
@@ -203,7 +235,7 @@ export function TemplateList({
                   </span>
 
                   {/* Use always sits in the same place, whether or not the row can be edited. */}
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1 max-md:hidden">
                     <Link
                       href={`/report?template=${template.id}`}
                       className="mr-1 inline-flex h-9 items-center rounded-full border border-ink/30 px-4 text-[0.9rem] font-bold transition-colors hover:border-ink/60 hover:bg-ink/[0.05]"
@@ -246,7 +278,7 @@ export function TemplateList({
                       </>
                     )}
                   </span>
-                </li>
+                </SwipeRow>
               ))}
             </ul>
 
