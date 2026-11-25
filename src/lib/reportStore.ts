@@ -24,6 +24,7 @@ export type SavedReport = {
   id: string;
   template: Template;
   report: Report;
+  createdAt: string;
   updatedAt: string;
   finalizedAt: string | null;
   patient: Patient | null;
@@ -103,7 +104,7 @@ export async function hasReports(user: CurrentUser) {
 export async function findReport(user: CurrentUser, id: string): Promise<SavedReport | null> {
   // The template copy is in the report itself (older reports) or kept once in report_templates.
   const [row] = await db()`
-    select r.id, coalesce(r.template, t.body) as template, r.content, r.updated_at, r.finalized_at,
+    select r.id, coalesce(r.template, t.body) as template, r.content, r.created_at, r.updated_at, r.finalized_at,
            r.patient_name, r.patient_age, r.patient_age_unit, r.patient_sex, r.study, r.modality
     from reports r left join report_templates t on t.hash = r.template_hash
     where r.id = ${asUuid(id)}::uuid and r.user_id = ${user.id}
@@ -113,6 +114,7 @@ export async function findReport(user: CurrentUser, id: string): Promise<SavedRe
         id: row.id,
         template: row.template,
         report: row.content,
+        createdAt: row.created_at.toISOString(),
         updatedAt: row.updated_at.toISOString(),
         finalizedAt: row.finalized_at ? row.finalized_at.toISOString() : null,
         patient: patientFromRow(row),

@@ -13,6 +13,8 @@ export const PATCH = handle<Context>(async (request, context) => {
   if (typeof input === "string") return fail(400, input);
   // Finalizing stamps the time; an ordinary save keeps the last finalized time.
   const finalize = body?.finalize === true;
+  // A finalized report that is edited becomes a draft again until it is finalized once more.
+  const reopen = !finalize && body?.reopen === true;
   // Details are kept as they were when none are sent.
   const patient = parsePatient(body?.patient);
   if (typeof patient === "string") return fail(400, patient);
@@ -33,7 +35,7 @@ export const PATCH = handle<Context>(async (request, context) => {
         template_hash = encode(sha256(convert_to(${template}::jsonb::text, 'UTF8')), 'hex'),
         template = null,
         content = ${JSON.stringify(input.report)}::jsonb, updated_at = now(),
-        finalized_at = case when ${finalize} then now() else finalized_at end,
+        finalized_at = case when ${finalize} then now() when ${reopen} then null else finalized_at end,
         first_finalized_at = case when ${finalize} then coalesce(first_finalized_at, now()) else first_finalized_at end,
         patient_name = case when ${keep} then patient_name else ${patient?.name || null} end,
         patient_age = case when ${keep} then patient_age else ${patient?.age ?? null}::int end,

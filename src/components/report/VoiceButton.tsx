@@ -117,9 +117,12 @@ export function VoiceButton({
   onClick,
   disabled,
   keyShortcut,
+  paused = false,
   className = "",
 }: {
   status: VoiceStatus;
+  /** The microphone was paused to edit the words: starting again carries on at the cursor. */
+  paused?: boolean;
   /** Current loudness, 0 to 1. */
   readLevel: () => number;
   /** Told once when no voice has been heard for a few seconds, and again when it returns. */
@@ -135,7 +138,13 @@ export function VoiceButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      title={status === "listening" ? `Stop speaking (${shortcut})` : `Start speaking (${shortcut})`}
+      title={
+        status === "listening"
+          ? `Stop speaking (${shortcut})`
+          : paused
+            ? `Keep speaking: your words go where the cursor is (${shortcut})`
+            : `Start speaking (${shortcut})`
+      }
       aria-keyshortcuts={keyShortcut}
       className={`group relative flex h-14 items-center justify-center gap-2.5 overflow-hidden rounded-full px-5 text-[1rem] font-bold transition-colors duration-200 active:scale-[0.99] disabled:cursor-progress ${
         status === "ready"
@@ -149,7 +158,7 @@ export function VoiceButton({
       {status === "ready" && (
         <>
           <Microphone weight="fill" className="h-5 w-5" />
-          Start
+          {paused ? "Resume" : "Start"}
         </>
       )}
       {(status === "starting" || status === "writing") && (

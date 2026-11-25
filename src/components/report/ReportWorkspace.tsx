@@ -11,8 +11,12 @@ import {
   Circle,
   CircleNotch,
   Copy,
+  CursorText,
+  PauseCircle,
   DotsSixVertical,
   FloppyDisk,
+  CloudCheck,
+  CloudSlash,
   Info,
   Microphone,
   Minus,
@@ -36,6 +40,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { buttonClass, formatDateTime, tidyHeading } from "@/components/app/ui";
 import { BACKDROP, POPUP } from "@/components/app/TeamClient";
 import { AiReview, changesBetween, pendingStyle, type AiChange } from "./AiReview";
+import { TemplateChooser } from "./TemplateChooser";
 import { send as sendJson } from "@/components/auth/fields";
 import { Tip } from "@/components/Tip";
 import { copyReport } from "@/lib/clipboard";
@@ -104,6 +109,13 @@ function useOnceOn(on: boolean) {
   return seen || on;
 }
 
+/** The words before the cursor and the words held after it, as one text. */
+function joinTail(head: string, after: string) {
+  if (!after) return head;
+  if (!head) return after.trimStart();
+  return /^[\s.,;:!?)]/.test(after) ? head + after : `${head} ${after.trimStart()}`;
+}
+
 export function ReportWorkspace({
   profile,
   identity: identitySummary,
@@ -114,6 +126,7 @@ export function ReportWorkspace({
   macros: initialMacros,
   credits: initialCredits,
   design = "classic",
+  chooseTemplate = false,
   template: startTemplate,
   saved,
 }: {
@@ -134,10 +147,19 @@ export function ReportWorkspace({
   credits: Credits;
   /** "future" is the current report screen; "classic" is version one, kept as a backup. */
   design?: "future" | "classic";
+  /** Opens the "Start a new report" chooser straight away: a fresh report with no template named. */
+  chooseTemplate?: boolean;
   /** The template a new report starts from. Others are fetched when picked. */
   template: Template;
   /** A saved report being reopened. Left out for a new report. */
-  saved?: { id: string; template: Template; report: Report; finalizedAt?: string | null; patient?: Patient | null };
+  saved?: {
+    id: string;
+    template: Template;
+    report: Report;
+    createdAt?: string;
+    finalizedAt?: string | null;
+    patient?: Patient | null;
+  };
 }) {
   const router = useRouter();
   const mac = useIsMac();
@@ -189,8 +211,14 @@ export function ReportWorkspace({
   // True while the report has changes that are not in "Reports" yet.
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  // When the report was first saved: its title when no patient name is given.
+  const [createdAt, setCreatedAt] = useState<string | null>(saved?.createdAt ?? null);
+  // The report as it was when an automatic save failed, so it is not retried in a loop.
+  const [saveFailedFor, setSaveFailedFor] = useState<Report | null>(null);
   // The template waiting to be started while the "Save this report?" question is open.
   const [pending, setPending] = useState<Template | null>(null);
+  // "Start a new report": blank, or one of the doctor's templates. Every new report begins here.
+  const [choosing, setChoosing] = useState(chooseTemplate && !saved);
   // Every dictation written into this report, oldest first. Saved with the report.
   const [log, setLog] = useState<LogEntry[]>(saved?.report.log ?? []);
   // What each dictation changed, by log entry, while the radiologist reviews it.
@@ -257,11 +285,29 @@ export function ReportWorkspace({
   function setDraft(text: string) {
     draftRef.current = text;
     setDraftState(text);
+    if (!text) caret.current = { at: 0, inBox: false };
     // A new dictation starts a new history for "undo that".
     if (!text) spokenHistory.current = [];
   }
   // The box before and after each spoken change, newest last, for "undo that".
   const spokenHistory = useRef<{ before: string; after: string }[]>([]);
+  // Speaking into the middle of the words: what comes after the cursor is held
+  // here while the microphone is on, so new words go in where the cursor was.
+  const tailRef = useRef("");
+  const [tail, setTailState] = useState("");
+  function setTail(text: string) {
+    tailRef.current = text;
+    setTailState(text);
+  }
+  // The microphone was paused to edit the words; starting again carries on at the cursor.
+  const [paused, setPaused] = useState(false);
+  // Where the doctor last put the cursor in the words, as the box reports it.
+  // Kept when they press the microphone button (which takes focus from the box),
+  // so speaking carries on there; forgotten when the box is emptied.
+  const caret = useRef<{ at: number; inBox: boolean }>({ at: 0, inBox: false });
+  const trackCaret = (event: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    caret.current = { at: event.currentTarget.selectionStart, inBox: true };
+  };
   // The spoken command just carried out, shown for a moment so the doctor knows it was heard.
   const [heard, setHeard] = useState("");
   // How spoken macros show; can be switched from the assistant's options mid-report.
@@ -366,13 +412,18 @@ export function ReportWorkspace({
     if (dirty && !savedId && !startedAt.current) startedAt.current = new Date().toISOString();
   }, [dirty, savedId]);
 
-  async function save(finalize = false, details: Patient | null = patient) {
+  async function save(finalize = false, details: Patient | null = patient, { quiet = false } = {}) {
     setSaving(true);
     setError("");
+    // What is being saved: a change made while saving is saved next time.
+    const sent = reportRef.current;
+    // An edit to a finalized report makes it a draft again until it is finalized once more.
+    const reopen = !finalize && Boolean(finalizedAt);
     const body = {
       template,
-      report: { ...reportRef.current, log: logRef.current },
+      report: { ...sent, log: logRef.current },
       finalize,
+      reopen,
       patient: details,
       startedAt: startedAt.current,
     };
@@ -382,26 +433,36 @@ export function ReportWorkspace({
     setSaving(false);
     if (result.error || !result.data) {
       setError(result.error);
+      if (quiet) setSaveFailedFor(sent);
       toast.error(result.error || "The report could not be saved.");
       return false;
     }
-    toast.success(finalize ? "Report finalized and saved" : savedId ? "Changes saved" : "Report saved to Reports");
+    setSaveFailedFor(null);
+    if (!quiet) toast.success(finalize ? "Report finalized and saved" : savedId ? "Changes saved" : "Report saved to Reports");
+    if (reopen) toast.warning("Edited after finalizing, so it is a draft again. Finalize it once more when you are done.");
+    if (!savedId) setCreatedAt(new Date().toISOString());
     setSavedId(result.data.id);
     setFinalizedAt(result.data.finalizedAt ?? null);
-    setDirty(false);
+    if (reportRef.current === sent) setDirty(false);
     return true;
   }
 
-  // The patient's details are asked for once, at the first save. They can be
-  // left empty there, so a report without a name is not asked again.
+  // Saved by itself, as in Google Docs: a moment after each change, with no
+  // details asked for. Nothing is saved for a new report that was never touched.
+  useEffect(() => {
+    if (!future || !dirty || busy || saving || patientAsk !== null || report === saveFailedFor) return;
+    const timer = setTimeout(() => void save(false, patient, { quiet: true }), 1500);
+    return () => clearTimeout(timer);
+    // Restarted by a change to the report, the chat or the details, not by every redraw.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty, report, log, patient, busy, saving, patientAsk, saveFailedFor]);
+
+  // Saves now (Ctrl+S, or before leaving). No details are asked for: they are
+  // optional and can be added from the header at any time. A draft may hold AI
+  // changes still waiting for review; only finalizing, copying and printing ask.
   function requestSave(then?: () => void) {
-    if (!reviewedRef.current) return setGate({ run: () => requestSave(then) });
     afterSave.current = then ?? null;
-    if (patient !== null || savedId !== null) {
-      void save().then((ok) => ok && then?.());
-    } else {
-      setPatientAsk("save");
-    }
+    void save().then((ok) => ok && then?.());
   }
 
   // The last step: the details are confirmed, the report is saved as final and shown as it will print.
@@ -542,6 +603,8 @@ export function ReportWorkspace({
     setWriting(null);
     setFailed(null);
     setDraft("");
+    setTail("");
+    setPaused(false);
     setError("");
     setValidation(null);
   }
@@ -786,6 +849,7 @@ export function ReportWorkspace({
   // Writes the words into the report. Nothing is copied by itself: the doctor
   // copies with the Copy button when the report is ready.
   async function send(textPromise: Promise<string>) {
+    setPaused(false);
     const stopper = new AbortController();
     writingStop.current = stopper;
     setBusy(true);
@@ -850,6 +914,15 @@ export function ReportWorkspace({
     if (!dictation.recording) {
       if (lineVoice.live) lineVoice.stop();
       if (editorVoice.live) editorVoice.stop();
+      // New words go where the cursor is: after a pause, or when the doctor
+      // has clicked into the words. Otherwise they go at the end, as always.
+      const text = draftRef.current;
+      const at = paused || caret.current.inBox ? Math.min(caret.current.at, text.length) : text.length;
+      if (at < text.length) {
+        setTail(text.slice(at));
+        setDraft(text.slice(0, at).trimEnd());
+      }
+      setPaused(false);
       listener.current = spokenStream();
       dictation.start();
       return;
@@ -857,26 +930,41 @@ export function ReportWorkspace({
     stopMic();
   }
 
+
   // Stopping the microphone (the button, its shortcut or Escape) never writes
   // the report. What was said stays in the box, ready to be read and corrected
   // by typing; it is sent only with Enter or the send button.
-  function stopMic() {
+  function stopMic(pauseAt?: number) {
     if (!dictation.recording) return;
     setQuiet(false);
+    if (pauseAt !== undefined) setPaused(true);
     dictation
       .stop()
       .then(() => {
         // Words held back in case a phrase carried on are written now.
         apply(listener.current.flush());
-        // The cursor goes to the end of the words, so a fix can be typed at once.
+        // The words after the cursor come back after what was just said.
+        const head = draftRef.current;
+        const joined = joinTail(head, tailRef.current);
+        setTail("");
+        setDraft(joined);
+        // Stopped: the cursor goes after the last spoken word, so a fix can be
+        // typed at once. Paused by a click: it stays where the doctor clicked.
+        const caret = pauseAt !== undefined ? Math.min(pauseAt, joined.length) : head.length;
         requestAnimationFrame(() => {
           const box = messageRef.current ?? boxRef.current;
           if (!box) return;
           box.focus();
-          box.setSelectionRange(box.value.length, box.value.length);
+          box.setSelectionRange(caret, caret);
         });
       })
       .catch(() => {});
+  }
+
+  /** A click in the words while the microphone is on pauses it there, to edit like any text. */
+  function pauseAtClick(event: React.MouseEvent<HTMLTextAreaElement>) {
+    if (!dictation.recording) return;
+    stopMic(event.currentTarget.selectionStart);
   }
   // Silence never switches the microphone off: it stays on, holding what was
   // said, until the doctor speaks again or stops it.
@@ -896,7 +984,7 @@ export function ReportWorkspace({
       copy: () => !busy && copy(report),
       save: () => !busy && !saving && (savedId === null || dirty) && requestSave(),
       print: () => !busy && print(),
-      new: () => !busy && newCase(),
+      new: () => !busy && (future ? setChoosing(true) : newCase()),
     };
     stopListening.current = () => {
       if (!dictation.recording) return false;
@@ -995,7 +1083,7 @@ export function ReportWorkspace({
   const panelRef = useRef<HTMLElement>(null);
   // The height the doctor chose by dragging. The box never goes below it.
   const boxBase = useRef(BOX_MIN);
-  const shownWords = [draft, dictation.interim].filter(Boolean).join(" ");
+  const shownWords = joinTail([draft, dictation.interim].filter(Boolean).join(" "), tail);
 
   function fitBox() {
     const box = boxRef.current;
@@ -1087,6 +1175,7 @@ export function ReportWorkspace({
 
   const dialogs = (
     <>
+      {future && <TemplateChooser open={choosing} onOpenChange={setChoosing} onPick={(id) => void pickTemplate(id)} />}
       {finalWanted && <FinalizeDialog
         open={showFinal}
         onClose={() => setShowFinal(false)}
@@ -1284,7 +1373,7 @@ export function ReportWorkspace({
           <header className="@container shrink-0 border-b border-line">
             <div className="flex h-12 items-center gap-2 border-b border-line bg-ink/[0.02] pl-[11px] pr-4">
               <Tip label="New report">
-                <button type="button" onClick={() => newCase()} aria-label="New report" className={`${ICON_BUTTON} shrink-0`}>
+                <button type="button" onClick={() => setChoosing(true)} aria-label="New report" className={`${ICON_BUTTON} shrink-0`}>
                   <Plus weight="bold" className="h-5 w-5" />
                 </button>
               </Tip>
@@ -1301,8 +1390,9 @@ export function ReportWorkspace({
                       {ageSex(patient) && <span className="shrink-0 text-[0.88rem] text-ink-soft">{ageSex(patient)}</span>}
                     </>
                   ) : (
+                    // Without a name the report goes by the moment it was first saved, as in Reports.
                     <span className="truncate text-[0.95rem] font-semibold text-ink-quiet">
-                      {savedId ? "No patient name" : "New patient"}
+                      {createdAt ? `Report · ${formatDateTime(createdAt)}` : savedId ? "No patient name" : "New report"}
                     </span>
                   )}
                 </button>
@@ -1347,20 +1437,41 @@ export function ReportWorkspace({
                     <Printer weight="bold" className="h-5 w-5" />
                   </button>
                 </Tip>
-                <Tip
-                  label={savedId && !dirty ? "Saved" : savedId ? "Save changes" : "Save"}
-                  shortcut={keyText(shortcuts.save, mac, " + ")}
-                >
-                  <button
-                    type="button"
-                    onClick={() => requestSave()}
-                    disabled={saving || busy || (savedId !== null && !dirty)}
-                    aria-label={savedId && !dirty ? "Saved" : "Save"}
-                    className={ICON_BUTTON}
+                {/* Saved by itself, as in Google Docs: the state is shown, not a button to press.
+                    Nothing shows for a new report that has not been touched yet. */}
+                {(savedId !== null || dirty) && (
+                  <Tip
+                    label={
+                      saveFailedFor && dirty
+                        ? "Could not save. Press to try again"
+                        : saving || dirty
+                          ? "Saving your changes"
+                          : "All changes saved in Reports"
+                    }
+                    shortcut={keyText(shortcuts.save, mac, " + ")}
                   >
-                    {saving && patientAsk === null ? <Spinner /> : <FloppyDisk weight="bold" className="h-5 w-5" />}
-                  </button>
-                </Tip>
+                    <button
+                      type="button"
+                      onClick={() => requestSave()}
+                      disabled={saving || busy || !dirty}
+                      aria-live="polite"
+                      className={`mr-1 inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[0.85rem] font-semibold transition-colors hover:bg-ink/[0.06] disabled:hover:bg-transparent ${
+                        saveFailedFor && dirty ? "text-flag" : "text-ink-soft"
+                      }`}
+                    >
+                      {saveFailedFor && dirty ? (
+                        <CloudSlash weight="bold" className="h-[18px] w-[18px]" />
+                      ) : saving || dirty ? (
+                        <CircleNotch weight="bold" className="h-[18px] w-[18px] animate-spin" />
+                      ) : (
+                        <CloudCheck weight="bold" className="h-[18px] w-[18px]" />
+                      )}
+                      <span className="@max-md:hidden">
+                        {saveFailedFor && dirty ? "Not saved" : saving || dirty ? "Saving…" : "Saved"}
+                      </span>
+                    </button>
+                  </Tip>
+                )}
                 <Tip label={fullScreen ? "Exit full screen" : "Full screen"}>
                   <button
                     type="button"
@@ -1701,6 +1812,23 @@ export function ReportWorkspace({
                 </p>
               )}
 
+              {/* How to stop and fix a word without losing what was said. */}
+              {(status === "listening" || (paused && status === "ready")) && shownWords.trim() !== "" && (
+                <p className="flex items-center gap-2 px-1 text-[0.88rem] font-semibold text-ink-soft" aria-live="polite">
+                  {paused ? (
+                    <>
+                      <PauseCircle weight="fill" className="h-4 w-4 shrink-0 text-amber-deep" />
+                      Paused. Edit anywhere, then press Resume: new words go where the cursor is.
+                    </>
+                  ) : (
+                    <>
+                      <CursorText weight="bold" className="h-4 w-4 shrink-0 text-teal" />
+                      Click the words to pause and edit.
+                    </>
+                  )}
+                </p>
+              )}
+
               {/* The message box. While listening its edge becomes a slowly turning colour line. */}
               <div
                 className={`rounded-[1.5rem] p-[2px] transition-colors ${
@@ -1720,6 +1848,9 @@ export function ReportWorkspace({
                         }
                       }}
                       readOnly={dictation.recording || dictation.starting}
+                      // While the microphone is on, a click in the words pauses it there.
+                      onMouseUp={pauseAtClick}
+                      onSelect={trackCaret}
                       aria-label="What you said"
                       placeholder={
                           status === "starting"
@@ -1755,6 +1886,7 @@ export function ReportWorkspace({
                   onClick={toggleMic}
                   disabled={busy || dictation.starting}
                   keyShortcut={shortcuts.dictate}
+                  paused={paused}
                   className="min-w-0 flex-1"
                 />
                 {/* Faded until something is typed. While the AI writes, it is the Stop button. */}
@@ -2282,6 +2414,8 @@ export function ReportWorkspace({
                 }
               }}
               readOnly={dictation.recording || dictation.starting}
+              onMouseUp={pauseAtClick}
+                      onSelect={trackCaret}
               style={{ height: BOX_MIN }}
               aria-label="What you said"
               placeholder="Press Start speaking and say your findings. Your words appear here. You can also type."
@@ -2340,6 +2474,7 @@ export function ReportWorkspace({
             onClick={toggleMic}
             disabled={busy || dictation.starting}
             keyShortcut={shortcuts.dictate}
+                  paused={paused}
             className="w-full"
           />
 
