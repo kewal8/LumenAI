@@ -21,7 +21,7 @@ async function record(run: () => Promise<unknown>) {
 
 export function recordClaudeUsage(
   user: CurrentUser,
-  purpose: "report" | "template",
+  purpose: "report" | "template" | "style",
   model: string,
   usage: ClaudeUsage,
   /** How long the model took, in milliseconds. */

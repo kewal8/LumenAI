@@ -8,6 +8,7 @@ import {
   Keyboard,
   Lightning,
   Microphone,
+  Quotes,
   Signature,
   UserCircle,
 } from "@phosphor-icons/react/dist/ssr";
@@ -25,6 +26,7 @@ import {
   ProfileForm,
 } from "@/components/app/SettingsForms";
 import { DictionaryManager } from "@/components/app/DictionaryManager";
+import { StyleProfileForm } from "@/components/app/StyleProfileForm";
 import { MacrosManager } from "@/components/app/MacrosManager";
 import { Page, PageHeader, Section } from "@/components/app/ui";
 import { requireUser } from "@/lib/auth/session";
@@ -34,6 +36,7 @@ import { listMacros } from "@/lib/macroStore";
 import { listDictionaryWords } from "@/lib/spelling/dictionary";
 import { getIdentity } from "@/lib/reportIdentity";
 import { parseShortcuts } from "@/lib/shortcuts";
+import { PROFILE_MAX, REPORTS_PER_BUILD, getStyleProfile } from "@/lib/styleProfile";
 
 // Reads the signed-in user's data on every request, so it is rendered on demand.
 export const instant = false;
@@ -46,6 +49,7 @@ const TABS = [
   { id: "letterhead", label: "Letterhead", icon: FileText },
   { id: "format", label: "Paste format", icon: ClipboardText },
   { id: "dictation", label: "Dictation", icon: Microphone },
+  { id: "style", label: "Reporting style", icon: Quotes },
   { id: "macros", label: "Macros", icon: Lightning },
   { id: "dictionary", label: "Dictionary", icon: BookOpenText },
   { id: "shortcuts", label: "Shortcuts", icon: Keyboard },
@@ -63,6 +67,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     tab === "macros" ? listMacros(user.id) : [],
     tab === "dictionary" && user.org ? listDictionaryWords(user.org.id) : [],
   ]);
+  const style = tab === "style" ? await getStyleProfile(user.id) : null;
 
   return (
     <Page>
@@ -160,6 +165,16 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           description="How speaking works on the report screen."
         >
           <FloatingBoxSetting enabled={row?.floating_box !== false} />
+        </Section>
+      )}
+
+      {tab === "style" && style && (
+        <Section
+          icon={<Quotes weight="fill" className="h-5 w-5" />}
+          title="Reporting style"
+          description="Your own way of wording findings and the impression, learned from the reports you finalize."
+        >
+          <StyleProfileForm initial={style} perBuild={REPORTS_PER_BUILD} max={PROFILE_MAX} />
         </Section>
       )}
 

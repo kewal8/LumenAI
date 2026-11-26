@@ -9,6 +9,7 @@ import { keepCorrelation } from "@/lib/correlation";
 import { continuationRemovals, organPlan, organSexOf, removalOps, sexFromDictation, sexFromLabel } from "@/lib/sexOrgans";
 import { pathOf, recordError } from "@/lib/monitor";
 import { recordClaudeUsage } from "@/lib/usage";
+import { styleBlock, styleText } from "@/lib/styleProfile";
 import { validateLine } from "@/lib/validate";
 import { updateRefusal } from "@/lib/workspace";
 
@@ -57,6 +58,10 @@ Organs that belong to one sex. Templates for the abdomen and pelvis often carry 
 Paired organs: kidneys, ureters, adrenals, ovaries, lungs and every other structure with a right and a left. Treat each side on its own. A finding dictated for one side changes only the lines for that side. Leave every line for the other side out of ops, so its complete normal description and its measurements stay exactly as they are: never shorten it to something like "Left kidney is normal.", and never rewrite it because the opposite side has pathology. Never carry a finding, a measurement, a calculus or hydronephrosis from one side to the other, and never make a one-sided finding bilateral. When both sides are abnormal, describe each side separately with its own findings and its own measurements. A line that names no side belongs to the side named in the lines just above it (a "Pelvicalyceal system is not dilated. No calculus seen." line under the right kidney line is about the right kidney); when you write a finding into such a line, name the side in it as dictated ("A calculus measuring 8 mm is noted in the lower pole calyx of the right kidney."), so the line can be read and checked without the ones above. Add the side to the finding only: normal wording you keep in the line stays word for word as it was. When one template line covers both sides together ("Both kidneys are normal in size, shape and density.") and the finding is on one side, rewrite that line so the affected side carries the finding and the other side keeps every part of the line's normal wording, said for that side alone ("Left kidney is normal in size, shape and density."). On a blank template, or when the report has no line for the other side, write nothing about it: a side that was not dictated is not assumed normal.
 
 A finding often makes only part of a line untrue. Keep the rest of that line's normal wording: a calculus in a kidney with no dilatation dictated changes "No calculus seen." and leaves "Pelvicalyceal system is not dilated." standing. Keep normal anatomical wording unless the dictated finding contradicts it.
+
+Anatomical continuity. An abnormality in part of a structure never makes the whole structure abnormal, and never removes the normal description of the rest of it. For every finding, place it at the exact part dictated (a condyle, a pole, a segment, a lobe, a level) and keep the template's normal wording for the remaining parts of that same bone, organ or structure. When the template line that described the structure as normal has to be rewritten, write the finding and then keep the rest of the structure normal in the template's own words, said for the remainder: a fracture of the lateral femoral condyle keeps "The visualized portions of the distal femoral shaft and remaining visualized femur appear normal."; a fracture of the lateral tibial condyle and plateau extending to the intercondylar eminence keeps "The remaining visualized portions of the proximal tibia appear normal.". If the template has no such wording, write nothing about the remainder rather than invent it. Adjacent structures keep their normal lines unless they were dictated as abnormal. Never shorten, summarise or generalise normal or negative findings, and never drop one, unless the radiologist dictated that it goes or it is the "remove" case below. Assess paired structures independently, as set out under paired organs below.
+
+The radiologist's own style. radiologist_style is this radiologist's reporting-style profile, learned from the reports they signed: their phrases for positive and negative findings, for degrees of certainty, their terms, sentence structure and impression layout. Write the lines you change and the impression in that style, so the report reads as theirs, and keep the template's own wording for lines you do not change. Style is wording only. It never changes what is said: never raise or lower certainty ("suggestive of" stays suggestive, "possibility of ... cannot be excluded" never becomes a diagnosis, "consistent with" or "characteristic of" only when the radiologist said so or the profile uses it for exactly that level), never turn "No evidence of X" into "normal" when it was about one finding only, and never change a side, site, extent, measurement or negation, drop a normal or negative finding, add an unsupported one, or reword the clinical-correlation line. Where the profile and these rules disagree, these rules win. With no profile, follow the template's wording.
 
 For each replace or add:
 - text: formal report prose in the style and spelling of the template lines. Several related findings about one structure can share a line.
@@ -145,6 +150,9 @@ export async function POST(request: Request) {
     })),
   }));
 
+  // This radiologist's own wording, learned from the reports they finalized.
+  const style = await styleText(user.id);
+
   try {
     const started = performance.now();
     const response = await client.beta.messages.parse({
@@ -165,6 +173,7 @@ export async function POST(request: Request) {
             `<template>\n${JSON.stringify(template, null, 2)}\n</template>`,
             `<current_report>\n${JSON.stringify(currentReport, null, 2)}\n</current_report>`,
             `<patient_sex>${recordedSex ?? "not recorded"}</patient_sex>`,
+            styleBlock(style),
             `<current_impression>\n${JSON.stringify(report.impression)}\n</current_impression>`,
             `<earlier_dictations>\n${JSON.stringify(earlier, null, 2)}\n</earlier_dictations>`,
             `<new_dictation>\n${dictation}\n</new_dictation>`,

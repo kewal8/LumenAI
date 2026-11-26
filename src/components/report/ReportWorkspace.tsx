@@ -66,7 +66,8 @@ import { expandMacros, removeLastMacro, tidyShortForms, type Macro, type MacroMo
 import { MacroHighlights } from "./MacroHighlights";
 import { comboFromEvent, type ShortcutAction, type Shortcuts } from "@/lib/shortcuts";
 import { keyText, useIsMac } from "@/lib/keys";
-import { STEP, STEP_DONE, STEP_ICON, ValidateButton } from "./ValidateButton";
+import { STEP, STEP_DONE, STEP_ICON, ValidateButton, type ValidateContext } from "./ValidateButton";
+import { correlationLines } from "@/lib/correlation";
 import { FloatingBox, useFloatingWindow } from "./FloatingBox";
 import { useLineVoice } from "./LineVoice";
 import { useEditorVoice } from "./editor/EditorVoice";
@@ -261,6 +262,17 @@ export function ReportWorkspace({
   const [error, setError] = useState("");
   // The last check: null when not validated (or changed since), else the suggestions still open; 0 is validated.
   const [validation, setValidation] = useState<number | null>(null);
+  // Read by Finalize, which can run from a pop-up made in an earlier render.
+  const validationRef = useRef(validation);
+  useEffect(() => {
+    validationRef.current = validation;
+  }, [validation]);
+  // Finalize runs the check first when the report changed since the last one; this asks for it.
+  const [checkRequest, setCheckRequest] = useState(0);
+  // Finalize is waiting for the check, and goes on once every suggestion is fixed or kept.
+  const finalizing = useRef(false);
+  // The check could not run while finalizing: the doctor decides whether to go on without it.
+  const [uncheckedFinal, setUncheckedFinal] = useState(false);
   const [credits, setCredits] = useState(initialCredits);
 
   // The new design writes into the rich report editor. Its document is the
@@ -480,10 +492,65 @@ export function ReportWorkspace({
   }
 
   // The last step: the details are confirmed, the report is saved as final and shown as it will print.
-  function finalize() {
-    if (!reviewedRef.current) return setGate({ run: finalize });
+  // The impression must match the final findings first: a report changed since its
+  // last check is checked again, and Finalize goes on once every suggestion is fixed
+  // or kept as written.
+  function finalize(checked = false) {
+    if (!reviewedRef.current) return setGate({ run: () => finalize(checked) });
+    if (!checked && future && validationRef.current !== 0) {
+      finalizing.current = true;
+      setCheckRequest((count) => count + 1);
+      return;
+    }
+    finalizing.current = false;
     afterSave.current = null;
     setPatientAsk("finalize");
+  }
+
+  /** The check's view of the report: final findings, the template's normal wording, the impression. */
+  function validateContext(): ValidateContext {
+    const doc = editorRef.current?.getDoc();
+    const current = doc ? docToReport(doc, reportRef.current) : reportRef.current;
+    return {
+      findings: current.sections.map((section) => ({
+        heading: section.heading,
+        lines: section.lines.map((line) => line.text).filter((text) => text.trim()),
+      })),
+      templateNormal: template.sections.map((section) => ({
+        heading: section.heading,
+        lines: section.lines.map((line) => line.text),
+      })),
+      impression: current.impression,
+      correlation: correlationLines(template),
+      hasImpression: !template.noImpression,
+    };
+  }
+
+  /** One impression fix from the check: replace or remove an item, or add one above the correlation line. */
+  function fixImpression(find: string, replace: string) {
+    const list = [...reportRef.current.impression];
+    if (find) {
+      const at = list.indexOf(find);
+      if (at < 0) return false;
+      if (replace) list[at] = replace;
+      else list.splice(at, 1);
+    } else {
+      if (!replace) return false;
+      const standing = correlationLines(template);
+      let at = list.length;
+      while (at > 0 && standing.includes(list[at - 1])) at--;
+      list.splice(at, 0, replace);
+    }
+    applyOps([], list);
+    return true;
+  }
+
+  /** The check's result: once nothing is left open, a waiting Finalize goes on. */
+  function checkResult(count: number) {
+    setValidation(count);
+    if (!finalizing.current) return;
+    if (count === 0) finalize(true);
+    else toast.warning("Fix or keep each suggestion. Finalize goes on once they are all dealt with.");
   }
 
   /** The details as the pop-up starts with them: what was given, or suggestions from the template. */
@@ -1037,6 +1104,8 @@ export function ReportWorkspace({
   function editorChanged(doc: DocNode) {
     // A change after a clean check means the report needs validating again.
     setValidation((current) => (current === 0 ? null : current));
+    // A finalize waiting on a clean check starts over from the edited report.
+    if (validationRef.current === 0) finalizing.current = false;
     const next = { ...docToReport(doc, reportRef.current), doc };
     reportRef.current = next;
     if (applying.current) setReport(next);
@@ -1213,6 +1282,51 @@ export function ReportWorkspace({
         }}
         onSubmit={submitPatient}
       />}
+
+      {/* Finalize could not check the impression against the findings: the doctor decides. */}
+      <Dialog.Root
+        open={uncheckedFinal}
+        onOpenChange={(open) => {
+          if (open) return;
+          setUncheckedFinal(false);
+          finalizing.current = false;
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Backdrop className="app-backdrop fixed inset-0 z-50 bg-[#06110f]/50" />
+          <Dialog.Popup className="app-layer sheet fixed left-1/2 top-1/2 z-50 w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-ink/20 bg-surface p-6 shadow-[0_24px_70px_-20px_rgb(6_17_15/0.55)] outline-none sm:p-8">
+            <Dialog.Title className="text-[1.4rem] font-semibold tracking-[-0.02em]">
+              Finalize without the check?
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-[1.02rem] leading-relaxed text-ink-soft">
+              The impression could not be checked against the findings just now. Read them together before you sign, or try the check again.
+            </Dialog.Description>
+            <div className="mt-6 flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setUncheckedFinal(false);
+                  finalize();
+                }}
+                className={`${buttonClass.primary} h-12`}
+              >
+                Try the check again
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUncheckedFinal(false);
+                  finalize(true);
+                }}
+                className={`${buttonClass.secondary} h-12`}
+              >
+                I have checked it, finalize
+              </button>
+              <Dialog.Close className={`${buttonClass.quiet} h-12`}>Keep editing</Dialog.Close>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       <Dialog.Root open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
         <Dialog.Portal>
@@ -1521,9 +1635,13 @@ export function ReportWorkspace({
                     disabled={saving || busy}
                     validated={validation === 0}
                     onChecked={() => setCredits(afterOneUpdate)}
-                    onIssues={setValidation}
+                    onIssues={checkResult}
                     organIssues={organIssues}
                     removeEmptyLines={() => editorRef.current?.removeEmptyLines() ?? 0}
+                    getContext={future ? validateContext : undefined}
+                    fixImpression={future ? fixImpression : undefined}
+                    checkRequest={wide ? checkRequest : 0}
+                    onCheckFailed={() => finalizing.current && setUncheckedFinal(true)}
                   />
                   {/* Always open: a report typed by hand, or a normal study, is finalized the same way. */}
                   <Tip label={finalizedAt && !dirty ? "Finalized: view it as it prints" : "Finalize: check details, save as final"}>
@@ -1988,9 +2106,13 @@ export function ReportWorkspace({
                   disabled={saving || busy}
                   validated={validation === 0}
                   onChecked={() => setCredits(afterOneUpdate)}
-                  onIssues={setValidation}
+                  onIssues={checkResult}
                   organIssues={organIssues}
                   removeEmptyLines={() => editorRef.current?.removeEmptyLines() ?? 0}
+                  getContext={future ? validateContext : undefined}
+                  fixImpression={future ? fixImpression : undefined}
+                  checkRequest={wide ? 0 : checkRequest}
+                  onCheckFailed={() => finalizing.current && setUncheckedFinal(true)}
                   className={`${STEP} h-10 flex-1 justify-center`}
                   side="top"
                 />
@@ -2119,7 +2241,7 @@ export function ReportWorkspace({
             {/* The last step of every report: saves it as final and shows it as it prints. */}
             <button
               type="button"
-              onClick={finalize}
+              onClick={() => finalize()}
               disabled={saving || busy}
               className="inline-flex h-11 items-center gap-2 rounded-full bg-teal px-6 text-[0.95rem] font-bold text-white transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >

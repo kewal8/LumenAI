@@ -1,7 +1,9 @@
+import { after } from "next/server";
 import { apiUser, fail, handle } from "@/lib/auth/respond";
 import { asUuid, db } from "@/lib/db";
 import { parsePatient } from "@/lib/patient";
 import { parseReportInput } from "@/lib/reportStore";
+import { rebuildStyleProfile } from "@/lib/styleProfile";
 
 type Context = RouteContext<"/api/reports/[id]">;
 
@@ -47,6 +49,8 @@ export const PATCH = handle<Context>(async (request, context) => {
     returning id, finalized_at
   `;
   if (updated.length === 0) return fail(404, "That report no longer exists.");
+  // Every few finalized reports, the doctor's style profile learns from them, after the reply.
+  if (finalize) after(() => rebuildStyleProfile(user));
   return Response.json({ ok: true, id, finalizedAt: updated[0].finalized_at });
 });
 

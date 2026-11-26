@@ -1,7 +1,9 @@
+import { after } from "next/server";
 import { apiUser, fail, handle } from "@/lib/auth/respond";
 import { db } from "@/lib/db";
 import { EMPTY_PATIENT, parsePatient } from "@/lib/patient";
 import { parseReportInput } from "@/lib/reportStore";
+import { rebuildStyleProfile } from "@/lib/styleProfile";
 
 export const POST = handle(async (request) => {
   const user = await apiUser();
@@ -42,5 +44,7 @@ export const POST = handle(async (request) => {
             ${patient.name || null}, ${patient.age}, ${patient.age === null ? null : patient.ageUnit}, ${patient.sex}, ${patient.study || null}, ${patient.modality})
     returning id, finalized_at
   `;
+  // Every few finalized reports, the doctor's style profile learns from them, after the reply.
+  if (finalize) after(() => rebuildStyleProfile(user));
   return Response.json({ ok: true, id: row.id, finalizedAt: row.finalized_at });
 });

@@ -7,6 +7,8 @@ import { newLineId, type PatchPlan } from "@/lib/reportDoc";
 
 /** Marks a change made by a dictation, so it is not mistaken for typing. */
 const PATCH = "reportPatch";
+/** Roles only a heading has; a paragraph carrying one was split off a heading. */
+const HEADING_ROLES = new Set(["title", "section", "impression"]);
 
 function attribute(name: string, dataName: string) {
   return {
@@ -226,8 +228,11 @@ export const ReportLines = Extension.create({
           };
 
           newState.doc.descendants((node, pos) => {
+            // Enter at the end of a heading starts a paragraph that copies the heading's
+            // role. It is a report line the doctor is typing, not a heading.
+            const headingCopy = node.type.name === "paragraph" && HEADING_ROLES.has(node.attrs.role);
             // Headings, and a template's own title, heading and blank-line paragraphs.
-            if (node.type.name === "heading" || node.attrs.role) {
+            if (node.type.name === "heading" || (node.attrs.role && !headingCopy)) {
               if (node.attrs.role === "section") {
                 section = node.attrs.sectionId;
                 inImpression = false;
@@ -262,13 +267,14 @@ export const ReportLines = Extension.create({
 
             // A paragraph with no identity, or a copy of another line's.
             if (inImpression || !section) {
-              set(pos, { ...node.attrs, lineId: null, sectionId: null, impression: true, status: null, source: null, warnings: [] });
+              set(pos, { ...node.attrs, role: null, lineId: null, sectionId: null, impression: true, status: null, source: null, warnings: [] });
             } else {
               const fresh = newLineId(section);
               seen.add(fresh);
               const same = known.get(node.textContent.trim());
               set(pos, {
                 ...node.attrs,
+                role: null,
                 lineId: fresh,
                 sectionId: section,
                 status: same?.status ?? "edited",
