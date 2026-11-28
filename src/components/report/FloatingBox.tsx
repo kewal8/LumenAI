@@ -51,7 +51,7 @@ export function useFloatingWindow(
       pip.document.documentElement.setAttribute(name, value);
     }
     pip.document.body.className = document.body.className;
-    pip.document.title = "LumenAI dictation";
+    pip.document.title = "Radmatic dictation";
 
     pip.addEventListener("pagehide", () => {
       setFloatingWindow(null);

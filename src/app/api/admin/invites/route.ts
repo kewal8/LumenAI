@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 export const POST = handle(async (request) => {
   const user = await apiUser();
   if (user instanceof Response) return user;
-  if (!user.isPlatformAdmin) return fail(403, "Only LumenAI staff can do this.");
+  if (!user.isPlatformAdmin) return fail(403, "Only Radmatic staff can do this.");
 
   const body = await request.json();
   const email = normaliseEmail(body.email);
@@ -21,7 +21,7 @@ export const POST = handle(async (request) => {
 
   const sql = db();
   const [taken] = await sql`select 1 from users where lower(email) = ${email}`;
-  if (taken) return fail(409, "This email already has a LumenAI account.");
+  if (taken) return fail(409, "This email already has a Radmatic account.");
 
   const token = newToken();
   await sql.transaction([

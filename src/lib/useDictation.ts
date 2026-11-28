@@ -15,14 +15,14 @@ export type MicrophoneAccess = "unknown" | "ask" | "allowed" | "blocked";
 
 /** Plain-language messages for the people using this, not for developers. */
 export const MICROPHONE_MESSAGES = {
-  ask: "Your browser will ask to use the microphone. Choose Allow. LumenAI listens only while the red Listening sign is showing.",
+  ask: "Your browser will ask to use the microphone. Choose Allow. Radmatic listens only while the red Listening sign is showing.",
   blocked:
-    "The microphone is blocked for LumenAI. Click the lock icon beside the web address at the top of the screen, change Microphone to Allow, then reload this page.",
+    "The microphone is blocked for Radmatic. Click the lock icon beside the web address at the top of the screen, change Microphone to Allow, then reload this page.",
   missing:
     "No microphone was found. Plug in a headset or microphone, then press Start speaking again.",
   busy: "The microphone is being used by another program, such as a video call. Close that program, then press Start speaking again.",
   unsupported:
-    "This browser cannot use the microphone here. Open LumenAI in Google Chrome or Microsoft Edge.",
+    "This browser cannot use the microphone here. Open Radmatic in Google Chrome or Microsoft Edge.",
   offline:
     "Could not reach the speech service. Check your internet connection, then press Start speaking again.",
 };

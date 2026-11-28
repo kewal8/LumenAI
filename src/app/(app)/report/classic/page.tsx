@@ -7,7 +7,7 @@ import { loadWorkspace } from "@/lib/workspace";
 // Reads the signed-in user's data on every request, so it is rendered on demand.
 export const instant = false;
 
-export const metadata = { title: "New report, version one · LumenAI" };
+export const metadata = { title: "New report, version one · Radmatic" };
 
 // Version one of the report screen, kept as a backup beside the new design.
 // Same reports, templates and settings; only the layout differs.

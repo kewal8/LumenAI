@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AuthShell, authLinkClass } from "@/components/auth/AuthShell";
 import { ForgotPasswordForm } from "@/components/auth/forms";
 
-export const metadata = { title: "Reset password · LumenAI" };
+export const metadata = { title: "Reset password · Radmatic" };
 
 export default function ForgotPasswordPage() {
   return (

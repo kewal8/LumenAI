@@ -3,9 +3,9 @@ import { FeatureSlider } from "@/components/demo/FeatureSlider";
 import { SiteFooter, SiteHeader } from "@/components/landing/site";
 
 export const metadata = {
-  title: "Book a demo · LumenAI",
+  title: "Book a demo · Radmatic",
   description:
-    "See LumenAI write a radiology report from your own dictation. Request a demo and we will agree a time.",
+    "See Radmatic write a radiology report from your own dictation. Request a demo and we will agree a time.",
 };
 
 export default function BookADemoPage() {
@@ -23,7 +23,7 @@ export default function BookADemoPage() {
               See it on your own cases.
             </h1>
             <p className="mt-3 max-w-[40ch] leading-relaxed text-on-night-soft">
-              A live session with the people building LumenAI, on studies you bring.
+              A live session with the people building Radmatic, on studies you bring.
             </p>
           </div>
           <FeatureSlider />

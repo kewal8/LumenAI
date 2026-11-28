@@ -55,7 +55,7 @@ const NORMAL_LINES = [
 ];
 
 /**
- * The first screen after sign-up: a warm hello, how LumenAI works in three
+ * The first screen after sign-up: a warm hello, how Radmatic works in three
  * steps, and the next thing to do. A new account is sent to choose a plan;
  * an account that can already report goes to its first report.
  */
@@ -76,7 +76,7 @@ export function WelcomeScreen({ firstName, locked }: { firstName: string; locked
             variants={rise}
             className="mt-6 text-balance text-[clamp(2.4rem,5vw,3.6rem)] font-semibold leading-[1.06] tracking-[-0.035em]"
           >
-            Welcome to Lumen<span className="text-teal">AI</span>, {firstName}.
+            Welcome to Rad<span className="text-teal">matic</span>, {firstName}.
           </motion.h1>
           <motion.p variants={rise} className="mt-5 max-w-[46ch] text-[1.15rem] leading-relaxed text-ink-soft">
             From your voice to a signed report, in less than a minute. Here is how every report gets done.

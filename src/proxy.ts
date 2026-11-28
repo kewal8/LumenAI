@@ -13,7 +13,7 @@ const PUBLIC_PAGES = new Set([
   "/accept-invite",
   "/forgot-password",
   "/reset-password",
-  // What a phone reads to add LumenAI to its home screen.
+  // What a phone reads to add Radmatic to its home screen.
   "/manifest.webmanifest",
 ]);
 // The scheduled clean-up has no session; it checks its own secret.

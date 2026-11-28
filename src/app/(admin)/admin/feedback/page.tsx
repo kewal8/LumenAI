@@ -9,7 +9,7 @@ import { likePattern, offsetOf, readListParams } from "@/lib/listQuery";
 // Reads the signed-in user's data on every request, so it is rendered on demand.
 export const instant = false;
 
-export const metadata = { title: "Feedback · LumenAI Admin" };
+export const metadata = { title: "Feedback · Radmatic Admin" };
 
 export default async function FeedbackPage({ searchParams }: PageProps<"/admin/feedback">) {
   await requireStaff();

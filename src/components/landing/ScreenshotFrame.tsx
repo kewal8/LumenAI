@@ -283,7 +283,7 @@ function Paste() {
   );
 }
 
-/** LumenAI in a tab next to the image viewer the doctor already uses. */
+/** Radmatic in a tab next to the image viewer the doctor already uses. */
 function Beside() {
   return (
     <div className="flex w-full gap-[0.8em]">
@@ -297,7 +297,7 @@ function Beside() {
         </div>
       </div>
       <div className={`${SHEET} min-w-0 flex-1`}>
-        <span className="text-[0.82em] font-semibold text-teal-deep">LumenAI</span>
+        <span className="text-[0.82em] font-semibold text-teal-deep">Radmatic</span>
         <Heading>FINDINGS:</Heading>
         <Line w="86%" />
         <Written order={0}>Small acute infarct, left basal ganglia.</Written>
@@ -397,7 +397,7 @@ export function ScreenshotFrame({ label, src, layout = "report", className = "" 
           <span className="h-2.5 w-2.5 rounded-full bg-ink/15" />
         </span>
         <span className="mx-auto min-w-0 truncate rounded-full bg-canvas px-4 py-1 text-xs text-ink-quiet">
-          {layout === "paste" ? label : `LumenAI · ${label}`}
+          {layout === "paste" ? label : `Radmatic · ${label}`}
         </span>
         <span className="w-10" aria-hidden="true" />
       </div>
@@ -405,7 +405,7 @@ export function ScreenshotFrame({ label, src, layout = "report", className = "" 
       {src ? (
         <Image
           src={src}
-          alt={`LumenAI ${label.toLowerCase()}`}
+          alt={`Radmatic ${label.toLowerCase()}`}
           width={1600}
           height={1000}
           className="block h-auto w-full"

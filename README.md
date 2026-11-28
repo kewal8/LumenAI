@@ -1,4 +1,4 @@
-# LumenAI
+# Radmatic
 
 AI reporting assistant for radiologists. Dictate only the abnormal findings;
 the report is written in your template and copied ready to paste into PACS.

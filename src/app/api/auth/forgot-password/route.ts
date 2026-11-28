@@ -29,7 +29,7 @@ export const POST = handle(async (request) => {
       const link = `${new URL(request.url).origin}/reset-password?token=${token}`;
       await sendEmail({
         to: email,
-        subject: "Reset your LumenAI password",
+        subject: "Reset your Radmatic password",
         text: `Hello ${user.name},\n\nUse this link to choose a new password. It works once and expires in one hour.\n\n${link}\n\nIf you did not ask for this, ignore this email.`,
       });
     }

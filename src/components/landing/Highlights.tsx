@@ -36,7 +36,7 @@ export function Compare({ pairs }: { pairs: { old: string; now: string }[] }) {
   const { ref, hold, turns } = useTurns<HTMLDivElement>(pairs.length);
   const line = "text-[clamp(1.3rem,2.3vw,1.75rem)] font-semibold leading-snug tracking-[-0.02em]";
   return (
-    <div ref={ref} role="group" aria-roledescription="carousel" aria-label="Reporting today and with LumenAI" {...hold}>
+    <div ref={ref} role="group" aria-roledescription="carousel" aria-label="Reporting today and with Radmatic" {...hold}>
       <div className="grid gap-5 md:grid-cols-2">
         <div className="rounded-3xl border border-ink/[0.12] bg-surface p-8 sm:p-10">
           <h2 className="font-semibold text-ink-quiet">Reporting today</h2>
@@ -50,7 +50,7 @@ export function Compare({ pairs }: { pairs: { old: string; now: string }[] }) {
         </div>
         <div className="rounded-3xl bg-teal-tint p-8 sm:p-10">
           <h2 className="font-semibold text-teal-deep">
-            With LumenAI
+            With Radmatic
           </h2>
           <div className="mt-4 grid">
             {pairs.map((pair, at) => (

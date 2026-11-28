@@ -65,7 +65,7 @@ export function SiteHeader() {
         className="flex items-center justify-between gap-4 rounded-full bg-surface py-2 pl-6 pr-2 shadow-[0_8px_30px_-12px_rgb(8_48_45/0.28),0_1px_3px_rgb(8_48_45/0.1)]"
       >
         <Link href="/" className="text-[1.35rem] font-bold tracking-[-0.04em]">
-          Lumen<span className="text-teal">AI</span>
+          Rad<span className="text-teal">matic</span>
         </Link>
         <div className="hidden items-center gap-7 text-[0.98rem] md:flex">
           {NAV_LINKS.map((link) => (
@@ -113,7 +113,7 @@ export function SiteFooter() {
       <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="text-[clamp(2.5rem,6vw,4rem)] font-bold leading-none tracking-[-0.05em]">
-            Lumen<span className="text-teal">AI</span>
+            Rad<span className="text-teal">matic</span>
           </p>
           <p className="mt-3 text-ink-soft">Report writing for radiologists.</p>
         </div>

@@ -142,7 +142,7 @@ export function ConceptFuture() {
           <List weight="bold" className="h-5 w-5" />
         </button>
         <Link href="/report" className="text-[1.2rem] font-bold tracking-[-0.04em]">
-          Lumen<span className="text-teal">AI</span>
+          Rad<span className="text-teal">matic</span>
         </Link>
         <span className="t-meta ml-3 hidden sm:inline">New report</span>
         <span className="ml-auto grid h-9 w-9 place-items-center rounded-full bg-ink text-[0.82rem] font-bold text-surface">
@@ -195,7 +195,7 @@ export function ConceptFuture() {
         </section>
 
         {/* Dictation: a conversation. The doctor's words on the right, what
-            LumenAI did with them on the left. */}
+            Radmatic did with them on the left. */}
         {panel && (
           <section aria-label="Dictation" className={`${CARD} w-full max-w-[27rem] shrink-0`}>
             <header className="flex items-center justify-between border-b border-line px-5 py-3">

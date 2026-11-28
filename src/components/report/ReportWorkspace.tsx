@@ -1727,7 +1727,7 @@ export function ReportWorkspace({
         </section>
 
         {/* Dictation: a conversation. The doctor's words on the right, what
-            LumenAI did with them on the left. */}
+            Radmatic did with them on the left. */}
         {/* In full screen it floats in the corner, small until made bigger. */}
         {/* Phone: with the chat pulled up, the report dims behind it; a tap there closes it. */}
         {assistantBig && !wide && (

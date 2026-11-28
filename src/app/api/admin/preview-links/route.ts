@@ -8,7 +8,7 @@ import { PREVIEW_DAYS } from "@/lib/previewLinks";
 export const POST = handle(async (request) => {
   const user = await apiUser();
   if (user instanceof Response) return user;
-  if (!user.isPlatformAdmin) return fail(403, "Only LumenAI staff can do this.");
+  if (!user.isPlatformAdmin) return fail(403, "Only Radmatic staff can do this.");
 
   const body = await request.json();
   const label = typeof body.label === "string" ? body.label.trim().slice(0, 120) : "";

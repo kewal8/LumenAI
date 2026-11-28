@@ -18,7 +18,7 @@ export const POST = handle(async (request) => {
 
   const sql = db();
   const [taken] = await sql`select 1 from users where lower(email) = ${email}`;
-  if (taken) return fail(409, "This email already has a LumenAI account.");
+  if (taken) return fail(409, "This email already has a Radmatic account.");
 
   const token = newToken();
   // A new invite for the same person replaces any earlier unused one.
@@ -36,8 +36,8 @@ export const POST = handle(async (request) => {
   const link = `${new URL(request.url).origin}/accept-invite?token=${token}`;
   await sendEmail({
     to: email,
-    subject: `${user.name} invited you to ${user.org.name} on LumenAI`,
-    text: `${user.name} has invited you to join ${user.org.name} on LumenAI as ${ROLE_LABELS[role].toLowerCase()}.\n\nSet up your account with this link. It works once and expires in 7 days.\n\n${link}`,
+    subject: `${user.name} invited you to ${user.org.name} on Radmatic`,
+    text: `${user.name} has invited you to join ${user.org.name} on Radmatic as ${ROLE_LABELS[role].toLowerCase()}.\n\nSet up your account with this link. It works once and expires in 7 days.\n\n${link}`,
   });
 
   // The link is returned once so it can be passed on by hand; only its hash is kept.

@@ -14,7 +14,7 @@ const when = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "";
 
 /**
- * The radiologist's reporting style as LumenAI has learned it: readable,
+ * The radiologist's reporting style as Radmatic has learned it: readable,
  * editable, and learned again or reset on request.
  */
 export function StyleProfileForm({ initial, perBuild, max }: { initial: StyleProfile; perBuild: number; max: number }) {
@@ -42,7 +42,7 @@ export function StyleProfileForm({ initial, perBuild, max }: { initial: StylePro
     setSaved(next);
     setText(next.profile);
     if (kind === "save") toast.success("Your reporting style is saved. New dictations use it.");
-    else if (kind === "reset") toast.success("Started over. LumenAI learns your style again from your next finalized reports.");
+    else if (kind === "reset") toast.success("Started over. Radmatic learns your style again from your next finalized reports.");
     else if (result.data.changed) toast.success("Updated from your latest finalized reports.");
     else toast.warning("No new habits found in your latest reports, so your style is unchanged.");
   }
@@ -50,7 +50,7 @@ export function StyleProfileForm({ initial, perBuild, max }: { initial: StylePro
   return (
     <div className="flex max-w-3xl flex-col gap-4">
       <p className="text-[0.98rem] leading-relaxed text-ink-soft">
-        LumenAI writes your reports in your own words: the phrases you use for findings, how you say how sure you are, how you lay out the
+        Radmatic writes your reports in your own words: the phrases you use for findings, how you say how sure you are, how you lay out the
         impression. It learns them from the reports you finalize, every {perBuild} reports. It only ever changes how a sentence is worded, never
         what it says. It keeps wording only, never a patient&apos;s details, and only your reports use it.
       </p>
@@ -63,7 +63,7 @@ export function StyleProfileForm({ initial, perBuild, max }: { initial: StylePro
             {saved.editedAt && saved.builtAt ? ` · edited by you on ${when(saved.editedAt)}` : ""}
           </>
         ) : toGo > 0 ? (
-          `Finalize ${toGo} more report${toGo === 1 ? "" : "s"} and LumenAI starts learning your wording. You can also write it yourself below.`
+          `Finalize ${toGo} more report${toGo === 1 ? "" : "s"} and Radmatic starts learning your wording. You can also write it yourself below.`
         ) : (
           "Ready to learn from your finalized reports."
         )}
@@ -114,7 +114,7 @@ export function StyleProfileForm({ initial, perBuild, max }: { initial: StylePro
           <Dialog.Popup className={POPUP}>
             <Dialog.Title className="text-[1.3rem] font-semibold tracking-[-0.02em]">Start your style over?</Dialog.Title>
             <Dialog.Description className="mt-2 text-ink-soft">
-              Your reporting style is cleared, including anything you wrote here. Dictations follow the template&apos;s wording until LumenAI has
+              Your reporting style is cleared, including anything you wrote here. Dictations follow the template&apos;s wording until Radmatic has
               learned from your next {perBuild} finalized reports.
             </Dialog.Description>
             <div className="mt-6 flex gap-2">

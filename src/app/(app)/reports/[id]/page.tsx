@@ -8,7 +8,7 @@ import { loadWorkspace } from "@/lib/workspace";
 // Reads the signed-in user's data on every request, so it is rendered on demand.
 export const instant = false;
 
-export const metadata = { title: "Report · LumenAI" };
+export const metadata = { title: "Report · Radmatic" };
 
 export default async function SavedReportPage({ params, searchParams }: PageProps<"/reports/[id]">) {
   const user = await requireUser();

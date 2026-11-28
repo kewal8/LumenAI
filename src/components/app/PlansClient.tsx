@@ -140,7 +140,7 @@ export function PlansClient({
                     ? `until ${formatDate(subscription.periodEnd)}`
                     : locked
                       ? "Choose one to start reporting"
-                      : "while LumenAI is tested with you"}
+                      : "while Radmatic is tested with you"}
               </span>
             </span>
           </p>

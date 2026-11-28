@@ -58,7 +58,7 @@ function initials(name: string) {
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
 }
 
-/** The rows of the Me tab: a phone's Settings app, in LumenAI's colours. */
+/** The rows of the Me tab: a phone's Settings app, in Radmatic's colours. */
 export function MeList({ name, email, summary }: { name: string; email: string; summary: string }) {
   const { theme, toggle } = useTheme();
   const signOut = useSignOut();

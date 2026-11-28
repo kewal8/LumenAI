@@ -5,7 +5,7 @@ import { DEMO_STATUSES } from "@/lib/demo";
 export const PATCH = handle<RouteContext<"/api/demo-requests/[id]">>(async (request, context) => {
   const user = await apiUser();
   if (user instanceof Response) return user;
-  if (!user.isPlatformAdmin) return fail(403, "Only LumenAI staff can do this.");
+  if (!user.isPlatformAdmin) return fail(403, "Only Radmatic staff can do this.");
 
   const { status: requested } = await request.json();
   const status = DEMO_STATUSES.find((allowed) => allowed === requested);

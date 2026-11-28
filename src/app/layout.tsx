@@ -23,11 +23,11 @@ const hanken = Hanken_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "LumenAI",
+  title: "Radmatic",
   description:
-    "Dictate only the abnormal findings. LumenAI writes the radiology report in your template. Paste it into your reporting software, or finalise, sign and print it in LumenAI.",
+    "Dictate only the abnormal findings. Radmatic writes the radiology report in your template. Paste it into your reporting software, or finalise, sign and print it in Radmatic.",
   // Added to an iPhone's home screen, it opens full screen with its own icon and name.
-  appleWebApp: { capable: true, title: "LumenAI", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Radmatic", statusBarStyle: "default" },
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
 

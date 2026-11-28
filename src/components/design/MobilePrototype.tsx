@@ -36,7 +36,7 @@ import {
 import { useRef, useState } from "react";
 
 /*
- * A clickable design study of LumenAI as a phone app: the app shell (screen
+ * A clickable design study of Radmatic as a phone app: the app shell (screen
  * title, back arrow, tab bar with New in the middle), list rows you can swipe,
  * two report screens to compare, and settings as a list. Made-up data only.
  */
@@ -714,7 +714,7 @@ export function MobilePrototype() {
   return (
     <main className="app min-h-[100dvh] bg-canvas text-ink lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-16 lg:px-16 lg:py-10">
       <section className="hidden max-w-xl lg:block">
-        <h1 className="text-[2rem] font-semibold tracking-[-0.03em]">LumenAI on a phone</h1>
+        <h1 className="text-[2rem] font-semibold tracking-[-0.03em]">Radmatic on a phone</h1>
         <p className="mt-2 text-ink-soft">A clickable prototype with made-up data. Nothing here changes the real app.</p>
         <div className="mt-6 flex max-w-sm rounded-full border border-line bg-surface p-1">
           {segment("dictate", "Report: dictate first")}

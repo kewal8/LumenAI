@@ -11,7 +11,7 @@ import { BONUS_DAYS, pageReferrals, referralTotals, rewardFor } from "@/lib/refe
 // Live referral data on every visit.
 export const instant = false;
 
-export const metadata = { title: "Referrals · LumenAI Admin" };
+export const metadata = { title: "Referrals · Radmatic Admin" };
 
 const number = (value: number) => value.toLocaleString("en-IN");
 

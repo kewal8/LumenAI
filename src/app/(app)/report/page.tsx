@@ -8,7 +8,7 @@ import { BLANK_TEMPLATE_ID } from "@/lib/templates";
 // Reads the signed-in user's data on every request, so it is rendered on demand.
 export const instant = false;
 
-export const metadata = { title: "New report · LumenAI" };
+export const metadata = { title: "New report · Radmatic" };
 
 export default async function NewReportPage({ searchParams }: PageProps<"/report">) {
   const user = await requireUser();

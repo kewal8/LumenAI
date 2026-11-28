@@ -41,7 +41,7 @@ import { PROFILE_MAX, REPORTS_PER_BUILD, getStyleProfile } from "@/lib/styleProf
 // Reads the signed-in user's data on every request, so it is rendered on demand.
 export const instant = false;
 
-export const metadata = { title: "Settings · LumenAI" };
+export const metadata = { title: "Settings · Radmatic" };
 
 const TABS = [
   { id: "profile", label: "Profile", icon: UserCircle },

@@ -19,7 +19,7 @@ import { pagePreviewLinks, type PreviewLink } from "@/lib/previewLinks";
 // Live link data on every visit.
 export const instant = false;
 
-export const metadata = { title: "Preview links · LumenAI Admin" };
+export const metadata = { title: "Preview links · Radmatic Admin" };
 
 // Every row, and the headings above them, share these columns so values line up.
 const COLUMNS =

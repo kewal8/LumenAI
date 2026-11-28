@@ -10,7 +10,7 @@ import { normaliseCode } from "@/lib/referrals";
 // rather than prerendered.
 export const instant = false;
 
-export const metadata = { title: "Create your account · LumenAI" };
+export const metadata = { title: "Create your account · Radmatic" };
 
 export default async function SignupPage({ searchParams }: PageProps<"/signup">) {
   const { ref } = await searchParams;

@@ -1,14 +1,14 @@
 import type { MetadataRoute } from "next";
 
 /**
- * Lets LumenAI be added to a phone's home screen and open like an app: its own
+ * Lets Radmatic be added to a phone's home screen and open like an app: its own
  * icon, full screen, no browser bar. It opens on the New report screen.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "LumenAI",
-    short_name: "LumenAI",
-    description: "Dictate the abnormal findings. LumenAI writes the radiology report.",
+    name: "Radmatic",
+    short_name: "Radmatic",
+    description: "Dictate the abnormal findings. Radmatic writes the radiology report.",
     id: "/report",
     start_url: "/report",
     scope: "/",

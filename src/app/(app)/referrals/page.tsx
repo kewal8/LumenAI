@@ -11,7 +11,7 @@ import { BONUS_DAYS, loadMyReferrals, rewardFor } from "@/lib/referrals";
 // Live counts on every visit.
 export const instant = false;
 
-export const metadata = { title: "Referrals · LumenAI" };
+export const metadata = { title: "Referrals · Radmatic" };
 
 const number = (value: number) => value.toLocaleString("en-IN");
 
@@ -27,7 +27,7 @@ export default async function ReferralsPage({ searchParams }: PageProps<"/referr
 
   return (
     <Page>
-      <PageHeader title="Referrals" description="Bring your colleagues to LumenAI, and be thanked with bonus AI updates." />
+      <PageHeader title="Referrals" description="Bring your colleagues to Radmatic, and be thanked with bonus AI updates." />
 
       <ReferralShare
         code={mine.code}

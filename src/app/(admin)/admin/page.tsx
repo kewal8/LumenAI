@@ -34,7 +34,7 @@ const seconds = (value: number) => `${value.toFixed(1)} s`;
 // Live numbers on every visit.
 export const instant = false;
 
-export const metadata = { title: "Dashboard · LumenAI Admin" };
+export const metadata = { title: "Dashboard · Radmatic Admin" };
 
 export default async function AdminDashboardPage() {
   await requireStaff();
@@ -49,7 +49,7 @@ export default async function AdminDashboardPage() {
     <Page>
       <PageHeader
         title="Dashboard"
-        description="How LumenAI is used and what it costs to run. Usage covers the last 30 days."
+        description="How Radmatic is used and what it costs to run. Usage covers the last 30 days."
         action={
           <Link href="/admin/accounts" className={buttonClass.primary}>
             Manage accounts

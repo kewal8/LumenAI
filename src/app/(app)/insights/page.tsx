@@ -9,7 +9,7 @@ import { loadUsageActivity } from "@/lib/usageActivity";
 // Live counts on every visit.
 export const instant = false;
 
-export const metadata = { title: "Insights · LumenAI" };
+export const metadata = { title: "Insights · Radmatic" };
 
 export default async function InsightsPage() {
   const user = await requireUser();

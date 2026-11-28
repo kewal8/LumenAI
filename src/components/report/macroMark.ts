@@ -1,5 +1,5 @@
 // The one look for a macro in dictated text, used in the dictation box and in
-// Settings so the doctor recognises it. Teal like other things LumenAI did for
+// Settings so the doctor recognises it. Teal like other things Radmatic did for
 // them; the solid bar means "full text written", the dashed line "short form,
 // point at it to see or use the full text".
 export const MACRO_MARK = {

@@ -54,7 +54,7 @@ export type Area = "doctor" | "admin";
 
 type NavItem = { href: string; label: string; icon: Icon; exact?: boolean };
 
-// Doctors write reports. LumenAI staff run the business. The two never share a menu.
+// Doctors write reports. Radmatic staff run the business. The two never share a menu.
 const NAV: Record<Area, NavItem[]> = {
   doctor: [
     { href: "/report", label: "New report", icon: NotePencil, exact: true },
@@ -122,7 +122,7 @@ function Wordmark({ area }: { area: Area }) {
       className="flex items-center gap-2 text-[1.2rem] font-bold tracking-[-0.04em]"
     >
       <span>
-        Lumen<span className="text-teal">AI</span>
+        Rad<span className="text-teal">matic</span>
       </span>
       {area === "admin" && (
         <span className="rounded-full bg-ink px-2 py-0.5 text-[0.7rem] font-bold tracking-normal text-surface">

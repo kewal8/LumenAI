@@ -5,7 +5,7 @@ import { claudeCost, deepgramCost } from "@/lib/usage";
 // Day boundaries follow India time, where the doctors are.
 const ZONE = "Asia/Kolkata";
 
-/** Everything the founder dashboard shows. LumenAI staff accounts are left out of doctor counts. */
+/** Everything the founder dashboard shows. Radmatic staff accounts are left out of doctor counts. */
 export async function getDashboard() {
   const sql = db();
   const [[accounts], [doctors], [activity], [content], [demo], [invites], models, [speech], daily, top, hours, recent] =

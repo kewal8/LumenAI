@@ -8,7 +8,7 @@ import { DatabaseNotConfiguredError, db } from "@/lib/db";
 // rather than prerendered.
 export const instant = false;
 
-export const metadata = { title: "Accept invitation · LumenAI" };
+export const metadata = { title: "Accept invitation · Radmatic" };
 
 async function findInvite(token: string) {
   try {
@@ -52,8 +52,8 @@ export default async function AcceptInvitePage({ searchParams }: PageProps<"/acc
       title="Set up your account"
       lead={
         invite.org_name
-          ? `You have been invited to ${invite.org_name} on LumenAI.`
-          : "You have been invited to LumenAI."
+          ? `You have been invited to ${invite.org_name} on Radmatic.`
+          : "You have been invited to Radmatic."
       }
       footer={
         <>

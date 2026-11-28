@@ -10,7 +10,7 @@ import { draftToDoc } from "@/lib/templateDoc";
 // Reads the signed-in user's data on every request, so it is rendered on demand.
 export const instant = false;
 
-export const metadata = { title: "Edit template · LumenAI" };
+export const metadata = { title: "Edit template · Radmatic" };
 
 export default async function EditTemplatePage({
   params,

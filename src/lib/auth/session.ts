@@ -93,7 +93,7 @@ export async function requireUser() {
 }
 
 /**
- * For admin pages: LumenAI staff only; anyone else sees "not found". Each
+ * For admin pages: Radmatic staff only; anyone else sees "not found". Each
  * admin page calls this before it reads any data. The layout's own check does
  * not stop a page's queries from running, and reading the session first keeps
  * the page out of the build, where there is no database.

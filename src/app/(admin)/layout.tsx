@@ -4,7 +4,7 @@ import { requireStaff } from "@/lib/auth/session";
 // Reads the session on every request, so this route is rendered on demand.
 export const instant = false;
 
-// The admin panel is for LumenAI staff only. Everyone else gets "not found".
+// The admin panel is for Radmatic staff only. Everyone else gets "not found".
 export default async function AdminLayout({ children }: LayoutProps<"/">) {
   const user = await requireStaff();
 
@@ -14,7 +14,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/">) {
       user={{
         name: user.name,
         email: user.email,
-        organisation: "LumenAI staff",
+        organisation: "Radmatic staff",
         isPlatformAdmin: true,
       }}
     >

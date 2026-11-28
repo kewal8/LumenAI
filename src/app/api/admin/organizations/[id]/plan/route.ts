@@ -8,7 +8,7 @@ import { activatePlan, endPlan } from "@/lib/subscription";
 export const PATCH = handle<RouteContext<"/api/admin/organizations/[id]/plan">>(async (request, context) => {
   const user = await apiUser();
   if (user instanceof Response) return user;
-  if (!user.isPlatformAdmin) return fail(403, "Only LumenAI staff can do this.");
+  if (!user.isPlatformAdmin) return fail(403, "Only Radmatic staff can do this.");
 
   const { id } = await context.params;
   const [org] = await db()`select id from organizations where id = ${asUuid(id)}::uuid`;

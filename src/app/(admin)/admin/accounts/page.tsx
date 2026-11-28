@@ -32,7 +32,7 @@ import { ROLE_LABELS } from "@/lib/team";
 // Live account data on every visit.
 export const instant = false;
 
-export const metadata = { title: "Accounts · LumenAI Admin" };
+export const metadata = { title: "Accounts · Radmatic Admin" };
 
 // Every row, and the headings above them, share these columns so values line up.
 // The table needs a wide screen; below that each person is a compact row.
@@ -227,7 +227,7 @@ export default async function AdminAccountsPage({
                         <span className="flex flex-wrap items-center gap-2 font-semibold">
                           <span className="truncate">{member.name}</span>
                           {member.staff && (
-                            <Badge tone="teal">LumenAI staff</Badge>
+                            <Badge tone="teal">Radmatic staff</Badge>
                           )}
                           {member.disabled && (
                             <Badge tone="amber">Turned off</Badge>

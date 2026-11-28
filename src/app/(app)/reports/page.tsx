@@ -12,7 +12,7 @@ import { REPORT_SORTS, hasReports, pageReports } from "@/lib/reportStore";
 // Reads the signed-in user's data on every request, so it is rendered on demand.
 export const instant = false;
 
-export const metadata = { title: "Reports · LumenAI" };
+export const metadata = { title: "Reports · Radmatic" };
 
 export default async function ReportsPage({ searchParams }: PageProps<"/reports">) {
   const user = await requireUser();

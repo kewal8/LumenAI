@@ -40,7 +40,7 @@ import {
 // Reads the signed-in user's data on every request, so it is rendered on demand.
 export const instant = false;
 
-export const metadata = { title: "Team · LumenAI" };
+export const metadata = { title: "Team · Radmatic" };
 
 export default async function TeamPage({ searchParams }: PageProps<"/team">) {
   const user = await requireUser();
@@ -51,7 +51,7 @@ export default async function TeamPage({ searchParams }: PageProps<"/team">) {
         <EmptyState
           icon={<UsersThree weight="fill" className="h-5 w-5" />}
           title="No organisation"
-          body="Your account is not part of an organisation yet. Ask LumenAI to set one up."
+          body="Your account is not part of an organisation yet. Ask Radmatic to set one up."
         />
       </Page>
     );

@@ -5,7 +5,7 @@ import { asUuid, db } from "@/lib/db";
 export const PATCH = handle<RouteContext<"/api/admin/preview-links/[id]">>(async (_request, context) => {
   const user = await apiUser();
   if (user instanceof Response) return user;
-  if (!user.isPlatformAdmin) return fail(403, "Only LumenAI staff can do this.");
+  if (!user.isPlatformAdmin) return fail(403, "Only Radmatic staff can do this.");
 
   const { id } = await context.params;
   const updated = await db()`

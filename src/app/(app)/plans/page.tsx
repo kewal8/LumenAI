@@ -8,7 +8,7 @@ import { canManageTeam } from "@/lib/team";
 // Reads the signed-in user's organisation on every request, so it is rendered on demand.
 export const instant = false;
 
-export const metadata = { title: "Plans · LumenAI" };
+export const metadata = { title: "Plans · Radmatic" };
 
 const PILOT: Subscription = { plan: null, cycle: null, periodEnd: null, requested: null, locked: false };
 

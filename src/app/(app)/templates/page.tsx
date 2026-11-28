@@ -10,7 +10,7 @@ import { TEMPLATE_SORTS, pageTemplates, templateFacets } from "@/lib/templateSto
 // Reads the signed-in user's data on every request, so it is rendered on demand.
 export const instant = false;
 
-export const metadata = { title: "Templates · LumenAI" };
+export const metadata = { title: "Templates · Radmatic" };
 
 export default async function TemplatesPage({ searchParams }: PageProps<"/templates">) {
   const user = await requireUser();

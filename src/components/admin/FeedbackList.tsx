@@ -14,7 +14,7 @@ const COLUMNS =
   "grid grid-cols-[minmax(0,1fr)_2.5rem] items-start gap-x-6 lg:grid-cols-[minmax(0,1fr)_15rem_11rem_2.5rem]";
 
 /**
- * One page of feedback for LumenAI staff, newest first. Search, sort and
+ * One page of feedback for Radmatic staff, newest first. Search, sort and
  * paging are in the address and done by the server.
  */
 export function FeedbackList({ rows, total, params }: { rows: FeedbackRow[]; total: number; params: ListParams }) {

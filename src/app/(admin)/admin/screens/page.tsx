@@ -5,7 +5,7 @@ import { requireStaff } from "@/lib/auth/session";
 // Checks the staff session on every visit.
 export const instant = false;
 
-export const metadata = { title: "Screens · LumenAI Admin" };
+export const metadata = { title: "Screens · Radmatic Admin" };
 
 // Every full screen a customer is greeted with, as they see it, and when.
 export default async function ScreensPage() {

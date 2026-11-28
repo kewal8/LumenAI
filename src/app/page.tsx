@@ -178,7 +178,7 @@ export default function LandingPage() {
             <span className="text-teal">Get the finished report.</span>
           </h1>
           <p className="hero-in mt-6 max-w-[50ch] text-[1.1rem] leading-relaxed text-ink-soft [--i:1]">
-            Say only your findings. LumenAI writes the full report in your template,
+            Say only your findings. Radmatic writes the full report in your template,
             checks every line against your words, and gives it to you ready to paste, or prints it signed.
             Less typing, fewer slips, and you finish on time.
           </p>
@@ -273,7 +273,7 @@ export default function LandingPage() {
                     <span className="text-teal">Everything else stays normal.</span>
                   </h2>
                   <p className="mt-6 max-w-[48ch] text-[1.05rem] leading-relaxed text-ink-soft">
-                    Look at the images and talk, in any order. LumenAI starts from
+                    Look at the images and talk, in any order. Radmatic starts from
                     your template and changes only the lines you mention.
                   </p>
                 </>
@@ -355,7 +355,7 @@ export default function LandingPage() {
               </h2>
               <p className="mt-6 max-w-[48ch] text-[1.05rem] leading-relaxed text-ink-soft">
                 For a study you have no template for, start from blank. Say only what you see.
-                LumenAI writes each finding as a finished line and builds the impression from them.
+                Radmatic writes each finding as a finished line and builds the impression from them.
               </p>
               <ul className="mt-9 flex flex-col gap-6">
                 <li className="flex gap-4">
@@ -408,7 +408,7 @@ export default function LandingPage() {
               Nothing in the report <span className="text-teal">that you did not say.</span>
             </h2>
             <p className="mx-auto mt-5 max-w-[54ch] text-center text-[1.05rem] leading-relaxed text-ink-soft">
-              LumenAI writes up your findings. It does not add a diagnosis, a stage or a
+              Radmatic writes up your findings. It does not add a diagnosis, a stage or a
               differential of its own, and every line is checked against your words before you
               sign. The finished report pastes into your reporting software without retyping, or leaves signed, on your letterhead.
             </p>
@@ -490,7 +490,7 @@ export default function LandingPage() {
                   Nothing to paste into? It finishes the report itself.
                 </h3>
                 <p className="mt-2 leading-relaxed text-on-night-soft">
-                  Finalise, sign and print from LumenAI. Every report is kept, ready to open again.
+                  Finalise, sign and print from Radmatic. Every report is kept, ready to open again.
                 </p>
               </div>
               <ul className="grid flex-1 gap-3 sm:grid-cols-3">
@@ -544,10 +544,10 @@ export default function LandingPage() {
               </p>
             </div>
 
-            {/* Who does what: LumenAI's limits on the left, the radiologist's part on the right. */}
-            <div role="table" aria-label="What LumenAI does not do, and what stays with you">
+            {/* Who does what: Radmatic's limits on the left, the radiologist's part on the right. */}
+            <div role="table" aria-label="What Radmatic does not do, and what stays with you">
               <div role="row" className="grid grid-cols-2 gap-6 pb-3 text-[0.95rem] font-semibold">
-                <span role="columnheader" className="text-ink-quiet">LumenAI does not</span>
+                <span role="columnheader" className="text-ink-quiet">Radmatic does not</span>
                 <span role="columnheader" className="text-teal">You do</span>
               </div>
               {RESPONSIBILITIES.map((row) => (

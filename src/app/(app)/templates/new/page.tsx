@@ -6,7 +6,7 @@ import { canManageTeam } from "@/lib/team";
 // Reads the signed-in user's data on every request, so it is rendered on demand.
 export const instant = false;
 
-export const metadata = { title: "New template · LumenAI" };
+export const metadata = { title: "New template · Radmatic" };
 
 export default async function NewTemplatePage() {
   const user = await requireUser();

@@ -24,7 +24,7 @@ export function AuthShell({
     <div className="landing flex min-h-[100dvh] flex-1 flex-col">
       <header className="mx-auto flex w-full max-w-[76rem] items-center justify-between px-5 py-5 sm:px-8">
         <Link href="/" className="text-[1.35rem] font-bold tracking-[-0.04em]">
-          Lumen<span className="text-teal">AI</span>
+          Rad<span className="text-teal">matic</span>
         </Link>
         <ThemeToggle />
       </header>

@@ -67,8 +67,8 @@ export const POST = handle(async (request) => {
 
   await sendEmail({
     to: email,
-    subject: `${code} is your LumenAI code`,
-    text: `Hello ${firstName},\n\nYour LumenAI sign-up code is ${code}\n\nIt works for ${CODE_MINUTES} minutes. If you did not ask for it, ignore this email.\n\nLumenAI`,
+    subject: `${code} is your Radmatic code`,
+    text: `Hello ${firstName},\n\nYour Radmatic sign-up code is ${code}\n\nIt works for ${CODE_MINUTES} minutes. If you did not ask for it, ignore this email.\n\nRadmatic`,
   });
 
   // On a developer's machine with no email service, the code is handed back so

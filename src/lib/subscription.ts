@@ -49,7 +49,7 @@ export const loadSubscription = cache(async (orgId: string): Promise<Subscriptio
 /** Sent back by the AI and speech routes while the editor is locked. */
 export const LOCKED_MESSAGE = "Your plan is not active yet. Choose a plan on the Plans page to start reporting.";
 
-/** Whether this person's report editor is closed. LumenAI staff are never locked out. */
+/** Whether this person's report editor is closed. Radmatic staff are never locked out. */
 export async function editorLocked(user: CurrentUser) {
   if (user.isPlatformAdmin || !user.org) return false;
   return (await loadSubscription(user.org.id)).locked;
@@ -70,7 +70,7 @@ export async function requestPlan(orgId: string, userId: string, plan: Plan, cyc
 }
 
 /**
- * Starts a paid plan for one month or one year from today. Used by LumenAI
+ * Starts a paid plan for one month or one year from today. Used by Radmatic
  * staff after payment, until online payment is connected. On an account's
  * first activation, whoever referred it gets their reward; the number of
  * bonus updates given is returned (0 when none was due).

@@ -115,7 +115,7 @@ export function FeatureSlider() {
   return (
     <section
       aria-roledescription="carousel"
-      aria-label="What LumenAI does"
+      aria-label="What Radmatic does"
       className="feature-slider flex min-w-0 flex-col"
     >
       <div className="overflow-hidden">

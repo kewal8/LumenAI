@@ -5,7 +5,7 @@ import { asUuid, db } from "@/lib/db";
 export const DELETE = handle<RouteContext<"/api/admin/feedback/[id]">>(async (_request, context) => {
   const user = await apiUser();
   if (user instanceof Response) return user;
-  if (!user.isPlatformAdmin) return fail(403, "Only LumenAI staff can do this.");
+  if (!user.isPlatformAdmin) return fail(403, "Only Radmatic staff can do this.");
 
   const { id } = await context.params;
   const removed = await db()`delete from feedback where id = ${asUuid(id)}::uuid returning id`;

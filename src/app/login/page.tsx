@@ -9,7 +9,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 // rather than prerendered.
 export const instant = false;
 
-export const metadata = { title: "Sign in · LumenAI" };
+export const metadata = { title: "Sign in · Radmatic" };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { next } = await searchParams;
@@ -24,7 +24,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       lead="Use the email you signed up or were invited with."
       footer={
         <>
-          New to LumenAI?{" "}
+          New to Radmatic?{" "}
           <Link href="/signup" className={authLinkClass}>
             Create an account
           </Link>

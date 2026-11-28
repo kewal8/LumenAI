@@ -4,7 +4,7 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  /* LumenAI brand tokens. Teal leads; amber is the quiet second colour, used
+  /* Radmatic brand tokens. Teal leads; amber is the quiet second colour, used
      only in small marks: icon badges, a few bars and highlights. Values live on :root, so
      menus and dialogs rendered outside the page get them too, and swap in dark mode. */
   --font-brand: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;

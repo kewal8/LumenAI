@@ -4,7 +4,7 @@ import { requestPlan } from "@/lib/subscription";
 import { canManageTeam } from "@/lib/team";
 
 // Online payment is not connected yet, so choosing a plan records a request
-// that LumenAI activates by hand.
+// that Radmatic activates by hand.
 export const POST = handle(async (request) => {
   const user = await apiUser();
   if (user instanceof Response) return user;

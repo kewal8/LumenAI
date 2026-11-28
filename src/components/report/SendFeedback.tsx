@@ -12,7 +12,7 @@ import { FEEDBACK_MAX } from "@/lib/feedback";
 
 /**
  * "Send feedback": a button that opens a short form. The message goes to
- * LumenAI staff, who read it in the admin panel, with who sent it and from
+ * Radmatic staff, who read it in the admin panel, with who sent it and from
  * which screen.
  */
 export function SendFeedback({
@@ -75,7 +75,7 @@ export function SendFeedback({
             <form onSubmit={submit} noValidate>
               <Dialog.Title className="text-[1.3rem] font-semibold tracking-[-0.02em]">Send feedback</Dialog.Title>
               <Dialog.Description className="mt-1.5 text-ink-soft">
-                Tell us what works, what does not, or what is missing. The LumenAI team reads every message.
+                Tell us what works, what does not, or what is missing. The Radmatic team reads every message.
               </Dialog.Description>
 
               <label className="mt-5 flex flex-col gap-1.5">

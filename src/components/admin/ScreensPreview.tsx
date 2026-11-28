@@ -154,14 +154,14 @@ export function ScreensPreview() {
           <span className="h-3 w-3 rounded-full bg-ink/15" />
           <span className="h-3 w-3 rounded-full bg-ink/15" />
           <span className="ml-3 text-[0.82rem] font-medium text-ink-soft">
-            {moment.frame === "page" ? "lumenai / welcome" : "lumenai / reports"}
+            {moment.frame === "page" ? "radmatic / welcome" : "radmatic / reports"}
           </span>
         </div>
         {moment.frame === "page" ? (
           <div key={`${moment.id}-${play}`} className="landing pointer-events-none flex flex-col" inert>
             <header className="mx-auto flex w-full max-w-[76rem] items-center justify-between px-5 py-5 sm:px-8">
               <span className="text-[1.35rem] font-bold tracking-[-0.04em]">
-                Lumen<span className="text-teal">AI</span>
+                Rad<span className="text-teal">matic</span>
               </span>
             </header>
             {moment.render(greetingName(name))}

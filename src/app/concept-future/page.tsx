@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth/session";
 // editor inside it cannot be built ahead of time.
 export const instant = false;
 
-export const metadata = { title: "Concept Future · LumenAI" };
+export const metadata = { title: "Concept Future · Radmatic" };
 
 // "Concept Future": a design study for the report screen. Report on the left
 // with the real editor and toolbar, dictation as a conversation panel on the

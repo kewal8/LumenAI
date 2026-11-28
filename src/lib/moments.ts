@@ -10,7 +10,7 @@ import { canManageTeam } from "@/lib/team";
 
 const DAY = 86_400_000;
 
-/** A date as the doctor's calendar has it ("2026-11-24"); LumenAI works in India time. */
+/** A date as the doctor's calendar has it ("2026-11-24"); Radmatic works in India time. */
 const indiaDate = (date: Date) => date.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 
 /** Moment names a browser may mark: the first-report card, or a renewal reminder for one end date. */

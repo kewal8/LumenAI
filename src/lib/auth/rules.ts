@@ -26,7 +26,7 @@ export function safeNextPath(value: string | null | undefined) {
   return value && value.startsWith("/") && !value.startsWith("//") ? value : "/report";
 }
 
-/** Where someone lands after signing in: LumenAI staff in the admin panel, doctors in the workspace. */
+/** Where someone lands after signing in: Radmatic staff in the admin panel, doctors in the workspace. */
 export function homePath(isPlatformAdmin: boolean) {
   return isPlatformAdmin ? "/admin" : "/report";
 }

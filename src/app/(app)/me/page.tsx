@@ -7,7 +7,7 @@ import { loadCredits } from "@/lib/workspace";
 // Reads the signed-in doctor's plan and today's updates on every visit.
 export const instant = false;
 
-export const metadata = { title: "Me · LumenAI" };
+export const metadata = { title: "Me · Radmatic" };
 
 /**
  * The phone's "Me" tab: the doctor, their plan, and every setting as a list,

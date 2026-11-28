@@ -14,7 +14,7 @@ Secondary: diagnostic centre owners who buy for a whole centre and care about re
 
 ## Product Purpose
 
-LumenAI writes the radiology report from speech. The radiologist dictates only the abnormal findings; the tool fills their own template, keeps every unmentioned line as the template's normal wording, writes the impression from the abnormal lines, and puts the finished report on the clipboard formatted for the PACS editor. Success is a report the radiologist can paste and sign with little or no correction, in less time than typing it.
+Radmatic writes the radiology report from speech. The radiologist dictates only the abnormal findings; the tool fills their own template, keeps every unmentioned line as the template's normal wording, writes the impression from the abnormal lines, and puts the finished report on the clipboard formatted for the PACS editor. Success is a report the radiologist can paste and sign with little or no correction, in less time than typing it.
 
 ## Positioning
 
@@ -38,7 +38,7 @@ Constraints: no real patient data until data agreements with the speech and AI p
 
 ## Brand Commitments
 
-Name: LumenAI. Accent colour chosen by the owner: teal. No logo yet.
+Name: Radmatic. Accent colour chosen by the owner: teal. No logo yet.
 
 Landing page direction pinned by the owner (2026-11-14), replacing an earlier concept: page structure after highseat.com (hero with a product screenshot, then one section per selling point, each with a screenshot); visual style after humanto.io recoloured teal (soft grey gridded canvas, floating white pill navigation, pill buttons with a round arrow chip, large rounded white cards, coloured glow); story arc after 101gen.ai/mips; topics after somatiq.ai. Style and structure only: no copied text, logos, images or claims. Screenshots are placeholders until the product is ready.
 

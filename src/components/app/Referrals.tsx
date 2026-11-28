@@ -33,7 +33,7 @@ function shareLink(code: string, origin: string) {
 
 /** What a doctor sends a colleague: short, in their voice, with the link that fills in the code. */
 function shareMessage(code: string, origin: string) {
-  return `I use LumenAI for my radiology reports. I speak only what is abnormal and the report is ready to paste or print. Sign up with my code ${code}: ${shareLink(code, origin)}`;
+  return `I use Radmatic for my radiology reports. I speak only what is abnormal and the report is ready to paste or print. Sign up with my code ${code}: ${shareLink(code, origin)}`;
 }
 
 const number = (value: number) => value.toLocaleString("en-IN");
@@ -81,7 +81,7 @@ export function ReferralShare({
 
   async function share() {
     try {
-      await navigator.share({ title: "LumenAI", text: shareMessage(code, origin), url: shareLink(code, origin) });
+      await navigator.share({ title: "Radmatic", text: shareMessage(code, origin), url: shareLink(code, origin) });
     } catch (problem) {
       // Closing the share sheet is not a failure.
       if (problem instanceof DOMException && problem.name === "AbortError") return;
@@ -115,7 +115,7 @@ export function ReferralShare({
           Refer a colleague
         </p>
         <h2 className="mt-5 max-w-[22ch] text-balance text-[clamp(1.7rem,3vw,2.35rem)] font-semibold leading-[1.1] tracking-[-0.03em] text-on-night">
-          Give a colleague LumenAI. Get up to {number(most)} AI updates.
+          Give a colleague Radmatic. Get up to {number(most)} AI updates.
         </h2>
         <p className="mt-3 max-w-[46ch] leading-relaxed text-on-night-soft">
           When they pay for their first plan, you get half a month of their AI updates.

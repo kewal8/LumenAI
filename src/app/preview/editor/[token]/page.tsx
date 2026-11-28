@@ -6,7 +6,7 @@ import { openPreviewLink } from "@/lib/previewLinks";
 export const instant = false;
 
 export const metadata = {
-  title: "Editor preview · LumenAI",
+  title: "Editor preview · Radmatic",
   robots: { index: false, follow: false },
 };
 
@@ -24,7 +24,7 @@ export default async function SharedEditorPreviewPage({ params }: PageProps<"/pr
             It has expired or was turned off. Ask the person who sent it for a new one.
           </p>
           <Link href="/" className="mt-6 inline-block font-semibold underline underline-offset-4">
-            Go to LumenAI
+            Go to Radmatic
           </Link>
         </main>
       </div>
@@ -35,7 +35,7 @@ export default async function SharedEditorPreviewPage({ params }: PageProps<"/pr
     <div className="app flex min-h-dvh flex-col">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line bg-surface px-5 py-3 sm:px-8 lg:px-10">
         <p className="text-[1.15rem] font-bold tracking-[-0.03em]">
-          Lumen<span className="text-teal">AI</span>
+          Rad<span className="text-teal">matic</span>
         </p>
         <p className="font-semibold text-ink-soft">Editor preview for {label}</p>
         <p className="ml-auto text-[0.9rem] font-semibold text-ink-soft">

@@ -6,7 +6,7 @@ import { ResetPasswordForm } from "@/components/auth/forms";
 // rather than prerendered.
 export const instant = false;
 
-export const metadata = { title: "Choose a new password · LumenAI" };
+export const metadata = { title: "Choose a new password · Radmatic" };
 
 export default async function ResetPasswordPage({ searchParams }: PageProps<"/reset-password">) {
   const { token } = await searchParams;
