@@ -7,7 +7,7 @@ import { Spinner } from "@/components/Spinner";
 import { Tip } from "@/components/Tip";
 import { toast } from "@/components/Toast";
 import { BACKDROP, POPUP, buttonClass } from "@/components/app/ui";
-import { FormError, send } from "@/components/auth/fields";
+import { FormError, RequiredMark, send } from "@/components/auth/fields";
 import { FEEDBACK_MAX } from "@/lib/feedback";
 
 /**
@@ -79,12 +79,16 @@ export function SendFeedback({
               </Dialog.Description>
 
               <label className="mt-5 flex flex-col gap-1.5">
-                <span className="text-[0.88rem] font-semibold text-ink-soft">Message</span>
+                <span className="text-[0.88rem] font-semibold text-ink-soft">
+                  Message
+                  <RequiredMark />
+                </span>
                 <textarea
                   value={message}
                   onChange={(event) => (setMessage(event.target.value), setError(""))}
                   maxLength={FEEDBACK_MAX}
                   rows={6}
+                  aria-required="true"
                   autoFocus
                   placeholder="Tell us what you think..."
                   className="min-h-[9rem] w-full resize-y rounded-2xl border border-ink/35 bg-surface px-4 py-3 text-[0.98rem] text-ink outline-none transition-colors placeholder:text-ink-quiet hover:border-ink/55 focus:border-teal"

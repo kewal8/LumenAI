@@ -12,7 +12,7 @@ import {
 import { useState } from "react";
 import { Spinner } from "@/components/Spinner";
 import { toast } from "@/components/Toast";
-import { FormError, send } from "@/components/auth/fields";
+import { FormError, RequiredMark, send } from "@/components/auth/fields";
 import { Tip } from "@/components/Tip";
 import { KeyCombo } from "@/components/KeyCombo";
 import {
@@ -322,9 +322,11 @@ function MacroForm({
             className="text-[0.98rem] font-semibold"
           >
             Short form
+            <RequiredMark />
           </label>
           <input
             id="macro-short-form"
+            aria-required="true"
             value={shortForm}
             onChange={(event) => (
               setShortForm(event.target.value),
@@ -360,6 +362,7 @@ function MacroForm({
               className="text-[0.98rem] font-semibold"
             >
               Full text
+              <RequiredMark />
             </label>
             <span
               className={`t-meta tabular-nums ${body.length > MACRO_BODY_LIMIT * 0.9 ? "!text-amber-deep" : ""}`}
@@ -370,6 +373,7 @@ function MacroForm({
           </div>
           <textarea
             id="macro-body"
+            aria-required="true"
             value={body}
             onChange={(event) => (setBody(event.target.value), setError(""))}
             maxLength={MACRO_BODY_LIMIT}

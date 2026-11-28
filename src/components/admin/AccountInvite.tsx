@@ -112,7 +112,7 @@ export function AccountInviteButton() {
                 autoFocus
               />
               <div className="flex flex-col gap-1.5">
-                <FieldLabel id="account-kind" label="Account type" />
+                <FieldLabel id="account-kind" label="Account type" required />
                 <Select id="account-kind" value={kind} onChange={(event) => setKind(event.target.value as Kind)}>
                   <option value="personal">Personal: one radiologist</option>
                   <option value="centre">Centre: an owner who invites a team</option>

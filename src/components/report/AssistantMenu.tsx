@@ -7,7 +7,7 @@ import { ChatCircleSlash, DotsThree, FilePlus, SlidersHorizontal, X } from "@pho
 import { useState } from "react";
 import { Spinner } from "@/components/Spinner";
 import { toast } from "@/components/Toast";
-import { FormError, send } from "@/components/auth/fields";
+import { FormError, RequiredMark, send } from "@/components/auth/fields";
 import { BACKDROP, POPUP, buttonClass } from "@/components/app/ui";
 import { Tip } from "@/components/Tip";
 import type { DocNode } from "@/lib/reportDoc";
@@ -320,12 +320,16 @@ function SaveAsTemplate({
           </Dialog.Description>
           <form onSubmit={save} noValidate className="mt-5 flex flex-col gap-4">
             <label className="flex flex-col gap-1.5">
-              <span className="text-[0.92rem] font-semibold">Template name</span>
+              <span className="text-[0.92rem] font-semibold">
+                Template name
+                <RequiredMark />
+              </span>
               <input
                 value={name}
                 onChange={(event) => (setName(event.target.value), setError(""))}
                 maxLength={120}
                 autoFocus
+                aria-required="true"
                 className={FIELD}
               />
             </label>

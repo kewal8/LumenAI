@@ -109,7 +109,7 @@ export function PreviewLinkButton() {
                 autoFocus
               />
               <div className="flex flex-col gap-1.5">
-                <FieldLabel id="preview-days" label="Works for" />
+                <FieldLabel id="preview-days" label="Works for" required />
                 <Select id="preview-days" value={days} onChange={(event) => setDays(Number(event.target.value))}>
                   {PREVIEW_DAYS.map((option) => (
                     <option key={option} value={option}>

@@ -38,7 +38,7 @@ export function Field({
 
   return (
     <div className={`focus-field flex flex-col ${dense ? "gap-1.5" : "gap-2"}`}>
-      <FieldLabel id={id} label={label} optional={optional} />
+      <FieldLabel id={id} label={label} optional={optional} required={!optional && !readOnly} />
       <div className="relative">
         <input
           id={id}
@@ -51,6 +51,7 @@ export function Field({
           autoComplete={autoComplete}
           autoFocus={autoFocus}
           readOnly={readOnly}
+          aria-required={!optional && !readOnly ? true : undefined}
           aria-describedby={hint || capsLock ? `${id}-hint` : undefined}
           className={`${dense ? "h-11" : "h-13"} w-full rounded-full border border-ink/35 bg-surface pl-5 text-base text-ink outline-none transition-colors hover:border-ink/60 focus:border-teal read-only:bg-transparent read-only:text-ink-soft ${
             isPassword ? "pr-13" : "pr-5"
@@ -77,18 +78,31 @@ export function Field({
   );
 }
 
+/** The red star after a label: this must be filled in. Screen readers hear "required" from the field itself. */
+export function RequiredMark() {
+  return (
+    <span aria-hidden="true" className="ml-0.5 font-bold text-flag">
+      *
+    </span>
+  );
+}
+
 export function FieldLabel({
   id,
   label,
   optional,
+  required,
 }: {
   id: string;
   label: string;
   optional?: boolean;
+  /** Must be filled in: shows the red star. */
+  required?: boolean;
 }) {
   return (
     <label htmlFor={id} className="text-[0.95rem] font-semibold">
       {label}
+      {required && !optional && <RequiredMark />}
       {optional && <span className="ml-1.5 font-medium text-ink-quiet">optional</span>}
     </label>
   );

@@ -118,7 +118,7 @@ export function InviteButton({
                 autoFocus
               />
               <div className="flex flex-col gap-1.5">
-                <FieldLabel id="invite-role" label="Role" />
+                <FieldLabel id="invite-role" label="Role" required />
                 <Select
                   id="invite-role"
                   value={role}

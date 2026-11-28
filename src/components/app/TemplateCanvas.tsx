@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Spinner } from "@/components/Spinner";
 import { toast } from "@/components/Toast";
-import { FormError, send } from "@/components/auth/fields";
+import { FormError, RequiredMark, send } from "@/components/auth/fields";
 import {
   ReportEditor,
   type ReportEditorHandle,
@@ -289,7 +289,10 @@ export function TemplateCanvas({
 
       <div className="grid gap-3 md:grid-cols-[3fr_1fr]">
         <label className={FIELD}>
-          <span className={FIELD_LABEL}>Template name</span>
+          <span className={FIELD_LABEL}>
+            Template name
+            <RequiredMark />
+          </span>
           <input
             value={name}
             onChange={(event) => (
@@ -301,6 +304,7 @@ export function TemplateCanvas({
             placeholder="Name this template, such as CT Brain (Plain)"
             autoComplete="off"
             name="lumenai-template-name"
+            aria-required="true"
             aria-invalid={duplicate || undefined}
             aria-describedby={duplicate ? "template-name-taken" : undefined}
             autoFocus={!template}
