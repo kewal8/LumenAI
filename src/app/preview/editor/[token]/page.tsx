@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { EditorPreview } from "@/components/report/editor/EditorPreview";
 import { openPreviewLink } from "@/lib/previewLinks";
-import { Wordmark } from "@/components/brand/Logo";
+import { LogoMark } from "@/components/brand/Logo";
 
 // Checks the link against the database on every visit.
 export const instant = false;
@@ -36,7 +36,7 @@ export default async function SharedEditorPreviewPage({ params }: PageProps<"/pr
     <div className="app flex min-h-dvh flex-col">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line bg-surface px-5 py-3 sm:px-8 lg:px-10">
         <p className="text-[1.15rem] font-bold tracking-[-0.03em]">
-          <Wordmark className="h-6 w-auto" />
+          <LogoMark className="h-6 w-auto" />
         </p>
         <p className="font-semibold text-ink-soft">Editor preview for {label}</p>
         <p className="ml-auto text-[0.9rem] font-semibold text-ink-soft">

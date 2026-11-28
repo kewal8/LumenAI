@@ -10,6 +10,7 @@
 | `radmatic-wordmark-black.svg` / `-white.svg` | One colour: print, fax, stamps, embossing. |
 | `radmatic-wordmark-reversed.svg` | White letters with a light-teal dot, on dark or teal backgrounds. |
 | `radmatic-symbol.svg` | The r and its dot, for square places where the word does not fit. |
+| `radmatic-symbol-tight.svg` | The same, cropped to the mark: for navigation bars and small headers. |
 | `radmatic-symbol-small.svg` | A heavier r and dot for 32 px and below. |
 | `radmatic-app-icon.svg` | The app icon: a teal tile with a white r and light-teal dot. |
 | `radmatic-icon-square.svg` / `-maskable.svg` | Phone home-screen icons (the phone rounds the corners). |
@@ -17,7 +18,7 @@
 | `radmatic-construction.png` | How the logo is drawn. |
 | `make_logo.py` | Rebuilds every file above from the rules below. |
 
-In the app, use `<Wordmark />` and `<LogoMark />` from `src/components/brand/Logo.tsx`. The letters take the text colour, so they follow light and dark mode. The dot is always `--c-teal`.
+In the app, navigation bars and small headers use `<LogoMark />` (the icon); large places such as the landing footer use `<Wordmark />`. Both come from `src/components/brand/Logo.tsx`. The letters take the text colour, so they follow light and dark mode. The dot is always `--c-teal`.
 
 ## Golden-ratio construction (φ = 1.618)
 

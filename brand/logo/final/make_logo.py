@@ -134,6 +134,9 @@ def sym_svg(ink, dot, small=False, tile=None, size=256.0, square=False, inset=1.
     bg = f'<rect width="{n(size)}" height="{n(size)}" rx="{n(0 if square else size*0.225)}" fill="{tile}"/>' if tile else ""
     return svg(size, size, bg + render(S, ink, dot, tx, ty))
 files["radmatic-symbol.svg"] = sym_svg(INK, TEAL)
+# Cropped to the mark itself, for navigation bars and other small places.
+T = symbol(100.0, 0.0, 100.0)
+files["radmatic-symbol-tight.svg"] = svg(T.width, 100.0, render(T))
 files["radmatic-symbol-black.svg"] = sym_svg("#000", "#000")
 files["radmatic-symbol-white.svg"] = sym_svg("#fff", "#fff")
 files["radmatic-symbol-small.svg"] = sym_svg(INK, TEAL, small=True)

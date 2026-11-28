@@ -38,7 +38,7 @@ import { Toaster } from "@/components/Toast";
 import { useTheme } from "@/components/landing/ThemeToggle";
 import { useUpdatesLeft } from "@/lib/updatesLeft";
 import { useSignOut } from "./SignOut";
-import { Wordmark as Logo } from "@/components/brand/Logo";
+import { LogoMark as Logo } from "@/components/brand/Logo";
 
 export type ShellUser = {
   name: string;
@@ -123,7 +123,7 @@ function Wordmark({ area }: { area: Area }) {
       className="flex items-center gap-2 text-[1.2rem] font-bold tracking-[-0.04em]"
     >
       <span>
-        <Logo className="h-6 w-auto" />
+        <Logo className="h-7 w-auto" />
       </span>
       {area === "admin" && (
         <span className="rounded-full bg-ink px-2 py-0.5 text-[0.7rem] font-bold tracking-normal text-surface">

@@ -19,7 +19,7 @@ import { applyPatch, reportFromTemplate, type PatchOp } from "@/lib/report";
 import { reportToDoc } from "@/lib/reportDoc";
 import { DEFAULT_PROFILE } from "@/lib/reportFormat";
 import { CT_BRAIN_PLAIN } from "@/lib/templates";
-import { Wordmark } from "@/components/brand/Logo";
+import { LogoMark } from "@/components/brand/Logo";
 
 // Made-up content, only to show the layout with realistic amounts of text.
 const TALK = [
@@ -143,7 +143,7 @@ export function ConceptFuture() {
           <List weight="bold" className="h-5 w-5" />
         </button>
         <Link href="/report" className="text-[1.2rem] font-bold tracking-[-0.04em]">
-          <Wordmark className="h-6 w-auto" />
+          <LogoMark className="h-6 w-auto" />
         </Link>
         <span className="t-meta ml-3 hidden sm:inline">New report</span>
         <span className="ml-auto grid h-9 w-9 place-items-center rounded-full bg-ink text-[0.82rem] font-bold text-surface">
