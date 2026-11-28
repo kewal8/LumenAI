@@ -62,7 +62,7 @@ export function PlanActiveScreen({
             You’re all set, {firstName}.
           </motion.h1>
           <motion.p variants={rise} className="mt-5 max-w-[46ch] text-[1.15rem] leading-relaxed text-ink-soft">
-            Thank you for choosing Rad<span className="text-teal">matic</span>. Your editor is open, and everything you set
+            Thank you for choosing Radmatic. Your editor is open, and everything you set
             up is waiting for you.
           </motion.p>
 

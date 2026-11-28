@@ -76,7 +76,7 @@ export function WelcomeScreen({ firstName, locked }: { firstName: string; locked
             variants={rise}
             className="mt-6 text-balance text-[clamp(2.4rem,5vw,3.6rem)] font-semibold leading-[1.06] tracking-[-0.035em]"
           >
-            Welcome to Rad<span className="text-teal">matic</span>, {firstName}.
+            Welcome to Radmatic, {firstName}.
           </motion.h1>
           <motion.p variants={rise} className="mt-5 max-w-[46ch] text-[1.15rem] leading-relaxed text-ink-soft">
             From your voice to a signed report, in less than a minute. Here is how every report gets done.

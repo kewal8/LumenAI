@@ -9,6 +9,7 @@ import { RenewalReminder } from "@/components/welcome/RenewalReminder";
 import { WelcomeScreen } from "@/components/welcome/WelcomeScreen";
 import { greetingName } from "@/lib/greeting";
 import { GST_RATE, PLANS, rupees, yearlyPrice } from "@/lib/plans";
+import { Wordmark } from "@/components/brand/Logo";
 
 // The sample plan shown on the payment screen: Pro, paid yearly.
 const SAMPLE_PLAN = PLANS[0];
@@ -161,7 +162,7 @@ export function ScreensPreview() {
           <div key={`${moment.id}-${play}`} className="landing pointer-events-none flex flex-col" inert>
             <header className="mx-auto flex w-full max-w-[76rem] items-center justify-between px-5 py-5 sm:px-8">
               <span className="text-[1.35rem] font-bold tracking-[-0.04em]">
-                Rad<span className="text-teal">matic</span>
+                <Wordmark className="h-7 w-auto" />
               </span>
             </header>
             {moment.render(greetingName(name))}

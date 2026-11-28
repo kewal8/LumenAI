@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+<defs><clipPath id="slices"><rect x="0" y="36" width="256" height="34"/><rect x="0" y="86" width="256" height="34"/><rect x="0" y="136" width="256" height="34"/><rect x="0" y="186" width="256" height="34"/></clipPath></defs>
+<path fill="#111" fill-rule="evenodd" clip-path="url(#slices)" d="M52 36 H136 A54 54 0 0 1 152 141.6 L210 220 H164 L112 144 H92 V220 H52 Z M92 72 V108 H134 A18 18 0 0 0 134 72 Z"/>
+</svg>

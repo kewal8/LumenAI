@@ -1,6 +1,7 @@
 import { CaretRight, Heart } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { ThemeToggle } from "./ThemeToggle";
+import { Wordmark } from "@/components/brand/Logo";
 
 export const DEMO_URL = "/book-a-demo";
 
@@ -65,7 +66,7 @@ export function SiteHeader() {
         className="flex items-center justify-between gap-4 rounded-full bg-surface py-2 pl-6 pr-2 shadow-[0_8px_30px_-12px_rgb(8_48_45/0.28),0_1px_3px_rgb(8_48_45/0.1)]"
       >
         <Link href="/" className="text-[1.35rem] font-bold tracking-[-0.04em]">
-          Rad<span className="text-teal">matic</span>
+          <Wordmark className="h-7 w-auto" />
         </Link>
         <div className="hidden items-center gap-7 text-[0.98rem] md:flex">
           {NAV_LINKS.map((link) => (
@@ -113,7 +114,7 @@ export function SiteFooter() {
       <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="text-[clamp(2.5rem,6vw,4rem)] font-bold leading-none tracking-[-0.05em]">
-            Rad<span className="text-teal">matic</span>
+            <Wordmark className="h-[clamp(2.75rem,6.5vw,4.5rem)] w-auto" />
           </p>
           <p className="mt-3 text-ink-soft">Report writing for radiologists.</p>
         </div>

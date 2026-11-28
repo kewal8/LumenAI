@@ -1,6 +1,7 @@
 import { Check } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/landing/ThemeToggle";
+import { Wordmark } from "@/components/brand/Logo";
 
 const REASONS = [
   "Speak only the abnormal findings",
@@ -24,7 +25,7 @@ export function AuthShell({
     <div className="landing flex min-h-[100dvh] flex-1 flex-col">
       <header className="mx-auto flex w-full max-w-[76rem] items-center justify-between px-5 py-5 sm:px-8">
         <Link href="/" className="text-[1.35rem] font-bold tracking-[-0.04em]">
-          Rad<span className="text-teal">matic</span>
+          <Wordmark className="h-7 w-auto" />
         </Link>
         <ThemeToggle />
       </header>

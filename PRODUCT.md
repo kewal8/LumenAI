@@ -38,7 +38,7 @@ Constraints: no real patient data until data agreements with the speech and AI p
 
 ## Brand Commitments
 
-Name: Radmatic. Accent colour chosen by the owner: teal. No logo yet.
+Name: Radmatic. Accent colour chosen by the owner: teal. Logo: lowercase "radmatic" wordmark on the golden ratio, the i-dot in teal (the one finding); symbol is the r and its dot. Files and rules in brand/logo/final.
 
 Landing page direction pinned by the owner (2026-11-14), replacing an earlier concept: page structure after highseat.com (hero with a product screenshot, then one section per selling point, each with a screenshot); visual style after humanto.io recoloured teal (soft grey gridded canvas, floating white pill navigation, pill buttons with a round arrow chip, large rounded white cards, coloured glow); story arc after 101gen.ai/mips; topics after somatiq.ai. Style and structure only: no copied text, logos, images or claims. Screenshots are placeholders until the product is ready.
 
